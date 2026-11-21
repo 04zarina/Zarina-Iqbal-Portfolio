@@ -68,7 +68,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   if (topMatches.length === 0) {
     return res.status(200).json({
-      answer: "Mew! I don't have that info about Alex in my notes. You can write directly to Alex using the mailbox in the bedroom!",
+      answer: "Mew! I don't have that info about Zarina in my notes. You can email zarinaiqbal04@gmail.com or drop a letter in the mailbox on the Dev Realm island!",
       sources: [{ id: 'mailbox', title: 'Mailbox', targetId: 'mailbox' }],
       grounded: false
     });
@@ -83,7 +83,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Grounded concise synthesis
   const contextText = topMatches.map((m: any) => m.chunk.text).join(' ');
-  const answer = `Based on Alex's portfolio records: ${contextText.slice(0, 300)}... You can inspect the related items in the studio!`;
+  const answer = `Based on Zarina's portfolio records: ${contextText.slice(0, 300)}... You can inspect the related items in the studio!`;
 
   return res.status(200).json({
     answer,

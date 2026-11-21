@@ -16,7 +16,7 @@ describe('Contact Form Validation & Spam Traps', () => {
       name: 'Robin',
       email: 'robin@example.com',
       subject: 'Collaboration opportunity',
-      message: 'Hello Alex, I loved your 3D game portfolio and would love to chat!',
+      message: 'Hello Zarina, I loved your 3D game portfolio and would love to chat!',
       website: '',
       ts: Date.now() - 5000
     };

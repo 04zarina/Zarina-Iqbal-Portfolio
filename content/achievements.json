@@ -1,30 +1,65 @@
 [
   {
-    "id": "ach-01",
-    "title": "Best Visual Design Award",
-    "date": "Global Game Jam 2024",
-    "summary": "Awarded 1st place in Visual Art & Aesthetics for Retro Drift 1999 among 140+ regional submissions.",
+    "id": "ach-ggj",
+    "title": "Global Game Jam 2026",
+    "date": "48-hour jam",
+    "summary": "Built The Mask That Holds with a team of 6 around the theme Mask, as project manager and level, narrative and environment designer.",
     "icon": "trophy"
   },
   {
-    "id": "ach-02",
-    "title": "Academic Excellence Scholarship",
-    "date": "2023 - 2024",
-    "summary": "Awarded full merit tuition scholarship for top 2% GPA in the Department of Computer Science.",
-    "icon": "star"
+    "id": "ach-gamecon",
+    "title": "GameCon Host (both editions)",
+    "date": "GameVerse, NED University",
+    "summary": "Hosted the flagship event of the GameVerse society in front of a live audience at both editions held so far.",
+    "icon": "mic"
   },
   {
-    "id": "ach-03",
-    "title": "Indie Showcase Finalist",
-    "date": "BitSummit Student Expo 2024",
-    "summary": "Sprout Kingdom selected as one of 10 student indie titles displayed in the main exhibition hall.",
+    "id": "ach-gamecon25",
+    "title": "NED GameCon'25 Entry",
+    "date": "2025",
+    "summary": "Level designer on Echoes of the Fallen, a Unity 2D dungeon crawler.",
     "icon": "medal"
   },
   {
-    "id": "ach-04",
-    "title": "Open Source Contributor Milestone",
-    "date": "2023",
-    "summary": "Merged 15+ pull requests improving glTF loader helpers and TypeScript typings in community 3D tooling.",
-    "icon": "code"
+    "id": "ach-sentec",
+    "title": "SENTEC Organizing Team",
+    "date": "MPERC'24",
+    "summary": "Member for one year and part of the organizing team for its biggest event, MPERC'24.",
+    "icon": "star"
+  },
+  {
+    "id": "cert-kda",
+    "title": "KDA Internship (4 weeks)",
+    "date": "Feb to Mar 2026",
+    "summary": "Karachi Development Authority, IT Department.",
+    "icon": "certificate"
+  },
+  {
+    "id": "cert-cega-unreal",
+    "title": "CEGA Unreal Course",
+    "date": "Certificate of Completion",
+    "summary": "Certificate of Completion, CEGA Training Program.",
+    "icon": "certificate"
+  },
+  {
+    "id": "cert-cega-preprod",
+    "title": "CEGA Pre-Production Course",
+    "date": "CEGA",
+    "summary": "Centre of Excellence for Gaming and Animation.",
+    "icon": "certificate"
+  },
+  {
+    "id": "cert-cega-postprod",
+    "title": "CEGA Post-Production Course",
+    "date": "CEGA",
+    "summary": "Centre of Excellence for Gaming and Animation.",
+    "icon": "certificate"
+  },
+  {
+    "id": "cert-google-ai",
+    "title": "Google AI Essentials",
+    "date": "Google, via Coursera",
+    "summary": "Google AI Essentials (6 modules).",
+    "icon": "certificate"
   }
 ]

@@ -5,6 +5,7 @@ import { eventBus } from '../../core/events';
 import { store } from '../../core/store';
 import { sparkleSystem } from '../fx/sparkles';
 import { assetLoader } from '../../core/loaders';
+import { DECOR, placeDecor } from '../decor';
 
 export class DevRealmRoom {
   public group: THREE.Group = new THREE.Group();
@@ -72,12 +73,16 @@ export class DevRealmRoom {
     const portalGroup = new THREE.Group();
     portalGroup.position.set(0, 0, 3.6);
 
-    const wardrobeFrame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 0.4), woodMat);
-    wardrobeFrame.position.y = 1.4;
-    const portalGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.4), new THREE.MeshBasicMaterial({ color: 0xFFB3C7, transparent: true, opacity: 0.9 }));
-    portalGlow.position.set(0, 1.4, -0.21);
-    portalGroup.add(wardrobeFrame, portalGlow);
+    // Same wardrobe model as the bedroom, doors facing the island (-Z), with a soft pink glow
+    const portalGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 2.1),
+      new THREE.MeshBasicMaterial({ color: 0xFFB3C7, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })
+    );
+    portalGlow.rotation.y = Math.PI;
+    portalGlow.position.set(0, 1.3, -0.42);
+    portalGroup.add(portalGlow);
     this.group.add(portalGroup);
+    placeDecor(portalGroup, [{ url: DECOR.wardrobe, position: [0, 0, 0.35], rotY: Math.PI, scale: 1.6 }]);
     collisionSystem.addBox(-1.0, 1.0, 3.2, 4.0);
 
     // 6. Sky Mailbox collision (Right outside the house in Dev Realm!)
@@ -91,7 +96,8 @@ export class DevRealmRoom {
     const mailboxGltf = await assetLoader.loadGLTF('mailbox');
     if (mailboxGltf) {
       mailboxGltf.position.set(1.8, 0, 1.9);
-      mailboxGltf.rotation.y = -Math.PI / 4;
+      // The model's door faces +Z; turn it toward the arrival point and camera (-Z side)
+      mailboxGltf.rotation.y = -2.6;
       mailboxGltf.scale.set(1.1, 1.1, 1.1);
       this.group.add(mailboxGltf);
     } else {

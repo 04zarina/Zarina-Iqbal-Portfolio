@@ -53,6 +53,9 @@ export class Avatar {
     if (gltf) {
       // Auto-scale: measure raw height then scale to target
       gltf.scale.set(1, 1, 1);
+      // The avatar GLB faces +X, but the controller treats +Z as forward.
+      // Turn it so she faces the direction she walks.
+      gltf.rotation.y = -Math.PI / 2;
       gltf.updateMatrixWorld(true);
 
       const box = new THREE.Box3().setFromObject(gltf);
@@ -190,13 +193,13 @@ export class Avatar {
     this.isMoving = false;
     this.position.copy(bedPos);
     this.position.y = 0.52; // Bed mattress height
-    this.rotationY = Math.PI / 2;
+    this.rotationY = 0; // Lie along the bed with the head on the pillow (-Z)
 
     // Lie down nestled on bed
     this.rootNode.rotation.x = -Math.PI / 2;
     this.rootNode.rotation.y = 0;
     this.rootNode.rotation.z = 0;
-    this.rootNode.position.set(0, 0.1, 0);
+    this.rootNode.position.set(0, 0.22, 0);
     this.shadow.visible = false;
   }
 
@@ -207,12 +210,12 @@ export class Avatar {
     this.isMoving = false;
     this.position.copy(bedPos);
     this.position.y = 0.52;
-    this.rotationY = Math.PI / 2;
+    this.rotationY = 0;
 
     this.rootNode.rotation.x = -Math.PI / 2;
     this.rootNode.rotation.y = 0;
     this.rootNode.rotation.z = 0;
-    this.rootNode.position.set(0, 0.1, 0);
+    this.rootNode.position.set(0, 0.22, 0);
     this.shadow.visible = false;
     if (onComplete) onComplete();
   }
@@ -272,7 +275,7 @@ export class Avatar {
         // Phase 1: Slowly sit up in bed
         const sitProgress = p / 0.35;
         this.rootNode.rotation.x = THREE.MathUtils.lerp(-Math.PI / 2, 0, sitProgress);
-        this.rootNode.position.y = 0.1;
+        this.rootNode.position.y = 0.22;
       } else if (p < 0.65) {
         // Phase 2: Yawn and stretch!
         const yawnP = (p - 0.35) / 0.3;
@@ -283,6 +286,8 @@ export class Avatar {
         // Phase 3: Step out of bed onto the floor rug
         const stepP = (p - 0.65) / 0.35;
         this.position.lerpVectors(this.bedOrigin, this.wakeUpTarget, stepP);
+        // Turn to face the back wall (mirror, desk and TV) while stepping out
+        this.rotationY = THREE.MathUtils.lerp(0, Math.PI, stepP);
         this.position.y = THREE.MathUtils.lerp(0.52, 0, stepP);
         this.rootNode.scale.set(1, 1, 1);
         this.rootNode.rotation.set(0, 0, 0);
@@ -293,6 +298,7 @@ export class Avatar {
         this.isWakingUp = false;
         this.isSleeping = false;
         this.position.copy(this.wakeUpTarget);
+        this.rotationY = Math.PI;
         this.rootNode.rotation.set(0, 0, 0);
         this.rootNode.scale.set(1, 1, 1);
         this.shadow.visible = true;

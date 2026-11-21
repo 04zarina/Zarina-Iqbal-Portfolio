@@ -84,7 +84,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         },
         body: JSON.stringify({
           from: process.env.CONTACT_FROM_EMAIL || 'Portfolio <onboarding@resend.dev>',
-          to: process.env.CONTACT_TO_EMAIL || 'alex.morgan.portfolio@example.com',
+          to: process.env.CONTACT_TO_EMAIL || 'zarinaiqbal04@gmail.com',
           reply_to: email,
           subject: `[Portfolio Letter] ${subject}`,
           text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
@@ -97,6 +97,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   return res.status(200).json({
     ok: true,
-    message: 'Letter successfully delivered to Alex!'
+    message: 'Letter successfully delivered to Zarina!'
   });
 }

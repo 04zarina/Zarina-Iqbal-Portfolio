@@ -2,6 +2,8 @@ import { store } from '../core/store';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import projectsData from '../../content/projects.json';
+import { youtubeId } from '../content/profile';
+import type { Project } from '../content/types';
 
 export class ProjectCardOverlay {
   private element: HTMLElement;
@@ -52,40 +54,60 @@ export class ProjectCardOverlay {
   }
 
   private render(): void {
-    const project = projectsData[this.currentProjectIndex];
+    const project = projectsData[this.currentProjectIndex] as Project;
+    const images = project.images ?? [];
+    const videoId = youtubeId(project.video?.src);
+    const team = project.teamSize === 1 ? 'Solo' : `Team of ${project.teamSize}`;
 
     const rolesHtml = project.roles.map((r) => `<span class="chip" style="background:var(--mint);">${r}</span>`).join('');
     const toolsHtml = project.tools.map((t) => `<span class="chip">${t}</span>`).join('');
     const contribsHtml = project.contributions.map((c) => `<li>${c}</li>`).join('');
+    const thumbsHtml = images.length > 1
+      ? `<div class="project-thumb-row">${images.map((img, i) => `
+          <img class="project-thumb ${i === 0 ? 'active' : ''}" data-idx="${i}" src="${img.src}" alt="${img.alt}" loading="lazy" />`).join('')}</div>`
+      : '';
+
+    const links = project.links ?? {};
+    const linkBtn = (href: string | undefined, label: string, accent: string) =>
+      href ? `<a href="${href}" target="_blank" rel="noreferrer" class="sticker-btn ${accent}" style="flex:1 1 40%; justify-content:center;">${label}</a>` : '';
 
     this.element.innerHTML = `
-      <div class="project-video-wrap">
-        <canvas id="project-trailer-canvas" width="440" height="220"></canvas>
+      <div class="project-video-wrap" id="project-media">
+        ${images[0] ? `<img id="project-main-img" src="${images[0].src}" alt="${images[0].alt}" />` : ''}
+        ${videoId ? `<button class="sticker-btn accent-butter project-play-overlay" id="project-play-btn">▶ Watch video</button>` : ''}
         <button class="modal-close-btn" id="project-close-btn">✕</button>
       </div>
 
       <div class="project-content-scroll">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        ${project.badge ? `<span class="project-badge">🏆 ${project.badge}</span>` : ''}
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <h2 class="modal-title" style="margin-bottom:4px;">${project.title}</h2>
           <span class="chip" style="background:var(--butter); font-weight:800;">${project.year}</span>
         </div>
-        <p style="font-weight:700; color:var(--text-muted); margin-bottom:10px;">${project.tagline}</p>
+        <p style="font-weight:700; color:var(--text-muted); margin-bottom:8px;">${project.tagline}</p>
 
-        <div class="project-chip-row">${rolesHtml}</div>
+        <div class="project-chip-row">
+          <span class="chip" style="background:var(--blush); font-weight:800;">${team}</span>
+          ${rolesHtml}
+        </div>
+        <div class="project-chip-row">${toolsHtml}</div>
+
+        ${thumbsHtml}
 
         <p style="font-size:0.92rem; line-height:1.5; margin-bottom:12px;">${project.description}</p>
 
-        <h4 style="font-family:var(--font-display); margin-bottom:6px; color:var(--ink);">Key Contributions:</h4>
+        <h4 style="font-family:var(--font-display); margin-bottom:6px; color:var(--ink);">My Role & Contributions:</h4>
         <ul style="padding-left:18px; font-size:0.88rem; line-height:1.45; margin-bottom:14px; color:var(--ink);">
           ${contribsHtml}
         </ul>
 
-        <h4 style="font-family:var(--font-display); margin-bottom:6px; color:var(--ink);">Technologies Used:</h4>
-        <div class="project-chip-row">${toolsHtml}</div>
+        ${project.collaborators ? `<p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:12px;"><strong>Collaborators:</strong> ${project.collaborators}</p>` : ''}
 
-        <div style="display:flex; gap:10px; margin-top:16px;">
-          ${project.links?.play ? `<a href="${project.links.play}" target="_blank" rel="noreferrer" class="sticker-btn accent-butter" style="flex:1;">Play Demo 🎮</a>` : ''}
-          ${project.links?.repo ? `<a href="${project.links.repo}" target="_blank" rel="noreferrer" class="sticker-btn accent-sky" style="flex:1;">GitHub Code 💻</a>` : ''}
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
+          ${linkBtn(links.play, 'Play now 🎮', 'accent-butter')}
+          ${linkBtn(links.trailer, 'Trailer 🎬', 'accent-peach')}
+          ${linkBtn(links.video, 'Gameplay video ▶', 'accent-lavender')}
+          ${linkBtn(links.repo, 'GitHub Code 💻', 'accent-sky')}
         </div>
       </div>
 
@@ -100,39 +122,31 @@ export class ProjectCardOverlay {
     this.element.querySelector('#project-prev-btn')?.addEventListener('click', () => this.prevProject());
     this.element.querySelector('#project-next-btn')?.addEventListener('click', () => this.nextProject());
 
-    // Draw cute animated retro trailer preview canvas
-    this.drawTrailerCanvas(project);
-  }
+    // Gallery thumbnails swap the main image
+    const mainImg = this.element.querySelector('#project-main-img') as HTMLImageElement | null;
+    this.element.querySelectorAll<HTMLImageElement>('.project-thumb').forEach((thumb) => {
+      thumb.addEventListener('click', () => {
+        const img = images[Number(thumb.dataset.idx)];
+        if (!img || !mainImg) return;
+        mainImg.src = img.src;
+        mainImg.alt = img.alt;
+        this.element.querySelectorAll('.project-thumb').forEach((t) => t.classList.remove('active'));
+        thumb.classList.add('active');
+      });
+    });
 
-  private drawTrailerCanvas(project: typeof projectsData[0]): void {
-    const canvas = this.element.querySelector('#project-trailer-canvas') as HTMLCanvasElement;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d')!;
-
-    // Draw stylized trailer poster
-    ctx.fillStyle = '#2A1C38';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#FFC9B0';
-    ctx.font = 'bold 28px Fredoka, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(project.title, canvas.width / 2, canvas.height / 2 - 10);
-
-    ctx.fillStyle = '#FFE9A3';
-    ctx.font = '16px Nunito, sans-serif';
-    ctx.fillText('Trailer & Gameplay Reel', canvas.width / 2, canvas.height / 2 + 24);
-
-    // Play button icon
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2 + 65, 18, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#2A1C38';
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2 - 5, canvas.height / 2 + 57);
-    ctx.lineTo(canvas.width / 2 + 8, canvas.height / 2 + 65);
-    ctx.lineTo(canvas.width / 2 - 5, canvas.height / 2 + 73);
-    ctx.fill();
+    // Load the YouTube player only when asked (keeps the card light)
+    this.element.querySelector('#project-play-btn')?.addEventListener('click', () => {
+      const media = this.element.querySelector('#project-media');
+      if (!media || !videoId) return;
+      media.querySelector('#project-main-img')?.remove();
+      media.querySelector('#project-play-btn')?.remove();
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+      iframe.title = `${project.title} video`;
+      iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      iframe.allowFullscreen = true;
+      media.prepend(iframe);
+    });
   }
 }
