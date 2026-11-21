@@ -1,0 +1,40 @@
+[
+  {
+    "id": "exp-01",
+    "title": "Gameplay Engineering Intern",
+    "org": "Moonlit Valley Studios",
+    "start": "June 2024",
+    "end": "Sept 2024",
+    "summary": "Collaborated with senior designers on an unannounced cozy narrative adventure in Unity.",
+    "highlights": [
+      "Refactored character locomotion controller to support tactile environmental interactions and ledges.",
+      "Profiled and mitigated GPU draw-call bottlenecks, improving frame rates on Nintendo Switch builds by 22%.",
+      "Drafted technical design documents for inventory serialization and dialog state graphs."
+    ]
+  },
+  {
+    "id": "exp-02",
+    "title": "Interactive Web 3D Developer (Contract)",
+    "org": "Playful Pixels Creative Agency",
+    "start": "Jan 2023",
+    "end": "April 2024",
+    "summary": "Built bespoke WebGL 3D marketing microsites and interactive product customizers for indie game studios.",
+    "highlights": [
+      "Developed 5 high-performance Three.js microsites with sub-3-second initial load times.",
+      "Integrated post-processing bloom, SSAO, and baked lighting shader transitions for low-end mobile browsers.",
+      "Collaborated remotely with art directors to match strict brand pastel visual guides."
+    ]
+  },
+  {
+    "id": "exp-03",
+    "title": "Undergraduate Graphics Research Assistant",
+    "org": "Interactive Graphics Lab",
+    "start": "Sept 2022",
+    "end": "May 2023",
+    "summary": "Researched real-time stylization filters and non-photorealistic rendering algorithms in WebGPU.",
+    "highlights": [
+      "Co-authored research demo demonstrating watercolor edge detection and paper grain simulation.",
+      "Presented poster at the Regional Computer Graphics Student Symposium."
+    ]
+  }
+]

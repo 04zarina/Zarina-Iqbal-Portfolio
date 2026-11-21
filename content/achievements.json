@@ -1,0 +1,30 @@
+[
+  {
+    "id": "ach-01",
+    "title": "Best Visual Design Award",
+    "date": "Global Game Jam 2024",
+    "summary": "Awarded 1st place in Visual Art & Aesthetics for Retro Drift 1999 among 140+ regional submissions.",
+    "icon": "trophy"
+  },
+  {
+    "id": "ach-02",
+    "title": "Academic Excellence Scholarship",
+    "date": "2023 - 2024",
+    "summary": "Awarded full merit tuition scholarship for top 2% GPA in the Department of Computer Science.",
+    "icon": "star"
+  },
+  {
+    "id": "ach-03",
+    "title": "Indie Showcase Finalist",
+    "date": "BitSummit Student Expo 2024",
+    "summary": "Sprout Kingdom selected as one of 10 student indie titles displayed in the main exhibition hall.",
+    "icon": "medal"
+  },
+  {
+    "id": "ach-04",
+    "title": "Open Source Contributor Milestone",
+    "date": "2023",
+    "summary": "Merged 15+ pull requests improving glTF loader helpers and TypeScript typings in community 3D tooling.",
+    "icon": "code"
+  }
+]

@@ -1,0 +1,83 @@
+[
+  {
+    "id": "skill-unity",
+    "name": "Unity & C#",
+    "category": "Engines",
+    "level": 5,
+    "blurb": "4+ years building 3D gameplay systems, custom character controllers, and shader graph shaders.",
+    "icon": "gamepad",
+    "plantGroup": "engines"
+  },
+  {
+    "id": "skill-unreal",
+    "name": "Unreal Engine 5",
+    "category": "Engines",
+    "level": 4,
+    "blurb": "Gameplay Blueprints, Niagara particle systems, and basic C++ gameplay frameworks.",
+    "icon": "cube",
+    "plantGroup": "engines"
+  },
+  {
+    "id": "skill-godot",
+    "name": "Godot 4",
+    "category": "Engines",
+    "level": 4,
+    "blurb": "Lightweight 2D/3D prototyping, GDScript, and rapid game jam production.",
+    "icon": "robot",
+    "plantGroup": "engines"
+  },
+  {
+    "id": "skill-threejs",
+    "name": "Three.js & WebGL",
+    "category": "Web",
+    "level": 5,
+    "blurb": "Creating optimized 60fps web 3D dioramas, custom shaders, and interactive camera systems.",
+    "icon": "globe",
+    "plantGroup": "web"
+  },
+  {
+    "id": "skill-typescript",
+    "name": "TypeScript & JS",
+    "category": "Languages",
+    "level": 5,
+    "blurb": "Modern type-safe web architecture, event-driven reactive state, and full-stack API integration.",
+    "icon": "code",
+    "plantGroup": "languages"
+  },
+  {
+    "id": "skill-cpp",
+    "name": "C++ & Graphics",
+    "category": "Languages",
+    "level": 4,
+    "blurb": "Core data structures, memory management, and OpenGL rendering pipelines.",
+    "icon": "terminal",
+    "plantGroup": "languages"
+  },
+  {
+    "id": "skill-blender",
+    "name": "Blender 3D",
+    "category": "3D and Animation",
+    "level": 4,
+    "blurb": "Stylized low-poly modeling, UV unwrapping, color palette texture baking, and basic character rigging.",
+    "icon": "palette",
+    "plantGroup": "3d"
+  },
+  {
+    "id": "skill-shaders",
+    "name": "Shaders (GLSL/HLSL)",
+    "category": "3D and Animation",
+    "level": 4,
+    "blurb": "Stylized toons, jelly squash & stretch vertex shaders, water caustics, and pastel color grading.",
+    "icon": "sparkles",
+    "plantGroup": "3d"
+  },
+  {
+    "id": "skill-tools",
+    "name": "Git & CI/CD",
+    "category": "Tools",
+    "level": 4,
+    "blurb": "Git branching, GitHub Actions, asset optimization pipelines, and automated builds.",
+    "icon": "settings",
+    "plantGroup": "tools"
+  }
+]

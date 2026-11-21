@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alex Morgan — Portfolio (Classic 2D View)</title>
+  <link rel="stylesheet" href="../src/ui/styles/tokens.css" />
+  <link rel="stylesheet" href="../src/ui/styles/base.css" />
+  <link rel="stylesheet" href="../src/ui/styles/components.css" />
+  <style>
+    body {
+      overflow-y: auto !important;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      padding: 0;
+      background: var(--bg-color);
+    }
+    .classic-container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    .hero-card {
+      background: var(--cream);
+      border: 3px solid var(--cocoa);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .section-card {
+      background: var(--surface-color);
+      border: 2.5px solid var(--cocoa);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-soft);
+    }
+    .project-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 16px;
+    }
+    .project-item {
+      background: var(--cream);
+      border: 2px solid var(--cocoa);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      box-shadow: var(--shadow-sticker);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+  <div class="classic-container">
+    <!-- Top Nav -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+      <a href="/" class="sticker-btn accent-butter">◀ Enter 3D Interactive World</a>
+      <button id="classic-theme-btn" class="sticker-btn">🌙 Dusk Mode</button>
+    </div>
+
+    <!-- Hero Card -->
+    <div class="hero-card">
+      <div style="width:96px; height:96px; border-radius:50%; background:var(--blush); border:3px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:3rem;">
+        🐾
+      </div>
+      <div style="flex:1;">
+        <h1 style="font-family:var(--font-display); font-size:2.2rem; color:var(--ink); margin-bottom:4px;">Alex Morgan</h1>
+        <p style="font-size:1.1rem; font-weight:700; color:var(--text-muted); margin-bottom:12px;">
+          Game Developer & Interactive 3D Technologist
+        </p>
+        <p style="font-size:0.95rem; line-height:1.5;">
+          Crafting playful digital worlds, cozy mechanics, and real-time interactive 3D experiences.
+        </p>
+      </div>
+    </div>
+
+    <!-- About Me -->
+    <section class="section-card">
+      <h2 style="font-family:var(--font-display); margin-bottom:12px;">About Me</h2>
+      <p style="line-height:1.6; margin-bottom:12px;">
+        Hi there! I am Alex Morgan, a game programmer, technical artist, and web 3D developer. I blend procedural generation, tactile physics, and cozy aesthetics to build games and web toys that bring smiles.
+      </p>
+      <p style="line-height:1.6;">
+        Specialized in Unity (C#), Three.js, WebGL, Godot 4, C++, and Blender 3D character modeling and rigging.
+      </p>
+    </section>
+
+    <!-- Projects Section with Filter & Search -->
+    <section class="section-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <h2 style="font-family:var(--font-display); margin:0;">Projects & Games</h2>
+        <input type="text" id="project-search" placeholder="Search projects by title or tag..." 
+          style="padding:8px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa); font-family:var(--font-body); width:260px;" />
+      </div>
+
+      <div class="project-grid" id="classic-project-list"></div>
+    </section>
+
+    <!-- Skills Section -->
+    <section class="section-card">
+      <h2 style="font-family:var(--font-display); margin-bottom:14px;">Skills & Technologies</h2>
+      <div id="classic-skills-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </section>
+
+    <!-- Education & Experience -->
+    <section class="section-card">
+      <h2 style="font-family:var(--font-display); margin-bottom:14px;">Education & Experience</h2>
+      <div id="classic-timeline-list"></div>
+    </section>
+
+    <!-- Contact Form -->
+    <section class="section-card">
+      <h2 style="font-family:var(--font-display); margin-bottom:12px;">Send a Message</h2>
+      <form id="classic-contact-form" style="display:flex; flex-direction:column; gap:12px; max-width:540px;">
+        <input type="text" name="name" required placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="email" name="email" required placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="text" name="subject" required placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <textarea name="message" required rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
+        <button type="submit" class="sticker-btn accent-butter" style="align-self:flex-start;">Submit Message ✉️</button>
+      </form>
+    </section>
+  </div>
+
+  <script type="module" src="/src/classic/classic.ts"></script>
+</body>
+</html>

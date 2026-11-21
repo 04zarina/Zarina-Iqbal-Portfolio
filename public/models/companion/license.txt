@@ -1,0 +1,11 @@
+Model Information:
+* title:	Hanini red panda
+* source:	https://sketchfab.com/3d-models/hanini-red-panda-a3d612208f0a4da9ba2aa80b7c5a913b
+* author:	Amonii0 (https://sketchfab.com/Amonii0)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Hanini red panda" (https://sketchfab.com/3d-models/hanini-red-panda-a3d612208f0a4da9ba2aa80b7c5a913b) by Amonii0 (https://sketchfab.com/Amonii0) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

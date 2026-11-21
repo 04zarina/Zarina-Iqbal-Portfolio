@@ -1,0 +1,211 @@
+import * as THREE from 'three';
+import { collisionSystem } from '../collision';
+import { interactionSystem } from '../interaction';
+import { eventBus } from '../../core/events';
+import { store } from '../../core/store';
+import { sparkleSystem } from '../fx/sparkles';
+import { assetLoader } from '../../core/loaders';
+
+export class DevRealmRoom {
+  public group: THREE.Group = new THREE.Group();
+  public spawnPoint = new THREE.Vector3(0, 0, 1.8);
+  private clouds: THREE.Group[] = [];
+  private floatingStars: THREE.Mesh[] = [];
+
+  constructor() {
+    this.buildRealm();
+    this.loadGLBModels();
+    this.setupInteractions();
+  }
+
+  private buildRealm(): void {
+    // Island radius ~ 5.5m
+    collisionSystem.setBounds(-5.2, 5.2, -5.2, 5.2);
+
+    const grassMat = new THREE.MeshLambertMaterial({ color: 0xBDEBD3 }); // Mint pastel grass
+    const earthMat = new THREE.MeshLambertMaterial({ color: 0xD8B294 }); // Cake-like earth layer
+    const darkEarthMat = new THREE.MeshLambertMaterial({ color: 0x8A5A4A });
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0xBA9378 });
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xFFE9A3 });
+
+    // 1. Floating Island (Layered cake diorama)
+    // Top Grass Disc
+    const islandGeo = new THREE.CylinderGeometry(5.8, 5.4, 0.4, 32);
+    const islandTop = new THREE.Mesh(islandGeo, grassMat);
+    islandTop.position.y = -0.2;
+    this.group.add(islandTop);
+
+    // Earth Layer 1
+    const earth1 = new THREE.Mesh(new THREE.CylinderGeometry(5.4, 4.4, 0.8, 32), earthMat);
+    earth1.position.y = -0.8;
+    // Earth Layer 2 (Tapering bottom)
+    const earth2 = new THREE.Mesh(new THREE.ConeGeometry(4.4, 3.2, 32), darkEarthMat);
+    earth2.rotation.x = Math.PI;
+    earth2.position.y = -2.8;
+    this.group.add(earth1, earth2);
+
+    // 2. Wavy Layered Trees
+    const tree1 = this.createLayeredTree(0x76B885);
+    tree1.position.set(-3.2, 0, -2.4);
+    const tree2 = this.createLayeredTree(0x82C29B);
+    tree2.position.set(-2.2, 0, -3.4);
+    const tree3 = this.createLayeredTree(0x76B885);
+    tree3.position.set(3.4, 0, -2.0);
+    this.group.add(tree1, tree2, tree3);
+    collisionSystem.addBox(-3.8, -1.6, -3.9, -1.8);
+    collisionSystem.addBox(2.8, 4.0, -2.6, -1.4);
+
+    // 3. Soft Background Mountains
+    const mountain1 = new THREE.Mesh(new THREE.ConeGeometry(2.4, 3.2, 6), new THREE.MeshLambertMaterial({ color: 0x8EA7E9 }));
+    mountain1.position.set(0, 1.2, -4.5);
+    const cap1 = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.3, 6), new THREE.MeshLambertMaterial({ color: 0xFFF6EC }));
+    cap1.position.set(0, 2.2, -4.5);
+    this.group.add(mountain1, cap1);
+    collisionSystem.addBox(-1.8, 1.8, -5.5, -3.5);
+
+    // 4. Wooden Footbridge
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 3.0), woodMat);
+    bridge.position.set(0, 0.06, 0);
+    this.group.add(bridge);
+
+    // 5. Return Wardrobe Portal
+    const portalGroup = new THREE.Group();
+    portalGroup.position.set(0, 0, 3.6);
+
+    const wardrobeFrame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 0.4), woodMat);
+    wardrobeFrame.position.y = 1.4;
+    const portalGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.4), new THREE.MeshBasicMaterial({ color: 0xFFB3C7, transparent: true, opacity: 0.9 }));
+    portalGlow.position.set(0, 1.4, -0.21);
+    portalGroup.add(wardrobeFrame, portalGlow);
+    this.group.add(portalGroup);
+    collisionSystem.addBox(-1.0, 1.0, 3.2, 4.0);
+
+    // 6. Sky Mailbox collision (Right outside the house in Dev Realm!)
+    collisionSystem.addBox(1.3, 2.3, 1.4, 2.4);
+
+    // 7. Floating Clouds and Stars around the island
+    this.createFloatingSkyElements();
+  }
+
+  private async loadGLBModels(): Promise<void> {
+    const mailboxGltf = await assetLoader.loadGLTF('mailbox');
+    if (mailboxGltf) {
+      mailboxGltf.position.set(1.8, 0, 1.9);
+      mailboxGltf.rotation.y = -Math.PI / 4;
+      mailboxGltf.scale.set(1.1, 1.1, 1.1);
+      this.group.add(mailboxGltf);
+    } else {
+      // Fallback mailbox
+      const mailboxGroup = new THREE.Group();
+      mailboxGroup.position.set(1.8, 0, 1.9);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9), new THREE.MeshLambertMaterial({ color: 0xBA9378 }));
+      post.position.y = 0.45;
+      const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.6), new THREE.MeshLambertMaterial({ color: 0xFFB3C7 }));
+      boxMesh.position.y = 0.95;
+      const flag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.08), new THREE.MeshLambertMaterial({ color: 0xFFE9A3 }));
+      flag.position.set(0.24, 1.05, 0.15);
+      mailboxGroup.add(post, boxMesh, flag);
+      this.group.add(mailboxGroup);
+    }
+  }
+
+  private createLayeredTree(foliageColor: number): THREE.Group {
+    const tree = new THREE.Group();
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8A5A4A });
+    const leafMat = new THREE.MeshLambertMaterial({ color: foliageColor });
+
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 1.0, 12), trunkMat);
+    trunk.position.y = 0.5;
+    tree.add(trunk);
+
+    // 3 tiered pancake/cone foliage
+    for (let i = 0; i < 3; i++) {
+      const tier = new THREE.Mesh(new THREE.ConeGeometry(1.2 - i * 0.25, 0.7, 12), leafMat);
+      tier.position.y = 1.0 + i * 0.45;
+      tree.add(tier);
+    }
+    return tree;
+  }
+
+  private createFloatingSkyElements(): void {
+    const cloudMat = new THREE.MeshLambertMaterial({ color: 0xFFFDF8, transparent: true, opacity: 0.85 });
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xFFE9A3 });
+
+    for (let i = 0; i < 6; i++) {
+      const cloud = new THREE.Group();
+      const angle = (i / 6) * Math.PI * 2;
+      const dist = 7.5 + Math.random() * 2;
+      cloud.position.set(Math.cos(angle) * dist, -0.5 + Math.random() * 1.5, Math.sin(angle) * dist);
+
+      // Cloud lumps
+      for (let j = 0; j < 4; j++) {
+        const lump = new THREE.Mesh(new THREE.SphereGeometry(0.8 + Math.random() * 0.4, 12, 12), cloudMat);
+        lump.position.set((j - 1.5) * 0.7, 0, (Math.random() - 0.5) * 0.4);
+        cloud.add(lump);
+      }
+      this.group.add(cloud);
+      this.clouds.push(cloud);
+    }
+
+    // Floating stars
+    for (let i = 0; i < 10; i++) {
+      const star = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), starMat);
+      star.position.set(
+        (Math.random() - 0.5) * 10,
+        1.0 + Math.random() * 3.0,
+        (Math.random() - 0.5) * 10
+      );
+      this.group.add(star);
+      this.floatingStars.push(star);
+    }
+  }
+
+  private setupInteractions(): void {
+    // 1. Mailbox in Dev Realm!
+    interactionSystem.register({
+      id: 'mailbox',
+      label: 'Write a Letter (Contact) 📬',
+      keyHint: 'E',
+      radius: 2.0,
+      position: new THREE.Vector3(1.8, 0.8, 1.9),
+      onInteract: () => {
+        store.set('activeOverlay', 'contact');
+        eventBus.emit('overlay:open', 'contact');
+      }
+    });
+
+    // 2. Return Portal to Bedroom
+    interactionSystem.register({
+      id: 'wardrobe_return',
+      label: 'Return to Bedroom 🚪',
+      keyHint: 'E',
+      radius: 2.0,
+      position: new THREE.Vector3(0, 1.0, 2.8),
+      onInteract: () => {
+        sparkleSystem.burst(new THREE.Vector3(0, 1.5, 2.8), 24);
+        eventBus.emit('room:switch', 'bedroom');
+      }
+    });
+  }
+
+  update(delta: number): void {
+    const t = performance.now() * 0.001;
+
+    // Orbit clouds gently
+    this.clouds.forEach((cloud, i) => {
+      cloud.position.y += Math.sin(t * 0.8 + i) * 0.002;
+    });
+
+    // Bobbing stars
+    this.floatingStars.forEach((star, i) => {
+      star.position.y += Math.sin(t * 2.0 + i) * 0.004;
+    });
+  }
+
+  dispose(): void {
+    interactionSystem.clear();
+    this.clouds = [];
+    this.floatingStars = [];
+    this.group.clear();
+  }
+}

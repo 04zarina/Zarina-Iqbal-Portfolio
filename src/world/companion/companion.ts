@@ -1,0 +1,269 @@
+import * as THREE from 'three';
+import { assetLoader } from '../../core/loaders';
+import { createBlobShadow } from '../fx/blobShadow';
+import { interactionSystem } from '../interaction';
+import { collisionSystem } from '../collision';
+import { eventBus } from '../../core/events';
+import { store } from '../../core/store';
+import { audioManager } from '../../audio/audioManager';
+import { sparkleSystem } from '../fx/sparkles';
+
+export class Companion {
+  public group: THREE.Group = new THREE.Group();
+  public position: THREE.Vector3 = new THREE.Vector3(1.0, 0, 1.0);
+  public rotationY: number = 0;
+
+  private modelNode: THREE.Group = new THREE.Group();
+  private shadow: THREE.Mesh;
+  private animTimer = 0;
+  private isFollowing = false;
+  public isPerched = false;
+  private perchedPos = new THREE.Vector3();
+
+  constructor() {
+    this.shadow = createBlobShadow(0.22);
+    this.group.add(this.shadow);
+    this.group.add(this.modelNode);
+
+    this.initModel();
+    this.initInteraction();
+    this.initEvents();
+  }
+
+  private async initModel(): Promise<void> {
+    const gltfModel = await assetLoader.loadGLTF('companion');
+    if (gltfModel) {
+      gltfModel.scale.set(1, 1, 1);
+      gltfModel.updateMatrixWorld(true);
+
+      const box = new THREE.Box3().setFromObject(gltfModel);
+      const size = box.getSize(new THREE.Vector3());
+      const rawHeight = size.y > 0 ? size.y : 2.0;
+
+      // Cute small pet height: 0.38m (Avatar is ~1.22m)
+      const targetHeight = 0.38;
+      const scale = targetHeight / rawHeight;
+      gltfModel.scale.set(scale, scale, scale);
+      gltfModel.updateMatrixWorld(true);
+
+      const finalBox = new THREE.Box3().setFromObject(gltfModel);
+      gltfModel.position.y = -finalBox.min.y;
+
+      this.modelNode.add(gltfModel);
+      console.log('🐾 Loaded 3D companion model (Hanini Red Panda) with height: 0.38m');
+    } else {
+      this.buildProceduralCat();
+      console.log('🐾 Using procedural marshmallow companion cat');
+    }
+  }
+
+  private buildProceduralCat(): void {
+    this.modelNode.scale.set(0.65, 0.65, 0.65);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: 0xFFFDF8 });
+    const earMat = new THREE.MeshLambertMaterial({ color: 0xFFB3C7 });
+    const cheekMat = new THREE.MeshLambertMaterial({ color: 0xFFB3C7 });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x5A3A32 });
+    const noseMat = new THREE.MeshBasicMaterial({ color: 0x8A5A4A });
+
+    const bodyGeo = new THREE.SphereGeometry(0.28, 16, 16);
+    bodyGeo.scale(1, 0.9, 1.15);
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    bodyMesh.position.y = 0.28;
+    this.modelNode.add(bodyMesh);
+
+    const earGeo = new THREE.ConeGeometry(0.08, 0.14, 8);
+    const leftEar = new THREE.Mesh(earGeo, bodyMat);
+    leftEar.position.set(0.14, 0.52, 0.08);
+    leftEar.rotation.set(-0.1, 0, -0.2);
+
+    const leftInnerEar = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 8), earMat);
+    leftInnerEar.position.set(0.14, 0.52, 0.11);
+    leftInnerEar.rotation.set(-0.1, 0, -0.2);
+
+    const rightEar = new THREE.Mesh(earGeo, bodyMat);
+    rightEar.position.set(-0.14, 0.52, 0.08);
+    rightEar.rotation.set(-0.1, 0, 0.2);
+
+    const rightInnerEar = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 8), earMat);
+    rightInnerEar.position.set(-0.14, 0.52, 0.11);
+    rightInnerEar.rotation.set(-0.1, 0, 0.2);
+
+    this.modelNode.add(leftEar, leftInnerEar, rightEar, rightInnerEar);
+
+    const eyeGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(0.09, 0.32, 0.27);
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(-0.09, 0.32, 0.27);
+
+    const cheekGeo = new THREE.SphereGeometry(0.04, 8, 8);
+    cheekGeo.scale(1.2, 0.7, 0.4);
+    const leftCheek = new THREE.Mesh(cheekGeo, cheekMat);
+    leftCheek.position.set(0.13, 0.27, 0.26);
+    const rightCheek = new THREE.Mesh(cheekGeo, cheekMat);
+    rightCheek.position.set(-0.13, 0.27, 0.26);
+
+    const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), noseMat);
+    noseMesh.position.set(0, 0.28, 0.29);
+
+    const tailGeo = new THREE.CylinderGeometry(0.04, 0.02, 0.2, 8);
+    const tailMesh = new THREE.Mesh(tailGeo, bodyMat);
+    tailMesh.position.set(0, 0.22, -0.28);
+    tailMesh.rotation.x = -0.8;
+
+    this.modelNode.add(leftEye, rightEye, leftCheek, rightCheek, noseMesh, tailMesh);
+  }
+
+  private initInteraction(): void {
+    interactionSystem.register({
+      id: 'companion',
+      label: 'Chat with Mochi 🐾',
+      keyHint: 'E',
+      radius: 2.0,
+      position: this.position,
+      mesh: this.modelNode,
+      onInteract: () => {
+        store.set('activeOverlay', 'chat');
+        eventBus.emit('overlay:open', 'chat');
+      }
+    });
+  }
+
+  private initEvents(): void {
+    // Summon Mochi button
+    eventBus.on('companion:summon', (data?: { avatarPos?: THREE.Vector3; avatarRotY?: number }) => {
+      this.summonToAvatar(data?.avatarPos, data?.avatarRotY);
+    });
+
+    eventBus.on('room:entered', (roomId: string) => {
+      if (roomId === 'study') {
+        // In the study nook, let Mochi sit on the study desk table!
+        this.sitOnTable(new THREE.Vector3(0.45, 0.76, 1.8), Math.PI * 0.95);
+      } else {
+        this.isPerched = false;
+        this.shadow.visible = true;
+      }
+    });
+  }
+
+  sitOnTable(tablePos: THREE.Vector3, rotY: number = Math.PI): void {
+    this.isPerched = true;
+    this.perchedPos.copy(tablePos);
+    this.position.copy(tablePos);
+    this.rotationY = rotY;
+    this.shadow.visible = false;
+    this.group.position.copy(this.position);
+    this.group.rotation.y = this.rotationY;
+    this.updateInteractAnchor();
+  }
+
+  summonToAvatar(avatarPos?: THREE.Vector3, avatarRotY?: number): void {
+    this.isPerched = false;
+    this.shadow.visible = true;
+
+    if (avatarPos) {
+      const rot = avatarRotY || 0;
+      // Spawn safely in front of the avatar inside room bounds
+      const spawnOffset = new THREE.Vector3(
+        Math.sin(rot) * 0.9,
+        0,
+        Math.cos(rot) * 0.9
+      );
+      const rawPos = avatarPos.clone().add(spawnOffset);
+      this.position.copy(collisionSystem.resolve(rawPos, 0.35));
+      this.rotationY = rot + Math.PI; // Face the player
+    }
+
+    this.group.position.copy(this.position);
+    this.group.rotation.y = this.rotationY;
+    this.updateInteractAnchor();
+
+    audioManager.playChime();
+    sparkleSystem.burst(new THREE.Vector3(this.position.x, this.position.y + 0.4, this.position.z), 16);
+
+    // Open chat window immediately!
+    store.set('activeOverlay', 'chat');
+    eventBus.emit('overlay:open', 'chat');
+    eventBus.emit('toast:show', 'Mochi is here to help! 🐾');
+  }
+
+  private updateInteractAnchor(): void {
+    const interactConfig = (interactionSystem as any).interactables?.get('companion');
+    if (interactConfig) {
+      interactConfig.position = this.position;
+    }
+  }
+
+  update(delta: number, avatarPosition: THREE.Vector3, avatarRotationY: number): void {
+    this.animTimer += delta;
+
+    if (this.isPerched) {
+      // Sitting peacefully on table in study nook
+      this.position.copy(this.perchedPos);
+      this.modelNode.position.y = Math.sin(this.animTimer * 2.0) * 0.02;
+
+      // Look toward avatar if nearby
+      const dist = avatarPosition.distanceTo(this.position);
+      if (dist < 2.8) {
+        const dir = avatarPosition.clone().sub(this.position).normalize();
+        const targetYaw = Math.atan2(dir.x, dir.z);
+        this.rotationY = THREE.MathUtils.lerp(this.rotationY, targetYaw, delta * 4);
+      } else {
+        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.PI * 0.95, delta * 3);
+      }
+
+      this.group.position.copy(this.position);
+      this.group.rotation.y = this.rotationY;
+      this.updateInteractAnchor();
+      return;
+    }
+
+    // Follow point: offset to the side and slightly behind avatar, resolved against room walls
+    const followOffset = new THREE.Vector3(
+      Math.sin(avatarRotationY - 0.7) * -1.0,
+      0,
+      Math.cos(avatarRotationY - 0.7) * -1.0
+    );
+    const rawTarget = avatarPosition.clone().add(followOffset);
+    let targetPos = collisionSystem.resolve(rawTarget, 0.35);
+
+    // If target got pushed too close to avatar due to a wall/obstacle behind avatar, target side
+    if (targetPos.distanceTo(avatarPosition) < 0.45) {
+      const sideOffset = new THREE.Vector3(Math.cos(avatarRotationY) * 0.85, 0, -Math.sin(avatarRotationY) * 0.85);
+      targetPos = collisionSystem.resolve(avatarPosition.clone().add(sideOffset), 0.35);
+    }
+
+    const distToTarget = this.position.distanceTo(targetPos);
+    this.isFollowing = distToTarget > 0.35;
+
+    if (this.isFollowing) {
+      this.position.lerp(targetPos, Math.min(delta * 4.5, 1));
+      const resolvedPos = collisionSystem.resolve(this.position, 0.35);
+      this.position.copy(resolvedPos);
+
+      const moveDir = targetPos.clone().sub(this.position).normalize();
+      if (moveDir.lengthSq() > 0.01) {
+        const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+        this.rotationY = THREE.MathUtils.lerp(this.rotationY, targetYaw, delta * 8);
+      }
+      const bounce = Math.abs(Math.sin(this.animTimer * 12)) * 0.12;
+      this.modelNode.position.y = bounce;
+    } else {
+      // Idling near player
+      const resolvedPos = collisionSystem.resolve(this.position, 0.35);
+      this.position.copy(resolvedPos);
+
+      const breath = Math.sin(this.animTimer * 2.5) * 0.03;
+      this.modelNode.scale.set(1 + breath * 0.5, 1 - breath, 1 + breath * 0.5);
+      this.modelNode.position.y = Math.sin(this.animTimer * 3.0) * 0.04;
+
+      const dirToAvatar = avatarPosition.clone().sub(this.position).normalize();
+      const targetYaw = Math.atan2(dirToAvatar.x, dirToAvatar.z);
+      this.rotationY = THREE.MathUtils.lerp(this.rotationY, targetYaw, delta * 4);
+    }
+
+    this.group.position.copy(this.position);
+    this.group.rotation.y = this.rotationY;
+    this.updateInteractAnchor();
+  }
+}

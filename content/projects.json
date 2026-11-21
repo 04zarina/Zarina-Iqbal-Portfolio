@@ -1,0 +1,147 @@
+[
+  {
+    "id": "game-01",
+    "title": "Sprout Kingdom",
+    "tagline": "A cozy farming adventure with miniature vegetable citizens.",
+    "year": 2025,
+    "type": "Indie Game | Capstone Project",
+    "roles": ["Lead Gameplay Programmer", "Technical Artist"],
+    "contributions": [
+      "Engineered dynamic soil hydration grid and procedural plant growth state machine in Unity.",
+      "Designed and rigged 8 chibi vegetable companion models with squash-and-stretch vertex shaders.",
+      "Optimized rendering pipeline to sustain 60 FPS across mid-range mobile devices."
+    ],
+    "description": "Sprout Kingdom is a heartfelt cozy simulation where players cultivate magical talking crops, solve seasonal puzzles, and protect a miniature greenhouse village from pesky caterpillar bandits.",
+    "tools": ["Unity", "C#", "Blender", "HLSL"],
+    "teamSize": 4,
+    "video": {
+      "src": "/video/game-01.mp4",
+      "poster": "/video/game-01.webp",
+      "captions": "/video/game-01.vtt"
+    },
+    "links": {
+      "play": "https://placeholder-itch.io/sprout-kingdom",
+      "repo": "https://github.com/placeholder-alex/sprout-kingdom",
+      "itch": "https://placeholder-alex.itch.io/sprout-kingdom"
+    },
+    "accentColor": "mint",
+    "cabinetId": "cabinet_01",
+    "tags": ["3D", "Cozy", "Simulation", "Mobile"]
+  },
+  {
+    "id": "game-02",
+    "title": "Retro Drift 1999",
+    "tagline": "Neon low-poly arcade racing with synthwave time trials.",
+    "year": 2024,
+    "type": "Game Jam Winner (Global Game Jam)",
+    "roles": ["Solo Developer", "Physics & Audio"],
+    "contributions": [
+      "Built custom arcade vehicle suspension physics with raycast wheel collision and drift slip curves.",
+      "Implemented procedural retro synthwave audio visualizer reacting to engine RPM.",
+      "Created low-poly vaporwave city generation with baked vertex lighting."
+    ],
+    "description": "A high-octane homage to late 90s arcade cabinet racers. Drift around razor-sharp hairpin turns, collect cassette tapes, and beat the clock in nostalgic sunset landscapes.",
+    "tools": ["Godot 4", "GDScript", "Blender", "Aseprite"],
+    "teamSize": 1,
+    "video": {
+      "src": "/video/game-02.mp4",
+      "poster": "/video/game-02.webp",
+      "captions": "/video/game-02.vtt"
+    },
+    "links": {
+      "play": "https://placeholder-itch.io/retro-drift",
+      "repo": "https://github.com/placeholder-alex/retro-drift",
+      "itch": "https://placeholder-alex.itch.io/retro-drift"
+    },
+    "accentColor": "peach",
+    "cabinetId": "cabinet_02",
+    "tags": ["Arcade", "Racing", "Low-Poly", "Physics"]
+  },
+  {
+    "id": "game-03",
+    "title": "Clockwork Manor",
+    "tagline": "A Victorian puzzle box mystery driven by physical gear puzzles.",
+    "year": 2024,
+    "type": "Team Project | Academic Showcase",
+    "roles": ["Systems Programmer", "UI/UX Designer"],
+    "contributions": [
+      "Constructed interconnected hierarchical gear simulation that validates mechanical puzzle state.",
+      "Built tactile 3D inspectable inventory with smooth rotational quaternion interpolation.",
+      "Architected save/load system supporting asynchronous serialization."
+    ],
+    "description": "Step into the shoes of an apprentice clockmaker unraveling the disappearing heirlooms of an eccentric inventor. Manipulate brass mechanisms, align optical prisms, and unlock hidden chambers.",
+    "tools": ["Unreal Engine 5", "Blueprints", "C++", "Substance 3D"],
+    "teamSize": 5,
+    "video": {
+      "src": "/video/game-03.mp4",
+      "poster": "/video/game-03.webp",
+      "captions": "/video/game-03.vtt"
+    },
+    "links": {
+      "play": "https://placeholder-steam.com/app/clockwork-manor",
+      "repo": "https://github.com/placeholder-alex/clockwork-manor",
+      "itch": "https://placeholder-alex.itch.io/clockwork-manor"
+    },
+    "accentColor": "butter",
+    "cabinetId": "cabinet_03",
+    "tags": ["3D", "Puzzle", "Mystery", "Narrative"]
+  },
+  {
+    "id": "game-04",
+    "title": "Aether Balloonist",
+    "tagline": "Gentle sky exploration with buoyant wind currents and cloud charting.",
+    "year": 2023,
+    "type": "Solo Project",
+    "roles": ["Solo Creator", "Art & Code"],
+    "contributions": [
+      "Simulated thermal air currents and wind vector fields for peaceful hot air balloon navigation.",
+      "Developed procedural pastel cloud volume shader using raymarching in Three.js.",
+      "Authored interactive musical chimes triggered when floating through cloud formations."
+    ],
+    "description": "Float through whimsical pastel skies in a customized wicker basket. Chart uncharted floating sky islands, deliver mail to avian postmasters, and bask in calming horizon vistas.",
+    "tools": ["Three.js", "WebGL", "TypeScript", "GLSL"],
+    "teamSize": 1,
+    "video": {
+      "src": "/video/game-04.mp4",
+      "poster": "/video/game-04.webp",
+      "captions": "/video/game-04.vtt"
+    },
+    "links": {
+      "play": "https://placeholder-web.com/aether-balloonist",
+      "repo": "https://github.com/placeholder-alex/aether-balloonist",
+      "itch": "https://placeholder-alex.itch.io/aether-balloonist"
+    },
+    "accentColor": "sky",
+    "cabinetId": "cabinet_04",
+    "tags": ["Web3D", "Relaxing", "Procedural", "Exploration"]
+  },
+  {
+    "id": "game-05",
+    "title": "Slime Bakery Rush",
+    "tagline": "Chaotic pastry baking where bouncy jellies are your eager kitchen crew.",
+    "year": 2023,
+    "type": "Game Jam Runner-Up",
+    "roles": ["Lead Gameplay Programmer"],
+    "contributions": [
+      "Formulated soft-body spring mesh deformation for wobbly jelly kitchen assistants.",
+      "Coded dynamic recipe combination graph and order satisfaction timer.",
+      "Created tactile audio feedback for squishing, tossing, and oven ding sound effects."
+    ],
+    "description": "Manage a high-paced magical pastry shop with the help of colorful, jiggly gelatin creatures. Bounce dough across the kitchen, balance oven temperatures, and serve hungry whimsical customers.",
+    "tools": ["Unity", "C#", "FMOD", "Blender"],
+    "teamSize": 3,
+    "video": {
+      "src": "/video/game-05.mp4",
+      "poster": "/video/game-05.webp",
+      "captions": "/video/game-05.vtt"
+    },
+    "links": {
+      "play": "https://placeholder-itch.io/slime-bakery",
+      "repo": "https://github.com/placeholder-alex/slime-bakery",
+      "itch": "https://placeholder-alex.itch.io/slime-bakery"
+    },
+    "accentColor": "blush",
+    "cabinetId": "cabinet_05",
+    "tags": ["Physics", "Multiplayer", "Casual", "Action"]
+  }
+]
