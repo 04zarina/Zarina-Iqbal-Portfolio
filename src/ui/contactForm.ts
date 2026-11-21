@@ -14,7 +14,7 @@ export class ContactFormOverlay {
     this.overlay.innerHTML = `
       <div class="modal-card" style="max-width:520px; background:var(--cream); border:3px solid var(--cocoa);">
         <button class="modal-close-btn" id="contact-close-btn">✕</button>
-        <h2 class="modal-title">📬 Send a Letter to Alex</h2>
+        <h2 class="modal-title">📬 Send a Letter to Zarina</h2>
         <p style="font-size:0.92rem; color:var(--text-muted); margin-bottom:16px;">
           Drop a note into the studio mailbox! Whether you have a project idea, game jam invite, or just want to say hi.
         </p>
@@ -135,7 +135,7 @@ export class ContactFormOverlay {
       if (res.ok) {
         this.triggerFlyingMailAnimation();
         store.completeQuest('send_letter');
-        eventBus.emit('toast:show', 'Letter delivered to Alex\'s mailbox in the sky! 💌');
+        eventBus.emit('toast:show', 'Letter delivered to Zarina\'s mailbox in the sky! 💌');
         form.reset();
         this.close();
       } else {

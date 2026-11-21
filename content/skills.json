@@ -1,83 +1,164 @@
 [
   {
-    "id": "skill-unity",
-    "name": "Unity & C#",
-    "category": "Engines",
-    "level": 5,
-    "blurb": "4+ years building 3D gameplay systems, custom character controllers, and shader graph shaders.",
-    "icon": "gamepad",
-    "plantGroup": "engines"
-  },
-  {
     "id": "skill-unreal",
     "name": "Unreal Engine 5",
     "category": "Engines",
     "level": 4,
-    "blurb": "Gameplay Blueprints, Niagara particle systems, and basic C++ gameplay frameworks.",
+    "blurb": "Blueprints, Widget Blueprints and Blueprint Interfaces. Demonstrated in Light Up The House and the CEGA Unreal Course.",
     "icon": "cube",
     "plantGroup": "engines"
   },
   {
-    "id": "skill-godot",
-    "name": "Godot 4",
+    "id": "skill-unity",
+    "name": "Unity (C# and VR/XR)",
     "category": "Engines",
-    "level": 4,
-    "blurb": "Lightweight 2D/3D prototyping, GDScript, and rapid game jam production.",
-    "icon": "robot",
+    "level": 5,
+    "blurb": "Gameplay, level design and VR interaction. Demonstrated in The Mask That Holds, Echoes of the Fallen, Shadows of the Slums, VR Escape Room and the Harry Potter VR Flight Simulation.",
+    "icon": "gamepad",
     "plantGroup": "engines"
   },
   {
-    "id": "skill-threejs",
-    "name": "Three.js & WebGL",
-    "category": "Web",
-    "level": 5,
-    "blurb": "Creating optimized 60fps web 3D dioramas, custom shaders, and interactive camera systems.",
-    "icon": "globe",
-    "plantGroup": "web"
+    "id": "skill-vr",
+    "name": "VR / XR",
+    "category": "Engines",
+    "level": 4,
+    "blurb": "VR interaction design (teleportation, pickups, feedback cues) and VR flight physics. Demonstrated in VR Escape Room and the Harry Potter VR Flight Simulation.",
+    "icon": "vr",
+    "plantGroup": "engines"
   },
   {
-    "id": "skill-typescript",
-    "name": "TypeScript & JS",
+    "id": "skill-csharp",
+    "name": "C# (OOP)",
     "category": "Languages",
     "level": 5,
-    "blurb": "Modern type-safe web architecture, event-driven reactive state, and full-stack API integration.",
+    "blurb": "Unity projects: Shadows of the Slums, VR Escape Room, Harry Potter VR Flight Simulation.",
     "icon": "code",
     "plantGroup": "languages"
   },
   {
-    "id": "skill-cpp",
-    "name": "C++ & Graphics",
+    "id": "skill-js-ts",
+    "name": "JavaScript / TypeScript, HTML / CSS",
     "category": "Languages",
     "level": 4,
-    "blurb": "Core data structures, memory management, and OpenGL rendering pipelines.",
+    "blurb": "The Floor Is A Liar, Oakridge Hollow and the Three.js scenes.",
+    "icon": "code",
+    "plantGroup": "languages"
+  },
+  {
+    "id": "skill-python",
+    "name": "Python",
+    "category": "Languages",
+    "level": 3,
+    "blurb": "AR Piano, with OpenCV and MediaPipe hand tracking.",
     "icon": "terminal",
     "plantGroup": "languages"
   },
   {
-    "id": "skill-blender",
-    "name": "Blender 3D",
-    "category": "3D and Animation",
+    "id": "skill-cpp",
+    "name": "C++",
+    "category": "Languages",
+    "level": 3,
+    "blurb": "Computer Science coursework at NED University.",
+    "icon": "terminal",
+    "plantGroup": "languages"
+  },
+  {
+    "id": "skill-threejs",
+    "name": "Three.js / React Three Fiber",
+    "category": "Web",
     "level": 4,
-    "blurb": "Stylized low-poly modeling, UV unwrapping, color palette texture baking, and basic character rigging.",
+    "blurb": "WebGL browser games: The Floor Is A Liar, Oakridge Hollow, Solar System Scene and Portal Scene.",
+    "icon": "globe",
+    "plantGroup": "web"
+  },
+  {
+    "id": "skill-react",
+    "name": "React, Tailwind",
+    "category": "Web",
+    "level": 4,
+    "blurb": "The Floor Is A Liar.",
+    "icon": "globe",
+    "plantGroup": "web"
+  },
+  {
+    "id": "skill-backend",
+    "name": "Supabase / PostgreSQL, Vitest, Vercel CI/CD",
+    "category": "Web",
+    "level": 3,
+    "blurb": "Row Level Security, validated save functions, 69 automated tests and live deployment for The Floor Is A Liar.",
+    "icon": "settings",
+    "plantGroup": "web"
+  },
+  {
+    "id": "skill-gameplay",
+    "name": "Gameplay & Systems",
+    "category": "Web",
+    "level": 4,
+    "blurb": "Raycasting, collision detection, state management, NPC dialogue systems, UI/UX systems, procedural generation and procedural audio (Web Audio API).",
+    "icon": "sparkles",
+    "plantGroup": "web"
+  },
+  {
+    "id": "skill-blender",
+    "name": "Blender",
+    "category": "3D and Animation",
+    "level": 3,
+    "blurb": "3D modeling and assets. Low-Poly Car, Light Up The House, The Mask That Holds.",
     "icon": "palette",
     "plantGroup": "3d"
   },
   {
-    "id": "skill-shaders",
-    "name": "Shaders (GLSL/HLSL)",
+    "id": "skill-ae",
+    "name": "Adobe After Effects",
     "category": "3D and Animation",
     "level": 4,
-    "blurb": "Stylized toons, jelly squash & stretch vertex shaders, water caustics, and pastel color grading.",
-    "icon": "sparkles",
+    "blurb": "Motion graphics and compositing: Six of Crows Trailer, Between Waking animatics.",
+    "icon": "film",
     "plantGroup": "3d"
   },
   {
-    "id": "skill-tools",
-    "name": "Git & CI/CD",
+    "id": "skill-preprod",
+    "name": "Storyboarding & Animatics",
+    "category": "3D and Animation",
+    "level": 4,
+    "blurb": "Story development, storyboards and animatics with Canva and Miro for Between Waking.",
+    "icon": "pencil",
+    "plantGroup": "3d"
+  },
+  {
+    "id": "skill-cv",
+    "name": "OpenCV, MediaPipe",
+    "category": "Tools",
+    "level": 3,
+    "blurb": "Real-time hand tracking and gesture input for AR Piano.",
+    "icon": "camera",
+    "plantGroup": "tools"
+  },
+  {
+    "id": "skill-git",
+    "name": "Git & GitHub",
     "category": "Tools",
     "level": 4,
-    "blurb": "Git branching, GitHub Actions, asset optimization pipelines, and automated builds.",
+    "blurb": "All repositories (github.com/04zarina), including CI/CD for The Floor Is A Liar.",
     "icon": "settings",
+    "plantGroup": "tools"
+  },
+  {
+    "id": "skill-pm",
+    "name": "Project management & playtesting",
+    "category": "Tools",
+    "level": 4,
+    "blurb": "Game jam production and team leadership: Light Up The House, The Mask That Holds, Between Waking.",
+    "icon": "users",
+    "plantGroup": "tools"
+  },
+  {
+    "id": "skill-speaking",
+    "name": "Public speaking & event hosting",
+    "category": "Tools",
+    "level": 5,
+    "blurb": "Hosted GameCon at both editions, plus GameVerse events.",
+    "icon": "mic",
     "plantGroup": "tools"
   }
 ]

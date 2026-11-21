@@ -124,7 +124,7 @@ export class EducationOverlay {
             padding: 2px 10px;
             margin-bottom: 8px;
             color: var(--ink);
-          ">${entry.start} → ${entry.end}</div>
+          ">${entry.start === entry.end ? entry.start : `${entry.start} → ${entry.end}`}</div>
 
           <div style="
             font-family: var(--font-display);
@@ -152,7 +152,7 @@ export class EducationOverlay {
           ">${entry.summary}</div>
 
           <!-- Highlights -->
-          <ul style="
+          ${entry.highlights.length ? `<ul style="
             margin: 0;
             padding-left: 18px;
             display: flex;
@@ -164,7 +164,7 @@ export class EducationOverlay {
                 ${h}
               </li>
             `).join('')}
-          </ul>
+          </ul>` : ''}
         </div>
       </div>
     `).join('');

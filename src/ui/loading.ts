@@ -7,10 +7,11 @@ export class LoadingScreen {
   private startBtn: HTMLElement;
   private tips = [
     'Tip: Walk up to objects that sparkle and press E or tap!',
-    'Tip: Mochi the companion cat follows you and knows everything about Alex\'s work.',
+    'Tip: Mochi the companion cat follows you and knows all about Zarina\'s games and skills.',
     'Tip: Switch the lamp on the bedroom desk to toggle between Day and Dusk modes.',
     'Tip: Explore the wardrobe in the bedroom to discover the secret Dev Realm!',
-    'Tip: Check your Explorer Journal in the HUD to see your quest progress.'
+    'Tip: Check your Explorer Journal in the HUD to see your quest progress.',
+    'Tip: Grab Zarina\'s resume from the desk in the Study Nook.'
   ];
   private tipIndex = 0;
 
@@ -20,7 +21,7 @@ export class LoadingScreen {
 
     this.element.innerHTML = `
       <div class="loading-mascot">🐾</div>
-      <div class="loading-title">Alex Morgan's Game Room</div>
+      <div class="loading-title">Zarina's Game Room</div>
       <div class="loading-bar-wrap">
         <div class="loading-bar-fill" id="loading-bar-fill"></div>
       </div>

@@ -3,7 +3,7 @@ import { eventBus } from './events';
 export type RoomId = 'bedroom' | 'gameRoom' | 'greenhouse' | 'study' | 'devRealm';
 export type ThemeMode = 'day' | 'dusk';
 export type QualityTier = 'high' | 'medium' | 'low';
-export type OverlayType = 'none' | 'project' | 'tv' | 'chat' | 'contact' | 'about' | 'journal' | 'education' | 'menu';
+export type OverlayType = 'none' | 'project' | 'tv' | 'chat' | 'contact' | 'about' | 'journal' | 'education' | 'menu' | 'resume';
 
 export interface AppState {
   currentRoom: RoomId;

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { ASSET_MANIFEST, AssetEntry } from '../assets/manifest';
 
 export class AssetLoader {
@@ -10,6 +11,8 @@ export class AssetLoader {
 
   constructor() {
     this.gltfLoader = new GLTFLoader();
+    // Decor models are meshopt-compressed (EXT_meshopt_compression)
+    this.gltfLoader.setMeshoptDecoder(MeshoptDecoder);
     this.textureLoader = new THREE.TextureLoader();
   }
 
@@ -18,23 +21,51 @@ export class AssetLoader {
       return null;
     }
 
-    if (this.cache.has(assetKey)) {
-      return this.cache.get(assetKey).clone();
-    }
-
     const manifestEntry = ASSET_MANIFEST[assetKey];
     if (!manifestEntry) {
       return null;
     }
 
-    try {
-      const gltf = await this.gltfLoader.loadAsync(manifestEntry.url);
-      this.cache.set(assetKey, gltf.scene);
-      return gltf.scene.clone();
-    } catch (err) {
-      console.warn(`[AssetLoader] Could not load GLTF for "${assetKey}" from ${manifestEntry.url}. Using procedural fallback.`, err);
-      return null;
+    // Cache the in-flight promise so parallel callers (and preload) share one download
+    if (!this.cache.has(assetKey)) {
+      this.cache.set(
+        assetKey,
+        this.gltfLoader.loadAsync(manifestEntry.url).then(
+          (gltf) => gltf.scene,
+          (err) => {
+            console.warn(`[AssetLoader] Could not load GLTF for "${assetKey}" from ${manifestEntry.url}. Using procedural fallback.`, err);
+            return null;
+          }
+        )
+      );
     }
+    const scene: THREE.Group | null = await this.cache.get(assetKey);
+    return scene ? scene.clone() : null;
+  }
+
+  /** Starts downloading several manifest assets at once without waiting for them. */
+  preload(assetKeys: string[]): void {
+    assetKeys.forEach((key) => void this.loadGLTF(key));
+  }
+
+  /** Loads a GLB by URL (no manifest entry needed). Cached per URL; returns a clone. */
+  async loadUrl(url: string): Promise<THREE.Group | null> {
+    if (this.isGreybox) return null;
+    const key = `url:${url}`;
+    if (!this.cache.has(key)) {
+      this.cache.set(
+        key,
+        this.gltfLoader.loadAsync(url).then(
+          (gltf) => gltf.scene,
+          (err) => {
+            console.warn(`[AssetLoader] Could not load ${url}.`, err);
+            return null;
+          }
+        )
+      );
+    }
+    const scene: THREE.Group | null = await this.cache.get(key);
+    return scene ? scene.clone() : null;
   }
 
   loadTexture(url: string): THREE.Texture {

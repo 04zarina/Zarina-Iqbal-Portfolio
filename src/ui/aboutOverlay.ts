@@ -2,6 +2,7 @@ import { store } from '../core/store';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import skillsData from '../../content/skills.json';
+import { profile } from '../content/profile';
 
 export class AboutOverlay {
   private overlay: HTMLElement;
@@ -15,40 +16,53 @@ export class AboutOverlay {
       <div style="background:var(--surface-color); border:1.5px solid var(--cocoa); border-radius:12px; padding:10px; margin-bottom:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <strong style="font-family:var(--font-display);">${s.name}</strong>
-          <span style="font-size:0.8rem; color:var(--text-muted);">${s.category} (Lvl ${s.level}/5)</span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">${s.category} </span>
         </div>
         <div style="font-size:0.85rem; margin-top:4px;">${s.blurb}</div>
       </div>
     `).join('');
 
+    const linkBtn = (href: string, label: string, accent: string) =>
+      `<a href="${href}" target="_blank" rel="noreferrer" class="sticker-btn ${accent}" style="padding:6px 14px; font-size:0.85rem;">${label}</a>`;
+
     this.overlay.innerHTML = `
-      <div class="modal-card" style="max-width:580px;">
+      <div class="modal-card" style="max-width:600px;">
         <button class="modal-close-btn" id="about-close-btn">✕</button>
-        <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
-          <div style="width:72px; height:72px; border-radius:50%; background:var(--blush); border:3px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:2.2rem;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+          <div style="width:72px; height:72px; flex-shrink:0; border-radius:50%; background:var(--blush); border:3px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:2.2rem;">
             👩‍💻
           </div>
           <div>
-            <h2 class="modal-title" style="margin-bottom:2px;">Alex Morgan</h2>
+            <h2 class="modal-title" style="margin-bottom:2px;">${profile.name}</h2>
             <p style="font-size:0.9rem; font-weight:700; color:var(--text-muted);">
-              Game Developer & Interactive 3D Technologist
+              ${profile.role} · ${profile.education}
             </p>
           </div>
         </div>
 
-        <div style="line-height:1.55; font-size:0.92rem; margin-bottom:18px;">
-          <p style="margin-bottom:10px;">
-            Hi there! I am Alex Morgan, a passionate game programmer, technical artist, and web 3D developer. I blend procedural generation, tactile physics, and cozy pastel aesthetics to build games and web toys that bring smiles.
-          </p>
-          <p>
-            Whether rigging a low-poly character in Blender, writing custom shaders in GLSL / HLSL, or optimizing Three.js web render loops to sustain 60 FPS across mid-range mobile devices, I love making the virtual world feel tangible and responsive.
-          </p>
+        <p style="font-size:0.88rem; background:var(--mint); border:1.5px solid var(--cocoa); border-radius:12px; padding:8px 12px; margin-bottom:14px;">
+          <strong>Currently:</strong> ${profile.currently}
+        </p>
+
+        <div style="line-height:1.55; font-size:0.92rem; margin-bottom:14px;">
+          ${profile.about.map((para) => `<p style="margin-bottom:10px;">${para}</p>`).join('')}
+          <p style="font-weight:700;">${profile.availability}</p>
         </div>
 
-        <h3 style="font-family:var(--font-display); margin-bottom:10px;">🌱 Core Skills Overview:</h3>
-        <div style="max-height:220px; overflow-y:auto; padding-right:4px;">
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;">
+          <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf" class="sticker-btn accent-butter" style="padding:6px 14px; font-size:0.85rem;">Download Resume ⬇️</a>
+          ${linkBtn(`mailto:${profile.email}`, 'Email ✉️', 'accent-peach')}
+          ${linkBtn(profile.socials.linkedin, 'LinkedIn 💼', 'accent-sky')}
+          ${linkBtn(profile.socials.github, 'GitHub 💻', 'accent-mint')}
+        </div>
+
+        <h3 style="font-family:var(--font-display); margin-bottom:10px;">🌱 Skills & where I used them:</h3>
+        <div style="max-height:220px; overflow-y:auto; padding-right:4px; margin-bottom:16px;">
           ${skillsHtml}
         </div>
+
+        <h3 style="font-family:var(--font-display); margin-bottom:8px;">🎤 Leadership & Community</h3>
+        <p style="font-size:0.88rem; line-height:1.5;">${profile.leadership}</p>
       </div>
     `;
 

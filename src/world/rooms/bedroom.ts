@@ -7,17 +7,21 @@ import { eventBus } from '../../core/events';
 import { sparkleSystem } from '../fx/sparkles';
 import { assetLoader } from '../../core/loaders';
 import { Avatar } from '../avatar/avatar';
+import { DECOR, placeDecor, recenter } from '../decor';
 
 export class BedroomRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(0, 0, 1.2);
-  public bedPos = new THREE.Vector3(-3.2, 0.52, -2.2);
+  /** Face the back wall (mirror, desk, TV) when entering. */
+  public spawnRotationY = Math.PI;
+  public bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
   public outPos = new THREE.Vector3(-1.8, 0, -1.8);
 
   private avatar: Avatar | null = null;
   private tapeMesh: THREE.Object3D | null = null;
   private lampLight: THREE.PointLight | null = null;
   private fairyLights: THREE.Mesh[] = [];
+  private portalGlow: THREE.Mesh | null = null;
 
   constructor(avatar?: Avatar) {
     this.avatar = avatar || null;
@@ -35,7 +39,6 @@ export class BedroomRoom {
     const floorMat = new THREE.MeshLambertMaterial({ color: 0xEED6BA }); // Warm wooden floor
     const wallMat = new THREE.MeshLambertMaterial({ color: 0xFFC9B0 }); // Peach walls
     const baseboardMat = new THREE.MeshLambertMaterial({ color: 0x8A5A4A }); // Cocoa trim
-    const metalMat = new THREE.MeshLambertMaterial({ color: 0xFFE9A3 }); // Butter metal
 
     // 1. Floor
     const floorGeo = new THREE.PlaneGeometry(10, 8);
@@ -84,11 +87,16 @@ export class BedroomRoom {
     // Desk collision
     collisionSystem.addBox(0.8, 2.9, -3.8, -2.4);
     // Wardrobe collision
-    collisionSystem.addBox(3.4, 4.8, -2.0, -0.4);
+    collisionSystem.addBox(4.0, 4.8, -1.9, -0.5);
+    // Grandfather clock, floor lamp, armchair and plant
+    collisionSystem.addBox(-0.3, 0.5, -3.8, -3.3);
+    collisionSystem.addBox(3.9, 4.8, -3.8, -2.9);
+    collisionSystem.addBox(3.4, 4.8, 2.2, 3.8);
+    collisionSystem.addBox(-4.8, -3.7, 2.8, 3.8);
 
     // 4. Point light for bedroom lamp
     this.lampLight = new THREE.PointLight(0xFFD08A, 1.4, 7);
-    this.lampLight.position.set(1.0, 1.6, -3.0);
+    this.lampLight.position.set(1.4, 1.35, -3.0);
     this.group.add(this.lampLight);
 
     // 5. Doorways to other rooms:
@@ -117,19 +125,30 @@ export class BedroomRoom {
     // Trophy Shelf above Mirror
     const shelfBoard = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.35), baseboardMat);
     shelfBoard.position.set(-1.4, 2.15, -3.65);
-    const trophy1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.04, 0.22, 16), metalMat);
-    trophy1.position.set(-2.0, 2.3, -3.65);
-    const trophy2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), new THREE.MeshLambertMaterial({ color: 0xFFB3C7 }));
-    trophy2.position.set(-1.4, 2.3, -3.65);
-    const trophy3 = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.24, 16), new THREE.MeshLambertMaterial({ color: 0xBDEBD3 }));
-    trophy3.position.set(-0.8, 2.3, -3.65);
-    this.group.add(shelfBoard, trophy1, trophy2, trophy3);
+    const trophy = this.createTrophyCup();
+    trophy.position.set(-1.4, 2.19, -3.65);
+    this.group.add(shelfBoard, trophy);
 
     // String fairy lights
     this.createFairyLights();
   }
 
   private async loadGLBModels(): Promise<void> {
+    // Start every download at once; the awaits below then resolve as each arrives
+    assetLoader.preload(['bed', 'wardrobe', 'desk', 'chair', 'tv', 'tape', 'mirror', 'lamp_table', 'nightstand', 'plant']);
+
+    // Furniture-pack decor (loads in parallel with the hero props below)
+    const decorReady = placeDecor(this.group, [
+      { url: DECOR.clock, position: [0.1, 0, -3.72] },
+      { url: DECOR.floorLamp, position: [4.35, 0, -3.35], scale: 1.1 },
+      { url: DECOR.picturePyramid, position: [1.8, 1.95, -3.8], scale: 1.1 },
+      { url: DECOR.pictureFlowers, position: [-4.8, 1.75, -0.2], rotY: Math.PI / 2 },
+      { url: DECOR.armchairRed, position: [4.05, 0, 2.95], rotY: -Math.PI * 0.75 },
+      { url: DECOR.plantPalm, position: [-4.25, 0, 3.3], scale: 0.62 },
+      { url: DECOR.bookStack, position: [-2.0, 2.19, -3.66] },
+      { url: DECOR.toyCar, position: [-0.8, 2.19, -3.66], rotY: -0.4 }
+    ]);
+
     // 1. Bed (Bed_02.glb)
     const bedGltf = await assetLoader.loadGLTF('bed');
     if (bedGltf) {
@@ -140,27 +159,27 @@ export class BedroomRoom {
       this.buildFallbackBed();
     }
 
-    // 2. Wardrobe (Closet_01.glb)
+    // 2. Wardrobe (Closet_02.glb): back against the right wall, doors facing into the room
     const closetGltf = await assetLoader.loadGLTF('wardrobe');
     if (closetGltf) {
-      closetGltf.position.set(4.3, 0, -1.2);
+      closetGltf.position.set(4.78, 0, -1.2);
       closetGltf.rotation.y = -Math.PI / 2;
-      closetGltf.scale.set(1.3, 1.3, 1.3);
+      closetGltf.scale.set(1.5, 1.5, 1.5);
       this.group.add(closetGltf);
     } else {
       this.buildFallbackWardrobe();
     }
 
-    // Glowing magic portal inside/in front of wardrobe
-    const portalGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.2, 2.2),
-      new THREE.MeshBasicMaterial({ color: 0xD9C8FF, transparent: true, opacity: 0.88, side: THREE.DoubleSide })
+    // Soft magic glow on the wardrobe doors (pulses in update)
+    this.portalGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.05, 1.95),
+      new THREE.MeshBasicMaterial({ color: 0xD9C8FF, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending })
     );
-    portalGlow.rotation.y = -Math.PI / 2;
-    portalGlow.position.set(3.8, 1.2, -1.2);
-    this.group.add(portalGlow);
+    this.portalGlow.rotation.y = -Math.PI / 2;
+    this.portalGlow.position.set(4.1, 1.25, -1.2);
+    this.group.add(this.portalGlow);
 
-    // 3. Desk (Work_Table_06.glb)
+    // 3. Desk (Work_Table_06.glb): top surface at y = 0.76
     const deskGltf = await assetLoader.loadGLTF('desk');
     if (deskGltf) {
       deskGltf.position.set(1.8, 0, -3.1);
@@ -178,19 +197,21 @@ export class BedroomRoom {
       this.group.add(chairGltf);
     }
 
-    // 5. Retro TV (old tv off by Justin Randall)
+    // 5. Retro TV (old tv off by Justin Randall). The model's screen faces -Z and its
+    //    origin is off-center, so recenter it, sit it on the desk and turn it to face the room.
     const tvGltf = await assetLoader.loadGLTF('tv');
     if (tvGltf) {
-      tvGltf.position.set(2.2, 0.76, -3.1);
-      tvGltf.rotation.y = 0;
-      tvGltf.scale.set(0.38, 0.38, 0.38);
-      this.group.add(tvGltf);
+      const tv = recenter(tvGltf);
+      tv.position.set(2.1, 0.76, -3.15);
+      tv.rotation.y = Math.PI;
+      tv.scale.setScalar(0.36);
+      this.group.add(tv);
     }
 
     // 6. Cassette Tape (Poly by Google Cassette Tape with texture)
     const tapeGltf = await assetLoader.loadGLTF('tape');
     if (tapeGltf) {
-      tapeGltf.position.set(1.35, 0.77, -2.9);
+      tapeGltf.position.set(1.55, 0.77, -2.9);
       tapeGltf.rotation.set(-Math.PI / 2, 0, 0.2);
       tapeGltf.scale.set(0.02, 0.02, 0.02);
       this.tapeMesh = tapeGltf;
@@ -199,30 +220,97 @@ export class BedroomRoom {
       this.buildFallbackTape();
     }
 
-    // 7. Wall Mirror (Mirror by Poly by Google) - lowered to avatar eye height (~1.15m)
+    // 7. Wall Mirror (Mirror by Poly by Google). The repo copy is already normalized to
+    //    ~1.2 m tall, so it needs ~1x scale (the old 0.034 scale shrank it to 4 cm).
     const mirrorGltf = await assetLoader.loadGLTF('mirror');
     if (mirrorGltf) {
-      mirrorGltf.position.set(-1.4, 1.15, -3.78);
-      mirrorGltf.rotation.y = 0;
-      mirrorGltf.scale.set(0.034, 0.034, 0.034);
-      this.group.add(mirrorGltf);
+      const mirror = recenter(mirrorGltf, true);
+      mirror.position.set(-1.4, 1.2, -3.76);
+      mirror.scale.setScalar(0.9);
+      this.styleMirror(mirror);
+      this.group.add(mirror);
     } else {
       this.buildFallbackMirror();
     }
 
-    // 8. Nightstand & Plant
+    // 8. Table lamp (Lamp Round Table by Kenney) on the desk; drives the Day/Dusk toggle
+    const lampGltf = await assetLoader.loadGLTF('lamp_table');
+    if (lampGltf) {
+      const lamp = recenter(lampGltf);
+      lamp.position.set(1.4, 0.76, -3.25);
+      lamp.scale.setScalar(1.9);
+      this.group.add(lamp);
+    } else {
+      this.buildFallbackLamp();
+    }
+
+    // 9. Nightstand & Plant (nightstand back sits against the wall)
     const nightstandGltf = await assetLoader.loadGLTF('nightstand');
     if (nightstandGltf) {
-      nightstandGltf.position.set(-2.0, 0, -3.3);
+      nightstandGltf.position.set(-2.05, 0, -3.78);
       this.group.add(nightstandGltf);
     }
 
     const plantGltf = await assetLoader.loadGLTF('plant');
     if (plantGltf) {
-      plantGltf.position.set(-2.0, 0.65, -3.3);
-      plantGltf.scale.set(0.85, 0.85, 0.85);
+      plantGltf.position.set(-2.05, 0.57, -3.55);
+      plantGltf.scale.set(1.6, 1.6, 1.6);
       this.group.add(plantGltf);
     }
+
+    await decorReady;
+  }
+
+  /** Gives the mirror's glass a soft reflective sheen so it reads as a mirror. */
+  private styleMirror(mirror: THREE.Object3D): void {
+    mirror.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      if (!mat || !('color' in mat)) return;
+      const hsl = { h: 0, s: 0, l: 0 };
+      mat.color.getHSL(hsl);
+      if (hsl.l > 0.3) {
+        // Light material = glass
+        mesh.material = new THREE.MeshStandardMaterial({ color: 0xCFE6F5, roughness: 0.15, metalness: 0.6, emissive: 0x7A93A8, emissiveIntensity: 0.35 });
+      } else {
+        // Dark material = frame: warm it up to match the room's gold trim
+        mesh.material = new THREE.MeshStandardMaterial({ color: 0xE8C77A, roughness: 0.45, metalness: 0.5 });
+      }
+    });
+  }
+
+  private createTrophyCup(): THREE.Group {
+    const cup = new THREE.Group();
+    const profile = [
+      new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.07, 0.0), new THREE.Vector2(0.07, 0.025),
+      new THREE.Vector2(0.025, 0.04), new THREE.Vector2(0.02, 0.1), new THREE.Vector2(0.03, 0.12),
+      new THREE.Vector2(0.075, 0.15), new THREE.Vector2(0.085, 0.24), new THREE.Vector2(0.075, 0.24)
+    ];
+    const gold = new THREE.MeshStandardMaterial({ color: 0xF2C14E, roughness: 0.3, metalness: 0.8 });
+    const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 24), gold);
+    const handleGeo = new THREE.TorusGeometry(0.04, 0.008, 8, 16, Math.PI);
+    const handleL = new THREE.Mesh(handleGeo, gold);
+    handleL.position.set(-0.085, 0.19, 0);
+    handleL.rotation.z = Math.PI / 2;
+    const handleR = handleL.clone();
+    handleR.position.x = 0.085;
+    handleR.rotation.z = -Math.PI / 2;
+    cup.add(body, handleL, handleR);
+    return cup;
+  }
+
+  private buildFallbackLamp(): void {
+    const lampGroup = new THREE.Group();
+    lampGroup.position.set(1.4, 0.76, -3.25);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 16), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
+    base.position.y = 0.02;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 8), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
+    stem.position.y = 0.18;
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.22, 16), new THREE.MeshLambertMaterial({ color: 0xFFE9A3 }));
+    shade.position.y = 0.4;
+    lampGroup.add(base, stem, shade);
+    this.group.add(lampGroup);
   }
 
   private buildFallbackBed(): void {
@@ -343,10 +431,10 @@ export class BedroomRoom {
       label: 'Switch Lamp',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(1.0, 0.8, -2.8),
+      position: new THREE.Vector3(1.4, 1.0, -3.0),
       onInteract: () => {
         themeManager.toggleTheme();
-        sparkleSystem.burst(new THREE.Vector3(1.0, 1.4, -2.8), 12);
+        sparkleSystem.burst(new THREE.Vector3(1.4, 1.4, -3.1), 12);
         eventBus.emit('toast:show', `Switched to ${store.get().theme === 'dusk' ? 'Dusk 🌙' : 'Day ☀️'} mode!`);
       }
     });
@@ -357,14 +445,14 @@ export class BedroomRoom {
       label: 'Pick up Reel Tape',
       keyHint: 'E',
       radius: 1.6,
-      position: new THREE.Vector3(1.35, 0.8, -2.8),
+      position: new THREE.Vector3(1.55, 0.8, -2.8),
       onInteract: () => {
         store.set('holdingTape', true);
         if (this.tapeMesh) this.tapeMesh.visible = false;
-        sparkleSystem.burst(new THREE.Vector3(1.35, 1.0, -2.8), 16);
+        sparkleSystem.burst(new THREE.Vector3(1.55, 1.0, -2.8), 16);
         store.collectItem('tape');
         store.completeQuest('pickup_tape');
-        eventBus.emit('toast:show', 'Picked up Alex\'s Demo Reel Tape! 📼 Insert it into the TV.');
+        eventBus.emit('toast:show', 'Picked up Zarina\'s Showreel Tape! 📼 Insert it into the TV.');
       }
     });
 
@@ -374,10 +462,10 @@ export class BedroomRoom {
       label: 'Watch Reel on TV',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(2.2, 0.8, -2.5),
+      position: new THREE.Vector3(2.1, 0.9, -2.6),
       focusPose: {
-        position: new THREE.Vector3(2.2, 1.35, -1.8),
-        lookAt: new THREE.Vector3(2.2, 1.15, -3.1)
+        position: new THREE.Vector3(2.1, 1.3, -1.7),
+        lookAt: new THREE.Vector3(2.1, 1.05, -3.15)
       },
       onInteract: () => {
         store.set('activeOverlay', 'tv');
@@ -387,13 +475,13 @@ export class BedroomRoom {
       }
     });
 
-    // 5. Mirror (About Alex) - Lowered to avatar eye level
+    // 5. Mirror (About Zarina) - Lowered to avatar eye level
     interactionSystem.register({
       id: 'mirror',
-      label: 'Look in Mirror (About Alex)',
+      label: 'Look in Mirror (About Zarina)',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(-1.4, 1.15, -3.1),
+      position: new THREE.Vector3(-1.4, 1.2, -3.1),
       onInteract: () => {
         store.set('activeOverlay', 'about');
         eventBus.emit('overlay:open', 'about');
@@ -403,7 +491,7 @@ export class BedroomRoom {
     // 6. Trophy Shelf (Achievements)
     interactionSystem.register({
       id: 'shelf',
-      label: 'Inspect Trophies',
+      label: 'Inspect Trophies & Certificates 🏆',
       keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(-1.4, 1.6, -2.9),
@@ -419,9 +507,9 @@ export class BedroomRoom {
       label: 'Enter Dev Realm Portal 🌀',
       keyHint: 'E',
       radius: 2.0,
-      position: new THREE.Vector3(3.7, 1.0, -1.2),
+      position: new THREE.Vector3(3.8, 1.0, -1.2),
       onInteract: () => {
-        sparkleSystem.burst(new THREE.Vector3(3.7, 1.5, -1.2), 24);
+        sparkleSystem.burst(new THREE.Vector3(3.9, 1.5, -1.2), 24);
         eventBus.emit('room:switch', 'devRealm');
       }
     });
@@ -476,7 +564,7 @@ export class BedroomRoom {
     this.avatar.goToBed(this.bedPos, () => {
       store.set('isSleeping', true);
       eventBus.emit('toast:show', 'Tucked warmly into bed! Press E or move to wake up 💤');
-      sparkleSystem.burst(new THREE.Vector3(-3.2, 1.0, -2.2), 14);
+      sparkleSystem.burst(new THREE.Vector3(-3.4, 1.0, -2.6), 14);
     });
   }
 
@@ -505,11 +593,16 @@ export class BedroomRoom {
     if (this.lampLight) {
       this.lampLight.intensity = THREE.MathUtils.lerp(0.8, 2.2, themeManager.themeProgress);
     }
+
+    if (this.portalGlow) {
+      (this.portalGlow.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(time * 0.6) * 0.1;
+    }
   }
 
   dispose(): void {
     interactionSystem.clear();
     this.fairyLights = [];
+    this.portalGlow = null;
     this.group.clear();
   }
 }

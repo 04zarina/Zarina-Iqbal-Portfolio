@@ -1,147 +1,676 @@
 [
   {
-    "id": "game-01",
-    "title": "Sprout Kingdom",
-    "tagline": "A cozy farming adventure with miniature vegetable citizens.",
-    "year": 2025,
-    "type": "Indie Game | Capstone Project",
-    "roles": ["Lead Gameplay Programmer", "Technical Artist"],
-    "contributions": [
-      "Engineered dynamic soil hydration grid and procedural plant growth state machine in Unity.",
-      "Designed and rigged 8 chibi vegetable companion models with squash-and-stretch vertex shaders.",
-      "Optimized rendering pipeline to sustain 60 FPS across mid-range mobile devices."
+    "id": "light-up-the-house",
+    "title": "Light Up The House",
+    "tagline": "Third-person sci-fi repair adventure: fix three broken systems before the countdown hits zero.",
+    "year": 2026,
+    "type": "Team of 3 · Unreal Engine 5",
+    "featured": true,
+    "roles": [
+      "Project Manager",
+      "Game Developer",
+      "UI Implementation"
     ],
-    "description": "Sprout Kingdom is a heartfelt cozy simulation where players cultivate magical talking crops, solve seasonal puzzles, and protect a miniature greenhouse village from pesky caterpillar bandits.",
-    "tools": ["Unity", "C#", "Blender", "HLSL"],
-    "teamSize": 4,
-    "video": {
-      "src": "/video/game-01.mp4",
-      "poster": "/video/game-01.webp",
-      "captions": "/video/game-01.vtt"
-    },
-    "links": {
-      "play": "https://placeholder-itch.io/sprout-kingdom",
-      "repo": "https://github.com/placeholder-alex/sprout-kingdom",
-      "itch": "https://placeholder-alex.itch.io/sprout-kingdom"
-    },
-    "accentColor": "mint",
-    "cabinetId": "cabinet_01",
-    "tags": ["3D", "Cozy", "Simulation", "Mobile"]
-  },
-  {
-    "id": "game-02",
-    "title": "Retro Drift 1999",
-    "tagline": "Neon low-poly arcade racing with synthwave time trials.",
-    "year": 2024,
-    "type": "Game Jam Winner (Global Game Jam)",
-    "roles": ["Solo Developer", "Physics & Audio"],
     "contributions": [
-      "Built custom arcade vehicle suspension physics with raycast wheel collision and drift slip curves.",
-      "Implemented procedural retro synthwave audio visualizer reacting to engine RPM.",
-      "Created low-poly vaporwave city generation with baked vertex lighting."
+      "Led development as game developer and project manager for a 3-person team, coordinating scope and delivery in UE5.",
+      "Built the tool and appliance interaction loop: pickup (press I) and fix (press E) logic, tied to a BPI_Interaction Blueprint Interface so every interactable actor (tools, appliances) shares a common contract. The interface uses enum-driven logic and is reusable across actors.",
+      "Implemented the UI/UX system across the Widget Blueprint stack: splash screen, main menu (hover animations, settings overlay with volume slider, quit logic), pause menu, and the proximity-based \"Info Card\" system that detects when the player nears a broken appliance and shows the correct tool using On Actor Begin/End Overlap.",
+      "Handled win/loss state management through the Level Manager."
     ],
-    "description": "A high-octane homage to late 90s arcade cabinet racers. Drift around razor-sharp hairpin turns, collect cassette tapes, and beat the clock in nostalgic sunset landscapes.",
-    "tools": ["Godot 4", "GDScript", "Blender", "Aseprite"],
-    "teamSize": 1,
-    "video": {
-      "src": "/video/game-02.mp4",
-      "poster": "/video/game-02.webp",
-      "captions": "/video/game-02.vtt"
-    },
-    "links": {
-      "play": "https://placeholder-itch.io/retro-drift",
-      "repo": "https://github.com/placeholder-alex/retro-drift",
-      "itch": "https://placeholder-alex.itch.io/retro-drift"
-    },
-    "accentColor": "peach",
-    "cabinetId": "cabinet_02",
-    "tags": ["Arcade", "Racing", "Low-Poly", "Physics"]
-  },
-  {
-    "id": "game-03",
-    "title": "Clockwork Manor",
-    "tagline": "A Victorian puzzle box mystery driven by physical gear puzzles.",
-    "year": 2024,
-    "type": "Team Project | Academic Showcase",
-    "roles": ["Systems Programmer", "UI/UX Designer"],
-    "contributions": [
-      "Constructed interconnected hierarchical gear simulation that validates mechanical puzzle state.",
-      "Built tactile 3D inspectable inventory with smooth rotational quaternion interpolation.",
-      "Architected save/load system supporting asynchronous serialization."
+    "description": "Light Up The House is a third-person sci-fi exploration-adventure built in Unreal Engine 5. You play Mr. Robo, a robotic operative aboard a space shuttle that has lost total power. The objective: find the right tool for each of three broken systems, repair them before a countdown timer hits zero, and light the house back up.",
+    "tools": [
+      "Unreal Engine 5 (Blueprints)",
+      "Blender"
     ],
-    "description": "Step into the shoes of an apprentice clockmaker unraveling the disappearing heirlooms of an eccentric inventor. Manipulate brass mechanisms, align optical prisms, and unlock hidden chambers.",
-    "tools": ["Unreal Engine 5", "Blueprints", "C++", "Substance 3D"],
-    "teamSize": 5,
+    "teamSize": 3,
+    "collaborators": "M. Faisal Hameed and M. Huzaifa",
     "video": {
-      "src": "/video/game-03.mp4",
-      "poster": "/video/game-03.webp",
-      "captions": "/video/game-03.vtt"
+      "src": "https://youtu.be/d1nB7CZ_fcg",
+      "poster": "/images/projects/light-up-the-house-2.webp"
     },
+    "images": [
+      {
+        "src": "/images/projects/light-up-the-house-2.webp",
+        "alt": "Gameplay screenshot: Mr. Robo on the dark stairway"
+      },
+      {
+        "src": "/images/projects/light-up-the-house-1.webp",
+        "alt": "Cover / logo image: Light Up The House"
+      }
+    ],
     "links": {
-      "play": "https://placeholder-steam.com/app/clockwork-manor",
-      "repo": "https://github.com/placeholder-alex/clockwork-manor",
-      "itch": "https://placeholder-alex.itch.io/clockwork-manor"
+      "trailer": "https://youtu.be/d1nB7CZ_fcg",
+      "video": "https://www.youtube.com/watch?v=IanUdZbedtk"
     },
     "accentColor": "butter",
-    "cabinetId": "cabinet_03",
-    "tags": ["3D", "Puzzle", "Mystery", "Narrative"]
+    "cabinetId": "cabinet_01",
+    "tags": [
+      "Unreal Engine 5",
+      "Blueprints",
+      "UI/UX",
+      "Team"
+    ]
   },
   {
-    "id": "game-04",
-    "title": "Aether Balloonist",
-    "tagline": "Gentle sky exploration with buoyant wind currents and cloud charting.",
-    "year": 2023,
-    "type": "Solo Project",
-    "roles": ["Solo Creator", "Art & Code"],
-    "contributions": [
-      "Simulated thermal air currents and wind vector fields for peaceful hot air balloon navigation.",
-      "Developed procedural pastel cloud volume shader using raymarching in Three.js.",
-      "Authored interactive musical chimes triggered when floating through cloud formations."
+    "id": "floor-is-a-liar",
+    "title": "The Floor Is A Liar",
+    "tagline": "A 3D browser game where the rules might be lying to you.",
+    "year": 2026,
+    "type": "Solo · Three.js browser game",
+    "featured": true,
+    "roles": [
+      "Solo developer",
+      "Designer",
+      "QA"
     ],
-    "description": "Float through whimsical pastel skies in a customized wicker basket. Chart uncharted floating sky islands, deliver mail to avian postmasters, and bask in calming horizon vistas.",
-    "tools": ["Three.js", "WebGL", "TypeScript", "GLSL"],
+    "contributions": [
+      "Designed the rule mechanic, tile effects, level progression and scoring system.",
+      "Built the Three.js scene in React Three Fiber, with a follow camera, lighting, an animated character and portal, and raycast-based hover and click-to-move.",
+      "Fixed mobile usability by adjusting the camera for portrait view.",
+      "Designed the Supabase/PostgreSQL schema with Row Level Security, validated save functions and a privacy-safe leaderboard.",
+      "Wrote 69 automated tests across 12 suites, including real raycasting and level-solvability tests.",
+      "Deployed with Git and Vercel CI/CD and documented the project."
+    ],
+    "description": "FloorIsALiar is a disco-themed 3D puzzle-arcade game. Players cross a floating dance floor of colored tiles to reach an exit portal. Each round, a loudspeaker announces a rule about one tile color, such as \"Orange tiles are slippery!\", and the rule can be true or a lie. Players must decide whether to trust it, and whether to take the short risky route or the long safe one. It ships with accounts, saved runs, a stats dashboard and a global leaderboard.",
+    "tools": [
+      "React",
+      "TypeScript",
+      "Three.js",
+      "React Three Fiber",
+      "Tailwind",
+      "Supabase",
+      "Vitest",
+      "Vercel"
+    ],
     "teamSize": 1,
     "video": {
-      "src": "/video/game-04.mp4",
-      "poster": "/video/game-04.webp",
-      "captions": "/video/game-04.vtt"
+      "src": "https://youtu.be/Nd6XURti9-E",
+      "poster": "/images/projects/floor-is-a-liar-1.webp"
     },
+    "images": [
+      {
+        "src": "/images/projects/floor-is-a-liar-1.webp",
+        "alt": "Gameplay screenshot: reaching the exit portal"
+      },
+      {
+        "src": "/images/projects/floor-is-a-liar-2.webp",
+        "alt": "Screenshot: \"Meet the Dance Floor Tiles\" guide"
+      },
+      {
+        "src": "/images/projects/floor-is-a-liar-3.webp",
+        "alt": "Screenshot: mobile portrait view"
+      }
+    ],
     "links": {
-      "play": "https://placeholder-web.com/aether-balloonist",
-      "repo": "https://github.com/placeholder-alex/aether-balloonist",
-      "itch": "https://placeholder-alex.itch.io/aether-balloonist"
+      "play": "https://floor-is-a-liar.vercel.app/",
+      "repo": "https://github.com/04zarina/FloorIsALiar",
+      "video": "https://youtu.be/Nd6XURti9-E"
     },
-    "accentColor": "sky",
-    "cabinetId": "cabinet_04",
-    "tags": ["Web3D", "Relaxing", "Procedural", "Exploration"]
+    "accentColor": "lavender",
+    "cabinetId": "cabinet_02",
+    "tags": [
+      "Three.js",
+      "React Three Fiber",
+      "Web",
+      "Solo",
+      "Play now"
+    ]
   },
   {
-    "id": "game-05",
-    "title": "Slime Bakery Rush",
-    "tagline": "Chaotic pastry baking where bouncy jellies are your eager kitchen crew.",
-    "year": 2023,
-    "type": "Game Jam Runner-Up",
-    "roles": ["Lead Gameplay Programmer"],
-    "contributions": [
-      "Formulated soft-body spring mesh deformation for wobbly jelly kitchen assistants.",
-      "Coded dynamic recipe combination graph and order satisfaction timer.",
-      "Created tactile audio feedback for squishing, tossing, and oven ding sound effects."
+    "id": "mask-that-holds",
+    "title": "The Mask That Holds",
+    "tagline": "Global Game Jam entry, built in 48 hours around the theme Mask.",
+    "year": 2026,
+    "type": "Global Game Jam · 48 hours · Team of 6",
+    "featured": true,
+    "badge": "Global Game Jam · 48h",
+    "roles": [
+      "Project Manager",
+      "Level Designer",
+      "Narrative Designer",
+      "Environment Designer"
     ],
-    "description": "Manage a high-paced magical pastry shop with the help of colorful, jiggly gelatin creatures. Bounce dough across the kitchen, balance oven temperatures, and serve hungry whimsical customers.",
-    "tools": ["Unity", "C#", "FMOD", "Blender"],
-    "teamSize": 3,
+    "contributions": [
+      "Led concept and scope as project manager.",
+      "Shaped Tokyo 3030's decaying, mist-choked visual identity as environment designer.",
+      "Translated it into playable space as level designer, where danger and safety read environmentally rather than through UI."
+    ],
+    "description": "Built in 48 hours for Global Game Jam around the theme Mask. Set in Tokyo, 3030, pollution has consumed the city, and a mysterious force has begun turning its people into formless mist. Only those wearing the ancient, mythical Auralian mask can hold onto their shape. You play the one person left who still remembers what it means to have a form, wearing the mask and fighting to survive against the thing that is unmaking everyone else.",
+    "tools": [
+      "Unity 3D",
+      "Blender"
+    ],
+    "teamSize": 6,
+    "collaborators": "Rafia Sajid, Naverah Farhat, Fizza Aman, Aiman Munawar and Musfirah Iqbal",
     "video": {
-      "src": "/video/game-05.mp4",
-      "poster": "/video/game-05.webp",
-      "captions": "/video/game-05.vtt"
+      "src": "https://youtu.be/-_adE2W5jIg",
+      "poster": "/images/projects/mask-that-holds-1.webp"
     },
+    "images": [
+      {
+        "src": "/images/projects/mask-that-holds-1.webp",
+        "alt": "Poster / splash art: The Mask That Holds"
+      }
+    ],
     "links": {
-      "play": "https://placeholder-itch.io/slime-bakery",
-      "repo": "https://github.com/placeholder-alex/slime-bakery",
-      "itch": "https://placeholder-alex.itch.io/slime-bakery"
+      "video": "https://youtu.be/-_adE2W5jIg"
     },
     "accentColor": "blush",
+    "cabinetId": "cabinet_03",
+    "tags": [
+      "Game Jam",
+      "Unity",
+      "Level Design",
+      "Narrative"
+    ]
+  },
+  {
+    "id": "echoes-of-the-fallen",
+    "title": "Echoes of the Fallen",
+    "tagline": "A dungeon crawler made in Unity 2D for NED GameCon'25.",
+    "year": 2025,
+    "type": "Team of 4 · Unity 2D · NED GameCon'25",
+    "featured": true,
+    "roles": [
+      "Level Designer"
+    ],
+    "contributions": [
+      "Designed all levels and decided where the traps go, so that difficulty increases gradually."
+    ],
+    "description": "A dungeon crawler made in Unity 2D for NED GameCon'25.",
+    "tools": [
+      "Unity 2D"
+    ],
+    "teamSize": 4,
+    "collaborators": "Mashal Zehra, Naverah Farhat and Aiman Munawar",
+    "video": {
+      "src": "https://www.youtube.com/watch?v=iRCE3Nf9QH4",
+      "poster": "/images/projects/echoes-of-the-fallen-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/echoes-of-the-fallen-1.webp",
+        "alt": "Title / splash screen: Echoes of the Fallen"
+      },
+      {
+        "src": "/images/projects/echoes-of-the-fallen-2.webp",
+        "alt": "Level layout screenshot"
+      }
+    ],
+    "links": {
+      "video": "https://www.youtube.com/watch?v=iRCE3Nf9QH4"
+    },
+    "accentColor": "peach",
+    "cabinetId": "cabinet_04",
+    "tags": [
+      "Unity",
+      "2D",
+      "Level Design",
+      "Dungeon Crawler"
+    ]
+  },
+  {
+    "id": "vr-escape-room",
+    "title": "VR Escape Room",
+    "tagline": "Collect 4 keys against the clock to escape the mansion, in VR.",
+    "year": 2026,
+    "type": "Team of 4 · Unity 3D (VR)",
+    "featured": true,
+    "roles": [
+      "Interaction Designer",
+      "Gameplay Programmer"
+    ],
+    "contributions": [
+      "Investigated and implemented VR teleportation and pickup interactions, testing multiple interaction models for usability.",
+      "Built visual feedback cues (glow and float effects) to test how affordance guides player behavior.",
+      "Iteratively tuned puzzle pacing through playtesting, adjusting key placement and unlock logic based on real player feedback.",
+      "Added random spawn points for keys to maintain replayability."
+    ],
+    "description": "A VR escape room built to explore how physical interaction models and visual feedback affect player behavior in 3D space. Goal: the player needs to collect 4 keys under a time constraint in order to escape the mansion, but on each collection gets teleported to a new area. The screen starts flashing red when the player starts to run out of time, adding difficulty and visual distress.",
+    "tools": [
+      "Unity 3D",
+      "VR",
+      "XR interaction"
+    ],
+    "teamSize": 4,
+    "collaborators": "Aiman Munawar, Naverah Farhat and Fizza Aman",
+    "video": {
+      "src": "https://youtu.be/mlFOdJMU3Ec",
+      "poster": "/images/projects/vr-escape-room-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/vr-escape-room-1.webp",
+        "alt": "Key art / splash: VR Escape"
+      },
+      {
+        "src": "/images/projects/vr-escape-room-2.webp",
+        "alt": "Unity editor screenshot: key pickup and interaction setup"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/mlFOdJMU3Ec"
+    },
+    "accentColor": "mint",
     "cabinetId": "cabinet_05",
-    "tags": ["Physics", "Multiplayer", "Casual", "Action"]
+    "tags": [
+      "VR",
+      "Unity",
+      "Interaction Design",
+      "C#"
+    ]
+  },
+  {
+    "id": "vr-flight-sim",
+    "title": "Harry Potter Flight and Crash VR Simulation",
+    "tagline": "A solo VR flight-and-crash simulation built in under 27 hours.",
+    "year": 2026,
+    "type": "Solo · Unity 3D (VR) · Final lab exam",
+    "roles": [
+      "VR Developer (solo)"
+    ],
+    "contributions": [
+      "Built vehicle and flight controls in VR.",
+      "Implemented flight physics (lift, momentum, steering and crash behavior).",
+      "Built collision detection and crash-response handling.",
+      "Added teleportation on pressing a red button.",
+      "Owned the full development cycle solo: scripting, testing and debugging."
+    ],
+    "description": "An independently built VR flight-and-crash simulation with a Harry Potter-themed setting, built end-to-end in Unity3D: vehicle controls, flight physics and collision handling, all implemented solo under 27 hours for a final lab exam.",
+    "tools": [
+      "Unity 3D",
+      "Virtual Reality",
+      "XR interaction"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "https://youtu.be/9EJ4rZNem8s",
+      "poster": "/images/projects/vr-flight-sim-2.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/vr-flight-sim-1.webp",
+        "alt": "Title screen: \"The Flying Car Experience\""
+      },
+      {
+        "src": "/images/projects/vr-flight-sim-2.webp",
+        "alt": "In-simulation screenshot: driver view"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/9EJ4rZNem8s"
+    },
+    "accentColor": "sky",
+    "cabinetId": "archive_06",
+    "tags": [
+      "VR",
+      "Unity",
+      "Physics",
+      "Solo"
+    ],
+    "featured": false
+  },
+  {
+    "id": "oakridge-hollow",
+    "title": "Oakridge Hollow",
+    "tagline": "A Minecraft-inspired 3D voxel sandbox that runs 100% in the browser.",
+    "year": 2026,
+    "type": "Solo · Web 3D Programming course project",
+    "roles": [
+      "3D Web Developer",
+      "Interactive UI/Audio Designer"
+    ],
+    "contributions": [
+      "Designed and built the 3D voxel engine, procedural texture and audio generators, dual camera controls, NPC behavior and a responsive HUD from scratch.",
+      "Procedural World & Foraging: generated seeded rolling terrain, a pond, a lantern-lit cottage, and oak trees that drop collectible, edible apples when harvested.",
+      "Mining, Building & Inventory Loop: built raycast block breaking and placing with particle bursts, spinning 3D pickups, and an 8-slot live resource hotbar.",
+      "Roaming Villagers & Animals: modeled and animated villagers (with speech bubbles) and farm animals (sheep, pigs, chickens) that navigate terrain and avoid water.",
+      "Dual Camera & Trackpad-Friendly UX: added a quick Break/Place mode switcher (Q), Orbit View, First-Person Walk/Fly mode (WASD), and a Settings modal.",
+      "Automated Day / Dusk / Night Cycle: built smooth lighting, sky and shadow transitions that cycle automatically every 90 seconds or manually via Settings.",
+      "Rendering: stores voxels in a spatial Map (\"x,y,z\" to blockType) with neighbor-based face culling, and draws deterministic 16x16 pixel-art canvas bitmaps mapped with THREE.NearestFilter.",
+      "Procedural Audio (Web Audio API): synthesizes block crunches, footsteps, animal and villager calls, and ambient chimes in real time using noise buffers, bandpass filters and oscillators."
+    ],
+    "description": "Oakridge Hollow is a browser-based, Minecraft-inspired 3D voxel sandbox built with Three.js and the Web Audio API for a Web 3D Programming course. It runs 100% client-side with zero external assets. All pixel-art textures, terrain, animated villagers and animals, day-dusk-night lighting and sound effects are generated procedurally in code.",
+    "tools": [
+      "Three.js",
+      "Web Audio API",
+      "JavaScript"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "https://youtu.be/MA-lQrxWqMo",
+      "poster": "/images/projects/oakridge-hollow-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/oakridge-hollow-1.webp",
+        "alt": "Gameplay screenshot: Oakridge Hollow world and hotbar"
+      }
+    ],
+    "links": {
+      "play": "https://minecraft-six-psi.vercel.app/",
+      "video": "https://youtu.be/MA-lQrxWqMo"
+    },
+    "accentColor": "mint",
+    "cabinetId": "archive_07",
+    "tags": [
+      "Three.js",
+      "Procedural",
+      "Web Audio",
+      "Play now"
+    ],
+    "featured": false
+  },
+  {
+    "id": "shadows-of-the-slums",
+    "title": "Shadows of the Slums",
+    "tagline": "A maze-escape thriller: witness a gang murder, then survive.",
+    "year": 2025,
+    "type": "Team of 3 · Unity 3D",
+    "roles": [
+      "Level Designer",
+      "Narrative Designer",
+      "Gameplay Programmer"
+    ],
+    "contributions": [
+      "Owned one full scene independently, building it end to end.",
+      "Environment: designed the maze sequence and pacing for that section of the escape.",
+      "Systems: programmed core gameplay in C#, including character movement, animation state control and scene-switching logic.",
+      "Narrative: designed and validated the trust-based NPC dialogue system central to the story. Since the worker's survival depends on which NPCs choose to help him, I mapped out how trust would be earned or lost."
+    ],
+    "description": "Shadows of the Slums is a maze-escape thriller built in Unity3D by a 3-person team. The story follows a regular worker who witnesses a gang murder and gets seen by the killer. Now marked, he has to survive, evade the mafia, and find a way to expose them, relying on NPCs he can (or cannot) trust to help him along the way. Each of the three of us owned one full scene end to end: environment, NPC dialogue and animation.",
+    "tools": [
+      "Unity 3D",
+      "C#"
+    ],
+    "teamSize": 3,
+    "collaborators": "Mashal Zehra and Aiman Munawar",
+    "video": {
+      "src": "",
+      "poster": "/images/projects/shadows-of-the-slums-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/shadows-of-the-slums-1.webp",
+        "alt": "Title screen: Shadows of the Slums"
+      },
+      {
+        "src": "/images/projects/shadows-of-the-slums-2.webp",
+        "alt": "In-game screenshot: interior scene"
+      }
+    ],
+    "links": {},
+    "accentColor": "peach",
+    "cabinetId": "archive_08",
+    "tags": [
+      "Unity",
+      "C#",
+      "Narrative",
+      "Level Design"
+    ],
+    "featured": false
+  },
+  {
+    "id": "ar-piano",
+    "title": "AR Piano",
+    "tagline": "An air piano: play notes by pressing keys in mid-air, tracked by webcam.",
+    "year": 2026,
+    "type": "Solo · Computer vision",
+    "roles": [
+      "Computer Vision Developer"
+    ],
+    "contributions": [
+      "Built the full pipeline solo: hand and finger landmark tracking using MediaPipe, and real-time video processing with OpenCV.",
+      "Wrote the logic that maps tracked finger positions to on-screen key zones and triggers the corresponding note.",
+      "Solved the gesture-to-input problem: detecting a \"press\" reliably (a finger crossing a key's threshold) without false triggers from natural hand movement."
+    ],
+    "description": "An AR air piano built in Python using OpenCV and MediaPipe. A webcam tracks your hand in real time, maps finger positions to piano keys rendered on screen, and plays notes when you \"press\" a key in mid-air, with no physical keyboard involved.",
+    "tools": [
+      "Python",
+      "OpenCV",
+      "MediaPipe"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "https://youtu.be/9oMXFCW376Y",
+      "poster": "/images/projects/ar-piano-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/ar-piano-1.webp",
+        "alt": "Screenshot: hand tracking with highlighted piano keys"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/9oMXFCW376Y"
+    },
+    "accentColor": "lavender",
+    "cabinetId": "archive_09",
+    "tags": [
+      "Python",
+      "Computer Vision",
+      "AR",
+      "Solo"
+    ],
+    "featured": false
+  },
+  {
+    "id": "six-of-crows",
+    "title": "Six of Crows Trailer",
+    "tagline": "A TV-series opening sequence for Six of Crows, made with motion graphics.",
+    "year": 2026,
+    "type": "Solo · Post-Production course at CEGA",
+    "roles": [
+      "Motion Graphics Artist"
+    ],
+    "contributions": [
+      "Parallax compositing: layered sky, tree silhouette and birds at different depths with a simulated camera push for scene depth.",
+      "Luma matte transition: dissolved black into the title card using a smoke/ink matte.",
+      "Kinetic typography: animated the title build (\"SI\" to \"SIX OF CROWS\") with After Effects text range selectors.",
+      "Null-parented rig: built a reusable card fan using a fixed rotational offset per layer, parented to a null.",
+      "3D layer animation: flipped each character card into frame using 3D rotation.",
+      "Blend mode compositing: layered a smoke texture in Screen mode behind the cards for depth without hard edges.",
+      "Shape wipe transition: used a bird silhouette as a wipe between the title and card sequence."
+    ],
+    "description": "For my final project in the post-production course at the Centre of Excellence for Gaming and Animation (CEGA), I adapted my favourite book, Six of Crows, into a TV-series opening sequence using motion graphics.",
+    "tools": [
+      "Adobe After Effects"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "https://youtu.be/e1ZeGoUFSl0",
+      "poster": "/images/projects/six-of-crows-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/six-of-crows-1.webp",
+        "alt": "Title frame: SIX OF CROWS"
+      },
+      {
+        "src": "/images/projects/six-of-crows-2.webp",
+        "alt": "Character card frame: Kaz"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/e1ZeGoUFSl0"
+    },
+    "accentColor": "blush",
+    "cabinetId": "archive_10",
+    "tags": [
+      "Motion Graphics",
+      "After Effects",
+      "Solo"
+    ],
+    "featured": false
+  },
+  {
+    "id": "between-waking",
+    "title": "Between Waking",
+    "tagline": "An original story taken from concept through storyboards and animatics.",
+    "year": 2026,
+    "type": "Team of 9 · Pre-Production course at CEGA",
+    "roles": [
+      "Project Manager",
+      "Storyboard Artist"
+    ],
+    "contributions": [
+      "Led a team of 9 as project manager.",
+      "Contributed to idea development.",
+      "Drew storyboard frames.",
+      "Assembled the animatics."
+    ],
+    "description": "Developed an original story, \"Between Waking\", from concept through animatic and game idea as part of a pre-production course at the Centre of Excellence for Gaming and Animation (CEGA). The work covers story development, shot-by-shot storyboarding and animatic assembly.",
+    "tools": [
+      "Hand-drawn frames",
+      "After Effects",
+      "Canva",
+      "Miro"
+    ],
+    "teamSize": 9,
+    "collaborators": "Rafia Gul, Iffat Adnan, Ifrah Naem, Alizeh Soomro, Maha Khaliq, Aasia Asadullah, Naverah Farhat and Aiman Munawar",
+    "video": {
+      "src": "https://youtu.be/7vmo3WcG4cU",
+      "poster": "/images/projects/between-waking-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/between-waking-1.webp",
+        "alt": "Mood board: Between Waking"
+      },
+      {
+        "src": "/images/projects/between-waking-2.webp",
+        "alt": "Hand-drawn storyboard frame"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/7vmo3WcG4cU"
+    },
+    "accentColor": "sky",
+    "cabinetId": "archive_11",
+    "tags": [
+      "Pre-Production",
+      "Storyboarding",
+      "Animatics",
+      "Team"
+    ],
+    "featured": false
+  },
+  {
+    "id": "solar-system",
+    "title": "Solar System Scene",
+    "tagline": "An interactive 3D solar system with orbiting planets.",
+    "year": 2026,
+    "type": "Three.js course exercise",
+    "roles": [
+      "Developer"
+    ],
+    "contributions": [
+      "Built a glowing sun with planets travelling along visible orbit rings.",
+      "Added OrbitControls so viewers can drag to rotate and scroll to zoom."
+    ],
+    "description": "An interactive 3D solar system built in Three.js. A glowing sun sits at the center with planets travelling around it along visible orbit rings. OrbitControls let the viewer drag to rotate the view and scroll to zoom.",
+    "tools": [
+      "Three.js",
+      "OrbitControls"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "",
+      "poster": "/images/projects/solar-system-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/solar-system-1.webp",
+        "alt": "Screenshot: full solar system view"
+      },
+      {
+        "src": "/images/projects/solar-system-2.webp",
+        "alt": "Screenshot: close view of the sun and inner planets"
+      }
+    ],
+    "links": {},
+    "accentColor": "butter",
+    "cabinetId": "archive_12",
+    "tags": [
+      "Three.js",
+      "WebGL"
+    ],
+    "featured": false
+  },
+  {
+    "id": "portal-scene",
+    "title": "Portal Scene",
+    "tagline": "An atmospheric Three.js scene: open the chest, then travel through the portal.",
+    "year": 2026,
+    "type": "Three.js interactive scene",
+    "roles": [
+      "Developer"
+    ],
+    "contributions": [
+      "Built a glowing portal inside an ivy-covered arch, lit by torches, with a clickable treasure chest.",
+      "Scripted a camera move that zooms onto the open chest and then travels inside the portal, where the viewer can rotate, pan and explore."
+    ],
+    "description": "An atmospheric interactive 3D scene built in Three.js. A glowing portal sits inside an ivy-covered arch, lit by torches, with a treasure chest in front. A prompt invites the viewer to click the chest to open it. The camera then zooms onto the open chest and travels inside the portal, giving the user the freedom to rotate, pan and explore the other scene.",
+    "tools": [
+      "Three.js"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "https://youtu.be/noeWbnaDJyU",
+      "poster": "/images/projects/portal-scene-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/portal-scene-1.webp",
+        "alt": "Screenshot: portal scene with chest prompt"
+      }
+    ],
+    "links": {
+      "video": "https://youtu.be/noeWbnaDJyU"
+    },
+    "accentColor": "lavender",
+    "cabinetId": "archive_13",
+    "tags": [
+      "Three.js",
+      "WebGL",
+      "Interactive"
+    ],
+    "featured": false
+  },
+  {
+    "id": "low-poly-car",
+    "title": "Low-Poly Car",
+    "tagline": "A low-poly red car modeled in Blender.",
+    "year": 2026,
+    "type": "3D modeling",
+    "roles": [
+      "3D Modeler"
+    ],
+    "contributions": [
+      "Modeled and rendered a low-poly red car in Blender."
+    ],
+    "description": "A low-poly red car modeled in Blender.",
+    "tools": [
+      "Blender"
+    ],
+    "teamSize": 1,
+    "video": {
+      "src": "",
+      "poster": "/images/projects/low-poly-car-1.webp"
+    },
+    "images": [
+      {
+        "src": "/images/projects/low-poly-car-1.webp",
+        "alt": "Blender render: low-poly car"
+      }
+    ],
+    "links": {},
+    "accentColor": "peach",
+    "cabinetId": "archive_14",
+    "tags": [
+      "Blender",
+      "3D Art"
+    ],
+    "featured": false
   }
 ]

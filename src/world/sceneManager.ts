@@ -13,6 +13,8 @@ import { FollowCamera } from './camera/followCamera';
 export interface RoomInstance {
   group: THREE.Group;
   spawnPoint: THREE.Vector3;
+  /** Direction the avatar faces on entry (0 = +Z). Defaults to 0. */
+  spawnRotationY?: number;
   update(delta: number): void;
   dispose(): void;
 }
@@ -109,12 +111,12 @@ export class SceneManager {
 
     // 4. Position Avatar at room spawn
     if (targetRoomId === 'bedroom' && store.get().isWakingUp) {
-      const bedPos = new THREE.Vector3(-3.2, 0.52, -2.2);
+      const bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
       this.avatar.startInBed(bedPos);
-      this.camera.snapTo(new THREE.Vector3(-3.2, 1.2, -2.2), Math.PI / 2);
+      this.camera.snapTo(new THREE.Vector3(-3.4, 1.2, -1.9), 0);
     } else {
       this.avatar.position.copy(newRoom.spawnPoint);
-      this.avatar.rotationY = 0;
+      this.avatar.rotationY = newRoom.spawnRotationY ?? 0;
       this.avatar.isMoving = false;
       this.camera.snapTo(this.avatar.position, this.avatar.rotationY);
     }

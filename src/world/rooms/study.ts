@@ -5,11 +5,14 @@ import { store } from '../../core/store';
 import { eventBus } from '../../core/events';
 import { assetLoader } from '../../core/loaders';
 import { Avatar } from '../avatar/avatar';
+import { sparkleSystem } from '../fx/sparkles';
+import { DECOR, placeDecor, recenter } from '../decor';
 
 export class StudyRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(0, 0, -2.8);
   private avatar: Avatar | null = null;
+  private resumeTag: THREE.Mesh | null = null;
 
   constructor(avatar?: Avatar) {
     this.avatar = avatar || null;
@@ -67,7 +70,8 @@ export class StudyRoom {
     corkFace.position.z = -0.05;
     corkGroup.add(corkFrame, corkFace);
 
-    // Pinned sticky notes on corkboard with readable labels
+    // Pinned sticky notes on corkboard with readable labels.
+    // The board faces -Z, so +X here reads as the left side for the viewer.
     const makeNote = (label: string, subtext: string, color: number, x: number, y: number, rot: number) => {
       const canvas = document.createElement('canvas');
       canvas.width = 256; canvas.height = 192;
@@ -110,23 +114,23 @@ export class StudyRoom {
       return mesh;
     };
 
-    const note1 = makeNote('🎓 Education', 'B.S. CS · NED University 2023–2027', 0xFFF6EC, -1.2, 0.3, 0.05);
-    const note2 = makeNote('💼 Experience', '3 roles · Gameplay Eng · WebGL Dev', 0xFFE9A3, 0.1, 0.42, -0.04);
-    const note3 = makeNote('🛠 Skills', 'Three.js · Unity · C++ · React', 0xFFB3C7, 1.3, 0.3, 0.08);
-    corkGroup.add(note1, note2, note3);
+    const note1 = makeNote('🎓 Education', 'BS CS, Gaming & Animation · NED · CGPA 3.657', 0xFFF6EC, 1.4, 0.3, 0.05);
+    const note2 = makeNote('💼 Experience', 'Game Dev Intern, Aerox ERP · IT Intern, KDA', 0xFFE9A3, 0.45, 0.42, -0.04);
+    const note3 = makeNote('🛠 Skills', 'Unreal 5 · Unity C# · VR · Three.js', 0xFFB3C7, -0.5, 0.3, 0.08);
+    const note4 = makeNote('📜 Certificates', 'CEGA Unreal · Pre & Post-Production · Google AI', 0xBDEBD3, -1.45, 0.4, -0.06);
+    corkGroup.add(note1, note2, note3, note4);
     this.group.add(corkGroup);
 
-    // 4. Bookshelves on Left Wall
-    const shelfBody = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.8, 2.4), woodMat);
-    shelfBody.position.set(-4.4, 1.4, 0);
-    this.group.add(shelfBody);
-    collisionSystem.addBox(-4.8, -3.8, -1.3, 1.3);
+    // 4. Bookshelves on Left Wall (furniture-pack models load in loadGLBModels)
+    collisionSystem.addBox(-4.8, -4.1, -1.3, 1.3);
 
-    // 5. Reading couch on Right Wall
-    const couch = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 2.0), new THREE.MeshLambertMaterial({ color: 0xFFE9A3 }));
-    couch.position.set(4.2, 0.3, 0);
-    this.group.add(couch);
-    collisionSystem.addBox(3.5, 4.8, -1.2, 1.2);
+    // 5. Reading corner on Right Wall: couch, coffee table, floor lamp
+    collisionSystem.addBox(3.9, 4.8, -1.1, 1.1);
+    collisionSystem.addBox(2.7, 3.5, -0.45, 0.45);
+    collisionSystem.addBox(4.0, 4.8, 1.3, 2.0);
+    // Plants in the back corners
+    collisionSystem.addBox(-4.8, -3.8, 2.9, 3.8);
+    collisionSystem.addBox(3.8, 4.8, 2.9, 3.8);
 
     // 6. Doorway back to Bedroom (Front wall: x = 0, z = -3.9)
     const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.4, 0.15), baseboardMat);
@@ -140,7 +144,26 @@ export class StudyRoom {
   }
 
   private async loadGLBModels(): Promise<void> {
-    // 1. Study Desk (Work_Table_06.glb)
+    const decorReady = placeDecor(this.group, [
+      // Bookshelves against the left wall, facing into the room
+      { url: DECOR.bookshelf, position: [-4.76, 0, -0.6], rotY: Math.PI / 2, scale: 1.3 },
+      { url: DECOR.bookshelf, position: [-4.76, 0, 0.6], rotY: Math.PI / 2, scale: 1.3 },
+      { url: DECOR.bookRow, position: [-4.45, 2.06, -0.6], rotY: Math.PI / 2, scale: 0.9 },
+      { url: DECOR.bookStack, position: [-4.45, 2.06, 0.6], rotY: Math.PI / 2 },
+      // Reading corner
+      { url: DECOR.couchPink, position: [4.45, 0, 0], rotY: -Math.PI / 2, scale: 1.2 },
+      { url: DECOR.coffeeTable, position: [3.1, 0.353, 0] },
+      { url: DECOR.bookStack, position: [3.05, 0.42, 0.05], rotY: 0.5 },
+      { url: DECOR.floorLamp, position: [4.4, 0, 1.65] },
+      // Greenery and wall art
+      { url: DECOR.plantTall, position: [-4.3, 0, 3.35], scale: 1.4 },
+      { url: DECOR.plantPalm, position: [4.25, 0, 3.3], scale: 0.62 },
+      { url: DECOR.pictureSun, position: [4.8, 1.9, -1.9], rotY: -Math.PI / 2, scale: 0.9 },
+      // Study chair (avatar sits here facing the desk)
+      { url: DECOR.chairPC, position: [0, 0, 0.95] }
+    ]);
+
+    // 1. Study Desk (Work_Table_06.glb): top at y = 0.76
     const deskGltf = await assetLoader.loadGLTF('desk');
     if (deskGltf) {
       deskGltf.position.set(0, 0, 1.8);
@@ -148,25 +171,64 @@ export class StudyRoom {
       this.group.add(deskGltf);
     } else {
       this.buildFallbackDesk();
-    }
-
-    // 2. Study Chair on opposite side where avatar can sit (Chair_17.glb)
-    const chairGltf = await assetLoader.loadGLTF('chair');
-    if (chairGltf) {
-      chairGltf.position.set(0, 0, 0.95);
-      chairGltf.rotation.y = 0; // Facing desk and Mochi
-      this.group.add(chairGltf);
-    } else {
       this.buildFallbackChair();
     }
 
-    // Cute laptop on desk
-    const laptopBase = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.02, 0.26), new THREE.MeshLambertMaterial({ color: 0xBDEBD3 }));
-    laptopBase.position.set(-0.25, 0.77, 1.8);
-    const laptopScreen = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.26, 0.02), new THREE.MeshBasicMaterial({ color: 0xFFF6EC }));
-    laptopScreen.position.set(-0.25, 0.89, 1.92);
-    laptopScreen.rotation.x = -0.25;
-    this.group.add(laptopBase, laptopScreen);
+    // 2. Desktop computer facing the chair
+    const computer = await assetLoader.loadUrl(DECOR.computer);
+    if (computer) {
+      const pc = recenter(computer);
+      pc.position.set(-0.2, 0.76, 1.95);
+      pc.rotation.y = Math.PI;
+      pc.scale.setScalar(0.85);
+      this.group.add(pc);
+    }
+
+    // 3. Resume on the desk, with a floating tag so visitors can spot it
+    const paper = await assetLoader.loadUrl(DECOR.paper);
+    const resumeGroup = new THREE.Group();
+    resumeGroup.position.set(0.42, 0.765, 1.6);
+    resumeGroup.rotation.y = Math.PI + 0.25;
+    if (paper) {
+      paper.scale.setScalar(1.3);
+      resumeGroup.add(paper);
+    } else {
+      const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.01, 0.32), new THREE.MeshLambertMaterial({ color: 0xFFF6EC }));
+      resumeGroup.add(sheet);
+    }
+    this.group.add(resumeGroup);
+
+    this.resumeTag = this.createResumeTag();
+    this.resumeTag.position.set(0.42, 1.12, 1.6);
+    this.group.add(this.resumeTag);
+
+    await decorReady;
+  }
+
+  /** Small billboard label that floats above the resume. */
+  private createResumeTag(): THREE.Mesh {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 80;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#FFE9A3';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 248, 72, 22);
+    ctx.fill();
+    ctx.strokeStyle = '#5A3A32';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.fillStyle = '#5A3A32';
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📄 RESUME', 128, 42);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.16),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+    );
   }
 
   private buildFallbackDesk(): void {
@@ -242,7 +304,22 @@ export class StudyRoom {
       }
     });
 
-    // 3. Doorway back to Bedroom
+    // 3. Resume on the desk: preview + download
+    interactionSystem.register({
+      id: 'resume',
+      label: 'Read & Download Resume 📄',
+      keyHint: 'E',
+      radius: 1.6,
+      position: new THREE.Vector3(0.75, 0.9, 1.2),
+      onInteract: () => {
+        sparkleSystem.burst(new THREE.Vector3(0.42, 1.0, 1.6), 14);
+        store.completeQuest('get_resume');
+        store.set('activeOverlay', 'resume');
+        eventBus.emit('overlay:open', 'resume');
+      }
+    });
+
+    // 4. Doorway back to Bedroom
     interactionSystem.register({
       id: 'DOOR_bedroom',
       label: 'Back to Bedroom 🚪',
@@ -273,10 +350,18 @@ export class StudyRoom {
     this.avatar = avatar;
   }
 
-  update(delta: number): void {}
+  update(delta: number): void {
+    if (this.resumeTag) {
+      const t = performance.now() * 0.002;
+      this.resumeTag.position.y = 1.12 + Math.sin(t) * 0.03;
+      // Billboard toward the camera side of the room (-Z) with a gentle sway
+      this.resumeTag.rotation.y = Math.PI + Math.sin(t * 0.5) * 0.15;
+    }
+  }
 
   dispose(): void {
     interactionSystem.clear();
+    this.resumeTag = null;
     this.group.clear();
   }
 }

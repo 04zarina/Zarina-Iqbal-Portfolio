@@ -107,7 +107,7 @@ async function runIngest() {
     id: 'profile-bio',
     sourceId: 'profile',
     type: 'profile',
-    title: 'Alex Morgan Profile & Bio',
+    title: 'Zarina Iqbal Buriro Profile & Bio',
     targetId: 'mirror',
     text: profileRaw
   });

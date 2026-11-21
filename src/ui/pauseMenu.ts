@@ -2,6 +2,7 @@ import { store, RoomId, QualityTier } from '../core/store';
 import { qualityManager } from '../core/quality';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
+import { profile } from '../content/profile';
 
 export class PauseMenuOverlay {
   private overlay: HTMLElement;
@@ -62,13 +63,17 @@ export class PauseMenuOverlay {
           <a href="/classic" class="sticker-btn accent-butter" style="width:100%; justify-content:center;">
             Switch to 2D Classic Portfolio View 📄
           </a>
+          <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf" class="sticker-btn accent-mint" style="width:100%; justify-content:center; margin-top:8px;">
+            Download Resume (PDF) ⬇️
+          </a>
         </div>
 
         <div style="border-top:2px solid var(--cocoa); padding-top:12px; font-size:0.82rem; color:var(--text-muted); line-height:1.4;">
           <strong>Tip:</strong> Quick scene navigation is always available at the top-left of your screen!<br /><br />
           <strong>Credits:</strong><br />
           🐾 Companion 3D Model: "Hanini red panda" by Amonii0 licensed under CC-BY-4.0.<br />
-          🎵 Procedural Web Audio Sound Engine by Alex Morgan.
+          🎵 Procedural Web Audio Sound Engine by Zarina Iqbal Buriro.<br />
+          🛋️ Furniture: Cute Furniture pack. Lamp by Kenney (CC0). Mirror by Poly by Google (CC-BY).
         </div>
       </div>
     `;

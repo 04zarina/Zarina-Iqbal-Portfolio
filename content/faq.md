@@ -1,19 +1,25 @@
 # Frequently Asked Questions
 
-### What kind of roles is Alex looking for?
-Alex is seeking full-time or contract roles as a Gameplay Programmer, Technical Artist, or Interactive 3D Web Developer starting mid 2025. Alex is open to hybrid roles in the San Francisco Bay Area or fully remote worldwide.
+### What kind of roles is Zarina looking for?
+Zarina is open to game development, game programming and interactive 3D roles and internships. Zarina is currently a Game Developer Intern at Aerox ERP, working on web and 3D interactions, with graduation from NED University expected in 2027.
 
-### Is Alex available for freelance or game jam collaborations?
-Yes! Alex loves participating in weekend game jams, prototyping experimental mechanics, and consulting on real-time WebGL / Three.js performance optimizations. Reach out via the mailbox in the bedroom or the contact form.
+### Which engines and tools does Zarina use?
+Unreal Engine 5 (Blueprints, Widget Blueprints, Blueprint Interfaces), Unity with C# including VR/XR, and Three.js / React Three Fiber for browser games. Zarina also uses Blender, Adobe After Effects, Python with OpenCV and MediaPipe, Supabase, Vitest, Vercel and Git.
+
+### Which projects can I play right now?
+The Floor Is A Liar (https://floor-is-a-liar.vercel.app/) and Oakridge Hollow (https://minecraft-six-psi.vercel.app/) both run in the browser.
+
+### Has Zarina done game jams?
+Yes. The Mask That Holds was built in 48 hours for Global Game Jam 2026 around the theme Mask, with Zarina as project manager and level, narrative and environment designer.
+
+### Can I download Zarina's resume?
+Yes. Walk into the Study Nook and press E on the resume on the desk, or use the Download Resume button in the pause menu. It is also linked from the classic 2D view.
+
+### How do I contact Zarina?
+Email zarinaiqbal04@gmail.com, connect on LinkedIn (linkedin.com/in/zarina-iqbal-97161528a), or drop a letter in the mailbox on the Dev Realm island.
 
 ### How was this 3D portfolio created?
-This portfolio was built using vanilla Three.js with custom procedural geometry, soft pastel baked shader materials, and responsive HTML/CSS overlays in TypeScript. No heavy frameworks like React Three Fiber are used, keeping the bundle lightweight and ensuring smooth 60 FPS performance on phones.
+It is built with vanilla Three.js and TypeScript, with responsive HTML/CSS overlays. No heavy frameworks are used, which keeps the bundle light and the frame rate smooth on phones.
 
 ### Who is Mochi?
-Mochi is the adorable companion red panda / marshmallow cat who lives in the studio! Mochi knows everything about Alex's background, games, and skills and answers visitor questions through the companion chat.
-
-### What is Alex's preferred game development stack?
-For indie games, Alex primarily uses Unity with C# or Godot 4. For web 3D, Alex specializes in Three.js and raw WebGL/WebGPU with TypeScript. For 3D art and asset pipelines, Blender is the primary modeling and rigging DCC tool.
-
-### What are Alex's hobbies outside of game development?
-When not writing code or baking textures, Alex enjoys tending to succulent plants, baking matcha cookies, playing cozy Nintendo Switch titles like Animal Crossing and Zelda, and collecting vintage cassette tapes.
+Mochi is the companion red panda who lives in the studio. Mochi knows Zarina's background, games and skills and answers visitor questions in the chat.

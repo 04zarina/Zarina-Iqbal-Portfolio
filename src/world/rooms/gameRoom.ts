@@ -3,12 +3,18 @@ import { collisionSystem } from '../collision';
 import { interactionSystem } from '../interaction';
 import { store } from '../../core/store';
 import { eventBus } from '../../core/events';
-import projectsData from '../../../content/projects.json';
+import allProjects from '../../../content/projects.json';
+import { DECOR, placeDecor } from '../decor';
+
+// Arcade cabinets show the featured projects; the project card can browse all of them.
+const projectsData = allProjects.filter((p) => p.featured).slice(0, 5);
 
 export class GameRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(4.0, 0, 0);
-  private animatedScreens: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; texture: THREE.CanvasTexture; seed: number }[] = [];
+  /** Face into the room (toward the content at -Z) on entry. */
+  public spawnRotationY = Math.PI;
+  private animatedScreens: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; texture: THREE.CanvasTexture; seed: number; poster: HTMLImageElement | null }[] = [];
 
   constructor() {
     this.buildRoom();
@@ -58,17 +64,24 @@ export class GameRoom {
     doorSign.rotation.y = -Math.PI / 2;
     this.group.add(doorFrame, doorSign);
 
-    // Cozy arcade lounge poufs
-    const poufGeo = new THREE.CylinderGeometry(0.5, 0.55, 0.35, 16);
-    const poufMat1 = new THREE.MeshLambertMaterial({ color: 0xBDEBD3 });
-    const poufMat2 = new THREE.MeshLambertMaterial({ color: 0xFFE9A3 });
-    const pouf1 = new THREE.Mesh(poufGeo, poufMat1);
-    pouf1.position.set(-2, 0.18, 1.8);
-    const pouf2 = new THREE.Mesh(poufGeo, poufMat2);
-    pouf2.position.set(1.5, 0.18, 1.8);
-    this.group.add(pouf1, pouf2);
-    collisionSystem.addBox(-2.6, -1.4, 1.2, 2.4);
-    collisionSystem.addBox(0.9, 2.1, 1.2, 2.4);
+    // Cozy arcade lounge: couch facing the cabinets, two armchairs, coffee table with a gamepad
+    placeDecor(this.group, [
+      { url: DECOR.couchBlue, position: [0, 0, 2.75], rotY: Math.PI, scale: 1.1 },
+      { url: DECOR.armchairBlue, position: [-2.7, 0, 2.3], rotY: 2.84 },
+      { url: DECOR.armchairRed, position: [2.7, 0, 2.3], rotY: -2.84 },
+      { url: DECOR.coffeeTable, position: [0, 0.353, 1.55] },
+      { url: DECOR.gamepad, position: [0.05, 0.42, 1.55], rotY: 0.3, scale: 1.4 },
+      { url: DECOR.plantPalm, position: [-5.3, 0, 3.3], scale: 0.62 },
+      { url: DECOR.plantPalm, position: [5.3, 0, 3.3], scale: 0.62 },
+      { url: DECOR.pictureFlowers, position: [-5.9, 1.9, 0], rotY: Math.PI / 2 },
+      { url: DECOR.picturePyramid, position: [-5.9, 1.9, 1.4], rotY: Math.PI / 2 }
+    ]);
+    collisionSystem.addBox(-1.3, 1.3, 2.25, 3.2);
+    collisionSystem.addBox(-0.45, 0.45, 1.15, 1.95);
+    collisionSystem.addBox(-3.2, -2.2, 1.8, 2.8);
+    collisionSystem.addBox(2.2, 3.2, 1.8, 2.8);
+    collisionSystem.addBox(-5.8, -4.8, 2.9, 3.8);
+    collisionSystem.addBox(4.8, 5.8, 2.9, 3.8);
   }
 
   private createCheckerFloor(): THREE.MeshLambertMaterial {
@@ -142,12 +155,12 @@ export class GameRoom {
 
     // Marquee Top Sign
     const marqueeMesh = this.createMarquee(project.title, accentColor);
-    marqueeMesh.position.set(0, 2.05, 0.24);
+    marqueeMesh.position.set(0, 2.05, 0.3);
 
     // Animated CRT Screen
     const screenMesh = this.createAnimatedScreen(project, index);
-    screenMesh.position.set(0, 1.46, 0.22);
-    screenMesh.rotation.x = -0.15;
+    // Sit just in front of the upper body's face (front at z ≈ 0.295) so the screen is visible
+    screenMesh.position.set(0, 1.55, 0.31);
 
     cab.add(baseMesh, trimL, trimR, upperMesh, ctrlPanel, joyStick, joyBall, btn1, btn2, marqueeMesh, screenMesh);
     return cab;
@@ -166,7 +179,12 @@ export class GameRoom {
     ctx.strokeRect(3, 3, 250, 66);
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 22px Fredoka, sans-serif';
+    let fontSize = 24;
+    ctx.font = `bold ${fontSize}px Fredoka, sans-serif`;
+    while (ctx.measureText(title).width > 232 && fontSize > 12) {
+      fontSize -= 1;
+      ctx.font = `bold ${fontSize}px Fredoka, sans-serif`;
+    }
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(title, 128, 36);
@@ -179,12 +197,20 @@ export class GameRoom {
 
   private createAnimatedScreen(project: typeof projectsData[0], index: number): THREE.Mesh {
     const canvas = document.createElement('canvas');
-    canvas.width = 160;
-    canvas.height = 120;
+    canvas.width = 256;
+    canvas.height = 192;
     const ctx = canvas.getContext('2d')!;
 
     const texture = new THREE.CanvasTexture(canvas);
-    this.animatedScreens.push({ canvas, ctx, texture, seed: index * 40 });
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    // Show the project's real screenshot on the cabinet screen once it loads
+    let poster: HTMLImageElement | null = null;
+    if (project.video?.poster) {
+      poster = new Image();
+      poster.src = project.video.poster;
+    }
+    this.animatedScreens.push({ canvas, ctx, texture, seed: index * 40, poster });
 
     const geo = new THREE.PlaneGeometry(0.85, 0.65);
     const mat = new THREE.MeshBasicMaterial({ map: texture });
@@ -252,37 +278,52 @@ export class GameRoom {
     });
   }
 
+  private screenTimer = 0;
+
   update(delta: number): void {
+    // Redraw cabinet screens at ~20 fps; they don't need the full frame rate
+    this.screenTimer += delta;
+    if (this.screenTimer < 0.05) return;
+    this.screenTimer = 0;
     const t = performance.now() * 0.003;
     // Animate retro arcade screens with cute moving shapes / pixel grids
     this.animatedScreens.forEach((item, idx) => {
-      const { ctx, canvas, texture, seed } = item;
+      const { ctx, canvas, texture, seed, poster } = item;
+      const W = canvas.width;
+      const H = canvas.height;
       ctx.fillStyle = '#1D1328';
-      ctx.fillRect(0, 0, 160, 120);
+      ctx.fillRect(0, 0, W, H);
 
-      // Moving retro horizon grid
-      ctx.strokeStyle = idx % 2 === 0 ? '#BDEBD3' : '#FFB3C7';
-      ctx.lineWidth = 1.5;
-      const offset = (t * 20 + seed) % 20;
-      for (let y = 60; y < 120; y += 12) {
-        ctx.beginPath();
-        ctx.moveTo(0, y + (offset * (y - 50)) / 100);
-        ctx.lineTo(160, y + (offset * (y - 50)) / 100);
-        ctx.stroke();
+      if (poster && poster.complete && poster.naturalWidth > 0) {
+        // Cover-fit screenshot with a slow Ken Burns drift
+        const zoom = 1.08 + Math.sin(t * 0.3 + seed) * 0.04;
+        const scale = Math.max(W / poster.naturalWidth, H / poster.naturalHeight) * zoom;
+        const dw = poster.naturalWidth * scale;
+        const dh = poster.naturalHeight * scale;
+        ctx.drawImage(poster, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        // CRT scanlines
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);
+        ctx.fillStyle = 'rgba(29,19,40,0.72)';
+        ctx.fillRect(0, H - 30, W, 30);
+      } else {
+        // Fallback: moving retro horizon grid
+        ctx.strokeStyle = idx % 2 === 0 ? '#BDEBD3' : '#FFB3C7';
+        ctx.lineWidth = 2;
+        const offset = (t * 20 + seed) % 20;
+        for (let y = H / 2; y < H; y += 16) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + (offset * (y - H * 0.4)) / 100);
+          ctx.lineTo(W, y + (offset * (y - H * 0.4)) / 100);
+          ctx.stroke();
+        }
       }
-
-      // Bouncing mascot icon
-      const bounceY = 40 + Math.sin(t * 3 + seed) * 12;
-      ctx.fillStyle = '#FFE9A3';
-      ctx.beginPath();
-      ctx.arc(80, bounceY, 14, 0, Math.PI * 2);
-      ctx.fill();
 
       // Coin insert text
       ctx.fillStyle = Math.sin(t * 5) > 0 ? '#FFFFFF' : '#FFB3C7';
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('PRESS E TO PLAY', 80, 112);
+      ctx.fillText('PRESS E TO PLAY', W / 2, H - 10);
 
       texture.needsUpdate = true;
     });

@@ -6,6 +6,7 @@ import { eventBus } from '../../core/events';
 import { sparkleSystem } from '../fx/sparkles';
 import { jellyController } from '../fx/jelly';
 import skillsData from '../../../content/skills.json';
+import { DECOR, placeDecor } from '../decor';
 
 export class GreenhouseRoom {
   public group: THREE.Group = new THREE.Group();
@@ -50,15 +51,23 @@ export class GreenhouseRoom {
     }
 
     // 3. Greenhouse Plant Tables (Center and sides)
-    // Left Plant Table
-    const table1 = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 1.2), woodMat);
-    table1.position.set(-2.5, 0.4, 1.8);
-    // Right Plant Table
-    const table2 = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.8, 1.2), woodMat);
-    table2.position.set(2.5, 0.4, 1.8);
-    this.group.add(table1, table2);
-    collisionSystem.addBox(-4.4, -0.6, 1.1, 2.5);
-    collisionSystem.addBox(0.6, 4.4, 1.1, 2.5);
+    // Wooden potting tables (top at y = 0.8) plus floor plants in the corners
+    placeDecor(this.group, [
+      { url: DECOR.longTable, position: [-3.35, 0, 1.8], scale: 1.07 },
+      { url: DECOR.longTable, position: [-1.65, 0, 1.8], scale: 1.07 },
+      { url: DECOR.longTable, position: [1.65, 0, 1.8], scale: 1.07 },
+      { url: DECOR.longTable, position: [3.35, 0, 1.8], scale: 1.07 },
+      { url: DECOR.longTable, position: [0, 0, 2.95], scale: 1.07 },
+      { url: DECOR.plantPalm, position: [-4.3, 0, -3.2], scale: 0.6 },
+      { url: DECOR.plantTall, position: [4.3, 0, -3.2], scale: 1.5 },
+      { url: DECOR.plantTall, position: [-4.4, 0, 3.4], scale: 1.3 },
+      { url: DECOR.plantPalm, position: [4.3, 0, 3.4], scale: 0.55 }
+    ]);
+    collisionSystem.addBox(-4.3, -0.7, 1.35, 2.25);
+    collisionSystem.addBox(0.7, 4.3, 1.35, 2.25);
+    collisionSystem.addBox(-0.95, 0.95, 2.5, 3.4);
+    collisionSystem.addBox(-4.8, -3.8, -3.8, -2.7);
+    collisionSystem.addBox(3.8, 4.8, -3.8, -2.7);
 
     // 4. Five Skill Plants
     // 1. Engines Plant (Bonsai Tree)
@@ -69,7 +78,7 @@ export class GreenhouseRoom {
     plantLanguages.position.set(-1.8, 0.8, 1.8);
     // 3. Web Plant (Big Sunflower)
     const plantWeb = this.createPottedPlant('web', 0xFFE9A3, 'sunflower');
-    plantWeb.position.set(0, 0.8, 2.8);
+    plantWeb.position.set(0, 0.8, 2.95);
     // 4. 3D & Animation Plant (Monstera with big leaves)
     const plant3D = this.createPottedPlant('3d', 0xBDE0FF, 'monstera');
     plant3D.position.set(1.8, 0.8, 1.8);
@@ -205,7 +214,7 @@ export class GreenhouseRoom {
     const groups: { id: string; label: string; pos: THREE.Vector3; category: string }[] = [
       { id: 'plant_engines', label: 'Water Engines Garden 🌿', pos: new THREE.Vector3(-3.5, 0.8, 1.8), category: 'Engines' },
       { id: 'plant_languages', label: 'Water Languages Garden 🌸', pos: new THREE.Vector3(-1.8, 0.8, 1.8), category: 'Languages' },
-      { id: 'plant_web', label: 'Water Web 3D Garden 🌻', pos: new THREE.Vector3(0, 0.8, 2.8), category: 'Web' },
+      { id: 'plant_web', label: 'Water Web 3D Garden 🌻', pos: new THREE.Vector3(0, 0.8, 2.95), category: 'Web' },
       { id: 'plant_3d', label: 'Water 3D Art Garden 🌴', pos: new THREE.Vector3(1.8, 0.8, 1.8), category: '3D and Animation' },
       { id: 'plant_tools', label: 'Water Tools Garden 🪴', pos: new THREE.Vector3(3.5, 0.8, 1.8), category: 'Tools' }
     ];

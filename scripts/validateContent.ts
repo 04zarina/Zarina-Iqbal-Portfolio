@@ -14,6 +14,10 @@ const ProjectSchema = z.array(
     description: z.string().min(10),
     tools: z.array(z.string().min(1)),
     teamSize: z.number().int().min(1),
+    featured: z.boolean().optional(),
+    badge: z.string().optional(),
+    collaborators: z.string().optional(),
+    images: z.array(z.object({ src: z.string().min(1), alt: z.string().min(1) })).optional(),
     video: z.object({
       src: z.string(),
       poster: z.string(),

@@ -24,6 +24,7 @@ import { PauseMenuOverlay } from './ui/pauseMenu';
 import { TVVideoOverlay } from './ui/tvOverlay';
 import { AboutOverlay } from './ui/aboutOverlay';
 import { EducationOverlay } from './ui/educationOverlay';
+import { ResumeOverlay } from './ui/resumeOverlay';
 import { toastManager } from './ui/toast';
 
 async function bootstrap() {
@@ -54,7 +55,7 @@ async function bootstrap() {
   // 5. Loading Screen
   const loading = new LoadingScreen(() => {
     // Start in dusk/night mode and play waking-up sequence!
-    const bedPos = new THREE.Vector3(-3.2, 0.52, -2.2);
+    const bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
     const outPos = new THREE.Vector3(-1.8, 0, -1.8);
 
     toastManager.show('Yaaawn... 🥱 Good morning! Waking up...');
@@ -100,6 +101,7 @@ async function bootstrap() {
   const tvOverlay = new TVVideoOverlay();
   const aboutOverlay = new AboutOverlay();
   const educationOverlay = new EducationOverlay();
+  const resumeOverlay = new ResumeOverlay();
 
   // Focus Camera Events
   eventBus.on('interaction:trigger', (id: string) => {
@@ -139,6 +141,11 @@ async function bootstrap() {
     // 6. Render
     appRenderer.renderer.render(scene, followCamera.camera);
   });
+
+  // Dev-only handle for debugging and screenshots (stripped from production builds)
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__portfolio = { eventBus, store, avatar, followCamera };
+  }
 
   loop.start();
   loading.setProgress(100);

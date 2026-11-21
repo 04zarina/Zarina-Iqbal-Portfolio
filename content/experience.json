@@ -1,40 +1,47 @@
 [
   {
-    "id": "exp-01",
-    "title": "Gameplay Engineering Intern",
-    "org": "Moonlit Valley Studios",
-    "start": "June 2024",
-    "end": "Sept 2024",
-    "summary": "Collaborated with senior designers on an unannounced cozy narrative adventure in Unity.",
+    "id": "exp-aerox",
+    "title": "Game Developer Intern",
+    "org": "Aerox ERP",
+    "start": "Present",
+    "end": "Present",
+    "summary": "Working on web and 3D interactions.",
     "highlights": [
-      "Refactored character locomotion controller to support tactile environmental interactions and ledges.",
-      "Profiled and mitigated GPU draw-call bottlenecks, improving frame rates on Nintendo Switch builds by 22%.",
-      "Drafted technical design documents for inventory serialization and dialog state graphs."
+      "Building web and 3D interactions."
     ]
   },
   {
-    "id": "exp-02",
-    "title": "Interactive Web 3D Developer (Contract)",
-    "org": "Playful Pixels Creative Agency",
-    "start": "Jan 2023",
-    "end": "April 2024",
-    "summary": "Built bespoke WebGL 3D marketing microsites and interactive product customizers for indie game studios.",
+    "id": "exp-kda",
+    "title": "IT Department Intern",
+    "org": "Karachi Development Authority (KDA), Karachi",
+    "start": "Feb 2026",
+    "end": "Mar 2026",
+    "summary": "Completed a four-week internship supporting IT operations and technical workflows.",
     "highlights": [
-      "Developed 5 high-performance Three.js microsites with sub-3-second initial load times.",
-      "Integrated post-processing bloom, SSAO, and baked lighting shader transitions for low-end mobile browsers.",
-      "Collaborated remotely with art directors to match strict brand pastel visual guides."
+      "Four weeks supporting IT operations and technical workflows."
     ]
   },
   {
-    "id": "exp-03",
-    "title": "Undergraduate Graphics Research Assistant",
-    "org": "Interactive Graphics Lab",
-    "start": "Sept 2022",
-    "end": "May 2023",
-    "summary": "Researched real-time stylization filters and non-photorealistic rendering algorithms in WebGPU.",
+    "id": "exp-gameverse",
+    "title": "Events & Logistics, GameCon Host",
+    "org": "GameVerse (departmental society), NED University",
+    "start": "Both GameCon editions",
+    "end": "Both GameCon editions",
+    "summary": "Part of the society through events and logistics. Hosted the flagship event, GameCon, at both editions held so far.",
     "highlights": [
-      "Co-authored research demo demonstrating watercolor edge detection and paper grain simulation.",
-      "Presented poster at the Regional Computer Graphics Student Symposium."
+      "Hosted GameCon twice, in front of a live audience.",
+      "Events and logistics team for GameVerse events."
+    ]
+  },
+  {
+    "id": "exp-sentec",
+    "title": "Member, Organizing Team",
+    "org": "SENTEC",
+    "start": "One year (MPERC'24)",
+    "end": "One year (MPERC'24)",
+    "summary": "Member for one year. Part of the organizing team for its biggest event, MPERC'24.",
+    "highlights": [
+      "Organizing team for MPERC'24."
     ]
   }
 ]

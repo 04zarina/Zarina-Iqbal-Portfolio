@@ -68,7 +68,7 @@ export const ASSET_MANIFEST: Record<string, AssetEntry> = {
   },
   wardrobe: {
     id: 'wardrobe',
-    url: '/models/furniture/Closet_01.glb',
+    url: '/models/decor/Closet_02.glb',
     type: 'gltf',
     optional: true
   },
