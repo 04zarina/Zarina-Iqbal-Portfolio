@@ -13,6 +13,8 @@ export interface InteractableConfig {
   focusPose?: { position: THREE.Vector3; lookAt: THREE.Vector3 };
   /** Meters subtracted from the distance when picking between overlapping items. */
   priority?: number;
+  /** Body language when used: 'reach' (default) touches the object, 'think' reads, 'none' for doors/seats. */
+  gesture?: 'reach' | 'think' | 'none';
   onInteract: () => void | Promise<void>;
 }
 
@@ -94,12 +96,22 @@ export class InteractionSystem {
     }
   }
 
+  /** Re-announce the nearest item (after its label changed). */
+  refresh(): void {
+    this.clearActive();
+  }
+
+  get(id: string): InteractableConfig | undefined {
+    return this.interactables.get(id);
+  }
+
   triggerCurrent(): void {
     if (this.currentActive && !store.get().inputLocked) {
       const item = this.currentActive;
       if (item.mesh) {
         jellyController.trigger(item.mesh, 0.25, -0.3, 0.25);
       }
+      eventBus.emit('interaction:use', item);
       item.onInteract();
       eventBus.emit('interaction:trigger', item.id);
     }

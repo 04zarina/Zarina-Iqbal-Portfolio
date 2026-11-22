@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { loadIndex, retrieve } from './_rag';
 
 type ApiRequest = {
@@ -74,7 +73,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     excerpt: m.chunk.text.slice(0, 220)
   }));
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     // No LLM configured: answer extractively from the best match so the bot still works.
     const best = matches[0].chunk;
@@ -90,29 +89,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const context = matches.map((m, i) => `[${i + 1}] ${m.chunk.title}\n${m.chunk.text}`).join('\n\n');
 
   try {
-    const client = new Anthropic({ apiKey });
-    const response = await client.beta.messages.create({
-      model: process.env.CHAT_MODEL || 'claude-opus-5-5',
-      max_tokens: 1024,
-      output_config: { effort: 'low' },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: SYSTEM,
-      messages: [{ role: 'user', content: `Sources:\n${context}\n\nVisitor question: ${message}` }]
-    } as any);
-
-    if (response.stop_reason === 'refusal') {
+    const answer = await askGemini(apiKey, `Sources:\n${context}\n\nVisitor question: ${message}`);
+    if (!answer) {
       return res.status(200).json({
         answer: `I can only help with questions about Zarina's work. For anything else, email ${CONTACT}.`,
         sources: [],
         grounded: false
       });
     }
-
-    const answer = response.content
-      .map((b: any) => (b.type === 'text' ? b.text : ''))
-      .join('')
-      .trim();
 
     // Return only the sources the answer actually cites (fall back to the top one).
     const cited = new Set(Array.from(answer.matchAll(/\[(\d+)\]/g)).map((m) => Number(m[1])));
@@ -126,6 +110,51 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   } catch (err) {
     console.error('Chat model error:', err);
-    return res.status(502).json({ error: 'Mochi could not reach the model right now.' });
+    // Still answer from the notes rather than failing outright.
+    const best = matches[0].chunk;
+    return res.status(200).json({
+      answer: `${best.text.split(/(?<=[.!?])\s+/).slice(0, 3).join(' ')} [1]`,
+      sources: sources.slice(0, 3),
+      grounded: true,
+      mode: 'extractive'
+    });
   }
+}
+
+/**
+ * Google Gemini (generativelanguage API). The key is read from the GEMINI_API_KEY
+ * environment variable in Vercel and never reaches the browser. Busy models (503/429)
+ * fall through to the next one in the list.
+ */
+const GEMINI_MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-flash-latest,gemini-flash-lite-latest')
+  .split(',')
+  .map((m) => m.trim())
+  .filter(Boolean);
+
+export async function askGemini(apiKey: string, prompt: string): Promise<string> {
+  let lastError = '';
+  for (const model of GEMINI_MODELS) {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
+      })
+    });
+    if (r.status === 503 || r.status === 429 || r.status === 404 || r.status >= 500) {
+      lastError = `${model}: ${r.status}`;
+      continue;
+    }
+    if (!r.ok) throw new Error(`Gemini ${model} ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
+    const data: any = await r.json();
+    const cand = data?.candidates?.[0];
+    if (!cand || cand.finishReason === 'SAFETY' || cand.finishReason === 'PROHIBITED_CONTENT') return '';
+    return (cand.content?.parts || [])
+      .map((p: any) => (typeof p.text === 'string' && !p.thought ? p.text : ''))
+      .join('')
+      .trim();
+  }
+  throw new Error(`All Gemini models busy (${lastError})`);
 }

@@ -8,12 +8,33 @@ import { jellyController } from '../fx/jelly';
 import skillsData from '../../../content/skills.json';
 import { clickSystem } from '../clickables';
 import { SKILL_GARDENS } from '../../ui/skillsOverlay';
+import { makeDoor, makeRug, makeFireflies, NightLights, Door, Fireflies } from '../props';
+import { refs } from '../refs';
+import type { RoomId } from '../../core/store';
+import { audioManager } from '../../audio/audioManager';
+import { floatPop } from '../../ui/floatPop';
+
+type Skill = { id: string; name: string; plantGroup: string; level: number };
+const CAN_HOME = new THREE.Vector3(1.75, 0, -2.75);
 
 export class GreenhouseRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(0, 0, -2.8);
   private plants: THREE.Group[] = [];
   private beds: { group: string; label: string; center: THREE.Vector3 }[] = [];
+  private bedPlants = new Map<string, { plant: THREE.Group; skill: Skill }[]>();
+  private watered = new Set<string>();
+  private doors: Door[] = [];
+  private night = new NightLights();
+  private fireflies: Fireflies | null = null;
+  private can: THREE.Group | null = null;
+  private canStand: THREE.Group | null = null;
+  private pouring: { t: number; bed: string } | null = null;
+  private drops: THREE.Points | null = null;
+  public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
+    bedroom: { pos: new THREE.Vector3(0, 0, -2.9), yaw: 0 }
+  };
+  public exits: Partial<Record<RoomId, THREE.Vector3>> = { bedroom: new THREE.Vector3(0, 0, -3.25) };
 
   constructor() {
     this.buildRoom();
@@ -79,12 +100,41 @@ export class GreenhouseRoom {
       collisionSystem.addBox(center.x - 0.72, center.x + 0.72, center.z - 0.62, center.z + 0.62);
     });
 
-    // 6. Doorway back to Bedroom (Back wall: x = 0, z = -3.9)
-    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.4, 0.15), baseboardMat);
-    doorFrame.position.set(0, 1.2, -3.9);
-    const doorSign = this.createSign('BEDROOM', 0xFFC9B0);
-    doorSign.position.set(0, 2.5, -3.85);
-    this.group.add(doorFrame, doorSign);
+    // 6. Door back to the Bedroom
+    const homeDoor = makeDoor('home', 'BEDROOM', 'Back to the hub');
+    homeDoor.group.position.set(0, 0, -3.9);
+    this.doors.push(homeDoor);
+    this.group.add(homeDoor.group);
+    void baseboardMat;
+    void woodMat;
+
+    // Woven doormat
+    const mat = makeRug({ shape: 'rect', w: 1.6, d: 1.0, colors: ['#D8B294', '#FFF6EC', '#8A5A4A'], pattern: 'stripes' });
+    mat.position.set(0, 0.013, -2.9);
+    this.group.add(mat);
+
+    // 7. Watering can on a little stand by the door
+    this.buildWateringCan();
+
+    // 8. Night: lantern string under the glass roof, moonlight and fireflies
+    for (let i = 0; i < 9; i++) {
+      const x = -4 + i;
+      const y = 3.35 + Math.sin((i / 8) * Math.PI) * -0.25;
+      const c = [0xffd27a, 0xffb3c7, 0xc8ffb0][i % 3];
+      const bulb = this.night.bulb(c, 0.07);
+      bulb.position.set(x, y, 1.0);
+      const halo = this.night.halo(c, 0.7);
+      halo.position.copy(bulb.position);
+      this.group.add(bulb, halo);
+    }
+    const moon = new THREE.DirectionalLight(0x9bb4ff, 0);
+    moon.position.set(-3, 6, 4);
+    this.group.add(this.night.addLight(moon, 0, 0.6));
+    const lanternGlow = new THREE.PointLight(0xffd27a, 0, 9);
+    lanternGlow.position.set(0, 3.0, 1.0);
+    this.group.add(this.night.addLight(lanternGlow, 0, 1.4));
+    this.fireflies = makeFireflies(40, new THREE.Box3(new THREE.Vector3(-4.5, 0.4, -2.5), new THREE.Vector3(4.5, 2.6, 3.6)), 0xd6ff9a, 0.15);
+    this.group.add(this.fireflies.points);
   }
 
   /** Raised wooden planter with a category sign and one labelled plant per skill. */
@@ -120,7 +170,12 @@ export class GreenhouseRoom {
       plant.position.set(x, 0.42, -0.06);
       bed.add(plant);
       this.plants.push(plant);
-      clickSystem.register(plant, `🌱 ${sk.name}`, () => this.openSkills(sk.id, plant));
+      if (!this.bedPlants.has(garden.group)) this.bedPlants.set(garden.group, []);
+      this.bedPlants.get(garden.group)!.push({ plant, skill: sk as Skill });
+      clickSystem.register(plant, `🌱 ${sk.name}`, () => {
+        if (refs.avatar?.holding) this.waterPlant(plant, sk as Skill);
+        else this.openSkills(sk.id, plant);
+      });
 
       // Name stake in front of the plant, tilted up toward the visitor
       const tag = this.createLabel(sk.name, Math.min(0.4, spacing - 0.02), '#FFFDF8', 34, 256);
@@ -293,8 +348,21 @@ export class GreenhouseRoom {
         keyHint: 'E',
         radius: 1.7,
         position: bed.center,
-        onInteract: () => this.openSkills(bed.group)
+        onInteract: () => {
+          if (refs.avatar?.holding) this.waterBed(bed.group);
+          else this.openSkills(bed.group);
+        }
       });
+    });
+
+    interactionSystem.register({
+      id: 'watering_can',
+      label: 'Pick up the watering can 🚿',
+      keyHint: 'E',
+      radius: 1.3,
+      priority: 0.3,
+      position: CAN_HOME.clone().setY(0.6),
+      onInteract: () => this.toggleCan()
     });
 
     // Doorway back to Bedroom
@@ -308,7 +376,166 @@ export class GreenhouseRoom {
     });
   }
 
+  /** A little pastel watering can on a wooden stool. */
+  private buildWateringCan(): void {
+    const stand = new THREE.Group();
+    stand.position.copy(CAN_HOME);
+    const wood = new THREE.MeshLambertMaterial({ color: 0xc08a5c });
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.06, 20), wood);
+    top.position.y = 0.5;
+    for (let i = 0; i < 3; i++) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8), wood);
+      const a = (i / 3) * Math.PI * 2;
+      leg.position.set(Math.cos(a) * 0.18, 0.25, Math.sin(a) * 0.18);
+      stand.add(leg);
+    }
+    stand.add(top);
+    this.group.add(stand);
+    this.canStand = stand;
+    collisionSystem.addBox(CAN_HOME.x - 0.3, CAN_HOME.x + 0.3, CAN_HOME.z - 0.3, CAN_HOME.z + 0.3);
+
+    const can = new THREE.Group();
+    const body = new THREE.MeshLambertMaterial({ color: 0x8fd3c9 });
+    const trim = new THREE.MeshLambertMaterial({ color: 0xffe9a3 });
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.2, 18), body);
+    tank.position.y = 0.1;
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.025, 18), trim);
+    lid.position.y = 0.2;
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.03, 0.28, 8), body);
+    spout.position.set(0, 0.16, 0.2);
+    spout.rotation.x = 1.0;
+    const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.025, 0.04, 10), trim);
+    rose.position.set(0, 0.25, 0.31);
+    rose.rotation.x = 1.0;
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.018, 8, 16, Math.PI), trim);
+    handle.position.set(0, 0.2, -0.04);
+    handle.rotation.y = Math.PI / 2;
+    can.add(tank, lid, spout, rose, handle);
+    can.position.set(CAN_HOME.x, 0.53, CAN_HOME.z);
+    this.group.add(can);
+    this.can = can;
+    clickSystem.register(can, '🚿 Watering can: pick up and water the skills!', () => this.toggleCan());
+
+    // Water droplets (shown while pouring)
+    const N = 60;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    this.drops = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x7fd3ff, size: 0.05, transparent: true, opacity: 0.85, depthWrite: false }));
+    this.drops.visible = false;
+    this.drops.frustumCulled = false;
+    this.group.add(this.drops);
+  }
+
+  private toggleCan(): void {
+    const avatar = refs.avatar;
+    if (!avatar || !this.can) return;
+    const cfg = interactionSystem.get('watering_can');
+    if (avatar.holding === this.can) {
+      // Put it back
+      avatar.attachToHand(null);
+      this.can.position.set(CAN_HOME.x, 0.53, CAN_HOME.z);
+      this.can.rotation.set(0, 0, 0);
+      this.group.add(this.can);
+      if (cfg) cfg.label = 'Pick up the watering can 🚿';
+      this.relabelBeds(false);
+      audioManager.playPop();
+    } else {
+      this.group.remove(this.can);
+      this.can.rotation.set(0, 0, 0);
+      avatar.attachToHand(this.can);
+      if (cfg) cfg.label = 'Put the watering can back';
+      this.relabelBeds(true);
+      audioManager.playPickup();
+      eventBus.emit('toast:show', '🚿 Got the watering can! Walk up to a bed and press E (or click a plant) to water it.');
+    }
+    interactionSystem.refresh();
+  }
+
+  private relabelBeds(holding: boolean): void {
+    this.beds.forEach((b) => {
+      const cfg = interactionSystem.get(`bed_${b.group}`);
+      if (cfg) cfg.label = holding ? `Water the ${b.label} bed 💧` : `See ${b.label} skills 🌱`;
+    });
+  }
+
+  /** Pour over a whole bed: every plant grows and its skill pops up. */
+  private waterBed(group: string): void {
+    const entries = this.bedPlants.get(group) || [];
+    const bed = this.beds.find((b) => b.group === group);
+    if (!bed || this.pouring) return;
+    const avatar = refs.avatar;
+    if (avatar) avatar.faceYaw = Math.atan2(bed.center.x - avatar.position.x, bed.center.z - avatar.position.z);
+    this.pouring = { t: 0, bed: group };
+    audioManager.playWater();
+    entries.forEach((e, i) => setTimeout(() => this.growPlant(e.plant, e.skill), 350 + i * 260));
+    setTimeout(() => {
+      this.watered.add(group);
+      store.completeQuest('water_plant');
+      if (this.watered.size === this.beds.length) {
+        avatar?.doGesture('cheer');
+        audioManager.playGameOver(true);
+        eventBus.emit('toast:show', '🌻 The whole skill garden is watered! Thanks for helping it grow.');
+      } else {
+        eventBus.emit('toast:show', `💧 ${bed.label} watered (${this.watered.size}/${this.beds.length}). Click any plant to read about that skill.`);
+      }
+    }, 450 + entries.length * 260);
+  }
+
+  private waterPlant(plant: THREE.Group, skill: Skill): void {
+    if (this.pouring) return;
+    const p = plant.getWorldPosition(new THREE.Vector3());
+    const avatar = refs.avatar;
+    if (avatar) avatar.faceYaw = Math.atan2(p.x - avatar.position.x, p.z - avatar.position.z);
+    this.pouring = { t: 0, bed: skill.plantGroup };
+    audioManager.playWater();
+    setTimeout(() => this.growPlant(plant, skill), 400);
+  }
+
+  private growPlant(plant: THREE.Group, skill: Skill): void {
+    const p = plant.getWorldPosition(new THREE.Vector3());
+    floatPop(`+ ${skill.name}`, p.clone().add(new THREE.Vector3(0, 0.75, 0)), 'green');
+    sparkleSystem.burst(p.add(new THREE.Vector3(0, 0.45, 0)), 10);
+    audioManager.playLevelUp();
+    jellyController.unregister(plant);
+    const base = plant.scale.x;
+    const grown = Math.min(base * 1.12, 1.15);
+    plant.scale.setScalar(grown);
+    jellyController.register(plant);
+    jellyController.trigger(plant, 0.35, -0.4, 0.35);
+  }
+
   update(delta: number): void {
+    const av = refs.avatar?.position ?? null;
+    this.doors.forEach((d) => d.update(delta, av));
+    this.night.update();
+    this.fireflies?.update(delta);
+
+    // Pouring: tip the can and spray droplets from the spout
+    if (this.pouring && this.can && this.drops) {
+      this.pouring.t += delta;
+      const t = this.pouring.t;
+      const tip = Math.min(1, t * 4) * Math.min(1, Math.max(0, (1.6 - t) * 4));
+      this.can.rotation.x = tip * 0.9;
+      const spout = new THREE.Vector3(0, 0.25, 0.32);
+      this.can.localToWorld(spout);
+      this.group.worldToLocal(spout);
+      const arr = this.drops.geometry.attributes.position.array as Float32Array;
+      const fwd = refs.avatar ? new THREE.Vector3(Math.sin(refs.avatar.rotationY), 0, Math.cos(refs.avatar.rotationY)) : new THREE.Vector3(0, 0, 1);
+      for (let i = 0; i < arr.length / 3; i++) {
+        const life = ((t * 2.2 + i / (arr.length / 3)) % 1);
+        arr[i * 3] = spout.x + fwd.x * life * 0.5 + Math.sin(i * 12.9) * 0.04;
+        arr[i * 3 + 1] = spout.y - life * life * 0.9;
+        arr[i * 3 + 2] = spout.z + fwd.z * life * 0.5 + Math.cos(i * 7.3) * 0.04;
+      }
+      this.drops.geometry.attributes.position.needsUpdate = true;
+      this.drops.visible = tip > 0.5;
+      if (t > 1.7) {
+        this.pouring = null;
+        this.drops.visible = false;
+        this.can.rotation.x = 0;
+      }
+    }
+
     // Gentle foliage sway
     const t = performance.now() * 0.002;
     this.plants.forEach((plant, idx) => {
@@ -317,7 +544,11 @@ export class GreenhouseRoom {
   }
 
   dispose(): void {
+    if (refs.avatar && refs.avatar.holding === this.can) refs.avatar.attachToHand(null);
     interactionSystem.clear();
+    this.doors = [];
+    this.bedPlants.clear();
+    this.can = null;
     this.plants = [];
     this.beds = [];
     this.group.clear();

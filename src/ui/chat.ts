@@ -106,6 +106,7 @@ export class ChatPanel {
     thinkingBubble.innerText = 'Mochi is thinking... 🐾';
     this.messageList.appendChild(thinkingBubble);
     this.scrollToBottom();
+    eventBus.emit('mochi:typing');
 
     try {
       // 1. Try serverless backend endpoint POST /api/chat
@@ -185,7 +186,10 @@ export class ChatPanel {
   private appendMessage(role: 'user' | 'bot', text: string, sources?: { title: string; targetId?: string; n?: number; excerpt?: string }[]): void {
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
+    // The model sometimes adds light markdown; show plain text
+    if (role === 'bot') text = text.replace(/\*\*?([^*]+)\*\*?/g, '$1');
     bubble.innerText = text;
+    if (role === 'bot') eventBus.emit('mochi:say', text);
 
     if (sources && sources.length > 0) {
       const srcWrap = document.createElement('div');
@@ -204,7 +208,7 @@ export class ChatPanel {
         chip.onclick = () => {
           this.close();
           if (s.targetId?.startsWith('DOOR_')) {
-            eventBus.emit('room:switch', s.targetId.replace('DOOR_', ''));
+            eventBus.emit('room:travel', s.targetId.replace('DOOR_', ''));
           } else if (s.targetId) {
             eventBus.emit('toast:show', `Traveling to ${s.title}...`);
           }

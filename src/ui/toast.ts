@@ -13,9 +13,16 @@ export class ToastManager {
   }
 
   show(message: string, duration: number = 3200): void {
+    // Same message already showing: don't stack a duplicate
+    for (const t of Array.from(this.container.children)) {
+      if ((t as HTMLElement).dataset.msg === message) return;
+    }
     audioManager.playPop();
+    // Keep the screen tidy: at most two toasts at a time
+    while (this.container.children.length >= 2) this.container.firstElementChild?.remove();
     const toast = document.createElement('div');
     toast.className = 'toast';
+    toast.dataset.msg = message;
     toast.innerHTML = `<span>✨</span> <span>${message}</span>`;
     this.container.appendChild(toast);
 

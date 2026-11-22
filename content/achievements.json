@@ -39,21 +39,24 @@
     "title": "KDA Internship (4 weeks)",
     "date": "Feb to Mar 2026",
     "summary": "Karachi Development Authority, IT Department.",
-    "icon": "certificate"
+    "icon": "certificate",
+    "image": "/images/certificates/kda-internship.webp"
   },
   {
     "id": "cert-cega-unreal",
     "title": "CEGA Unreal Course",
     "date": "Certificate of Completion",
     "summary": "Certificate of Completion, CEGA Training Program.",
-    "icon": "certificate"
+    "icon": "certificate",
+    "image": "/images/certificates/cega-unreal.webp"
   },
   {
     "id": "cert-cega-preprod",
     "title": "CEGA Pre-Production Course",
     "date": "CEGA",
-    "summary": "Centre of Excellence for Gaming and Animation.",
-    "icon": "certificate"
+    "summary": "Centre of Excellence for Gaming and Animation. Photo: receiving the certificate.",
+    "icon": "certificate",
+    "image": "/images/certificates/cega-preproduction.webp"
   },
   {
     "id": "cert-cega-postprod",
@@ -66,7 +69,9 @@
     "id": "cert-google-ai",
     "title": "Google AI Essentials",
     "date": "Google, via Coursera",
-    "summary": "Google AI Essentials (6 modules).",
-    "icon": "certificate"
+    "summary": "Google AI Essentials (6 modules), an online course authorized by Google and offered through Coursera.",
+    "icon": "certificate",
+    "image": "/images/certificates/google-ai-essentials.webp",
+    "verifyUrl": "https://coursera.org/verify/QCWWNH49NICN"
   }
 ]

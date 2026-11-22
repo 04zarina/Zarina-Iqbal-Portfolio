@@ -70,30 +70,35 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(400).json({ error: 'Invalid characters in fields.' });
   }
 
-  // 6. Deliver through Resend (https://resend.com). Keys live only in Vercel env vars.
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
+  // 6. Deliver through Brevo (https://brevo.com). The key lives only in Vercel env vars.
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (!brevoKey) {
     return res.status(503).json({ error: 'Email delivery is not configured yet.', code: 'not_configured' });
   }
 
+  const to = process.env.CONTACT_TO_EMAIL || 'zarinaiqbal04@gmail.com';
+  // Brevo only sends from a sender address verified in the Brevo account (the sign-up email is verified by default).
+  const from = process.env.CONTACT_FROM_EMAIL || to;
+
   try {
-    const r = await fetch('https://api.resend.com/emails', {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${resendKey}`,
-        'Content-Type': 'application/json'
+        'api-key': brevoKey,
+        'Content-Type': 'application/json',
+        accept: 'application/json'
       },
       body: JSON.stringify({
-        from: process.env.CONTACT_FROM_EMAIL || 'Portfolio Mailbox <onboarding@resend.dev>',
-        to: [process.env.CONTACT_TO_EMAIL || 'zarinaiqbal04@gmail.com'],
-        reply_to: email,
+        sender: { name: 'Portfolio Mailbox', email: from },
+        to: [{ email: to, name: 'Zarina Iqbal' }],
+        replyTo: { email, name },
         subject: `[Portfolio] ${subject}`,
-        text: `From: ${name} <${email}>\n\n${message}\n\n(Sent from the 3D portfolio mailbox)`,
-        html: `<p><strong>From:</strong> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</p><p style="white-space:pre-wrap">${escapeHtml(message)}</p><p style="color:#888">Sent from the 3D portfolio mailbox</p>`
+        textContent: `From: ${name} <${email}>\n\n${message}\n\n(Sent from the 3D portfolio mailbox)`,
+        htmlContent: `<p><strong>From:</strong> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</p><p style="white-space:pre-wrap">${escapeHtml(message)}</p><p style="color:#888">Sent from the 3D portfolio mailbox</p>`
       })
     });
     if (!r.ok) {
-      console.error('Resend error', r.status, await r.text().catch(() => ''));
+      console.error('Brevo error', r.status, await r.text().catch(() => ''));
       return res.status(502).json({ error: 'The mail service rejected the letter. Please email directly instead.' });
     }
   } catch (err) {

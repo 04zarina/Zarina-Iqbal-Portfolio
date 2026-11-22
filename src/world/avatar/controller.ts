@@ -104,6 +104,20 @@ export class AvatarController {
       }
     }
 
+    // Walking on her own (room travel, click-to-walk): any movement input takes over
+    if (this.avatar.isAutoWalking) {
+      if (inputLength > 0.1) {
+        this.avatar.cancelAutoWalk();
+        eventBus.emit('travel:cancel');
+      } else {
+        this.velocity.set(0, 0, 0);
+        this.avatar.update(delta);
+        this.avatar.position.copy(collisionSystem.resolve(this.avatar.position, 0.4));
+        interactionSystem.update(this.avatar.position, this.avatar.rotationY);
+        return;
+      }
+    }
+
     const isRunning = Boolean(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || inputLength > 0.85);
 
     if (inputLength > 0.1) {

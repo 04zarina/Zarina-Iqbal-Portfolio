@@ -72,7 +72,9 @@ const AchievementSchema = z.array(
     title: z.string().min(1),
     date: z.string().min(1),
     summary: z.string().min(5),
-    icon: z.string().min(1)
+    icon: z.string().min(1),
+    image: z.string().startsWith('/').optional(),
+    verifyUrl: z.string().url().optional()
   })
 );
 

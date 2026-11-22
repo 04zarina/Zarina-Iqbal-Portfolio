@@ -129,6 +129,7 @@ export class ContactFormOverlay {
     try {
       if (result.ok) {
         this.triggerFlyingMailAnimation();
+        audioManager.playMailSent();
         store.completeQuest('send_letter');
         eventBus.emit('toast:show', 'Letter delivered to Zarina\'s inbox! 💌');
         form.reset();
@@ -138,6 +139,7 @@ export class ContactFormOverlay {
         statusMsg.innerHTML = result.mailto
           ? `${result.error} <a href="${result.mailto}" style="font-weight:700;">Send it from your email app instead ✉️</a>`
           : result.error;
+        audioManager.playError();
       }
     } finally {
       submitBtn.disabled = false;

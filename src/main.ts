@@ -31,6 +31,11 @@ import { SkillsOverlay } from './ui/skillsOverlay';
 import { CommunityOverlay } from './ui/communityOverlay';
 import { clickSystem } from './world/clickables';
 import { interactionSystem } from './world/interaction';
+import { ImageViewerOverlay } from './ui/imageViewer';
+import { refs } from './world/refs';
+import { navGrid } from './world/nav';
+import { collisionSystem } from './world/collision';
+import { audioManager } from './audio/audioManager';
 
 async function bootstrap() {
   // 1. Three.js Scene & Lights
@@ -55,6 +60,8 @@ async function bootstrap() {
   // 4. Avatar & Controller (Chibi Girl)
   const avatar = new Avatar();
   scene.add(avatar.group);
+  refs.avatar = avatar;
+  refs.camera = followCamera.camera;
   const controller = new AvatarController(avatar);
 
   // 5. Loading Screen
@@ -69,7 +76,7 @@ async function bootstrap() {
       store.set('inputLocked', false);
       store.set('isWakingUp', false);
       store.set('isSleeping', false);
-      toastManager.show('Ready to explore! WASD to walk, drag to look around, 👀 to see her face. Need help? Ask Mochi! 🐾');
+      toastManager.show('Ready to explore! WASD or click the floor to walk, drag to look, V for first person. Need help? Ask Mochi! 🐾');
     };
 
     followCamera.setCinematic({ position: new THREE.Vector3(-1.0, 1.9, 1.4), lookAt: new THREE.Vector3(-2.9, 0.7, -1.9) });
@@ -107,7 +114,10 @@ async function bootstrap() {
   // 8. Scene & Room Manager
   const sceneManager = new SceneManager(scene, avatar, followCamera);
   await sceneManager.loadInitialRoom();
-  loading.setProgress(90);
+  loading.setProgress(85);
+  // Wait for her model so she's there when the visitor presses Start (cap the wait on slow networks)
+  await Promise.race([avatar.ready, new Promise((r) => setTimeout(r, 12000))]);
+  loading.setProgress(95);
 
   // 9. UI Systems
   const hud = new HUD();
@@ -123,7 +133,71 @@ async function bootstrap() {
   new ProjectLibraryOverlay();
   new SkillsOverlay();
   new CommunityOverlay();
+  new ImageViewerOverlay();
   clickSystem.attach(appRenderer.renderer.domElement, followCamera.camera);
+
+  // Click Zarina: she reacts (wave, little hop, giggle)
+  clickSystem.register(
+    avatar.group,
+    '👋 Say hi to Zarina',
+    () => {
+      if (avatar.isSleeping || avatar.isWakingUp) return eventBus.emit('bed:wakeup');
+      if (avatar.isSitting) {
+        avatar.doGesture('reach');
+        audioManager.playGiggle();
+        return;
+      }
+      const r = Math.random();
+      if (r < 0.45) avatar.wave();
+      else if (r < 0.75) avatar.hop();
+      else avatar.doGesture('cheer');
+      audioManager.playGiggle();
+      followCamera.lookAtFace();
+    },
+    true
+  );
+
+  // Click the floor: she walks there (around furniture)
+  const marker = new THREE.Mesh(
+    new THREE.RingGeometry(0.12, 0.2, 28),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })
+  );
+  marker.rotation.x = -Math.PI / 2;
+  scene.add(marker);
+  let markerLife = 0;
+  const floorRay = new THREE.Raycaster();
+  const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  eventBus.on('world:click', ({ x, y }: { x: number; y: number }) => {
+    if (store.get().inputLocked || avatar.isSleeping || avatar.isWakingUp) return;
+    floorRay.setFromCamera(new THREE.Vector2(x, y), followCamera.camera);
+    const hit = new THREE.Vector3();
+    if (!floorRay.ray.intersectPlane(floorPlane, hit)) return;
+    const b = collisionSystem.roomBounds;
+    if (hit.x < b.minX || hit.x > b.maxX || hit.z < b.minZ || hit.z > b.maxZ) return;
+    const path = navGrid.findPath(avatar.position, hit);
+    if (!path || !path.length) return;
+    if (avatar.isSitting) avatar.standUp();
+    eventBus.emit('travel:cancel');
+    const end = path[path.length - 1];
+    marker.position.set(end.x, 0.03, end.z);
+    markerLife = 1;
+    avatar.followPath(path, 2.9);
+  });
+
+  // Using anything makes her turn to it and reach out (doors and seats excepted)
+  eventBus.on('interaction:use', (item: { position: THREE.Vector3; gesture?: string; id: string }) => {
+    if (avatar.isSitting || avatar.isSleeping || item.gesture === 'none' || item.id.startsWith('DOOR_') || item.id === 'bed') return;
+    avatar.faceYaw = Math.atan2(item.position.x - avatar.position.x, item.position.z - avatar.position.z);
+    avatar.doGesture(item.gesture === 'think' ? 'think' : 'reach');
+  });
+  eventBus.on('interaction:trigger', (id: string) => {
+    if (id.startsWith('DOOR_')) audioManager.playDoor();
+  });
+
+  // First person hides her body; furniture fades when it blocks the third-person view
+  followCamera.onModeChange = (mode) => avatar.setBodyVisible(mode === 'third');
+  eventBus.on('room:entered', () => followCamera.setOccluderRoot(sceneManager.currentRoom?.group ?? null));
+  followCamera.setOccluderRoot(sceneManager.currentRoom?.group ?? null);
 
   // Focus Camera Events
   eventBus.on('interaction:trigger', (id: string) => {
@@ -144,6 +218,12 @@ async function bootstrap() {
 
     // 2. Companion Following
     companion.update(delta, avatar.position, avatar.rotationY);
+    followCamera.eyeHeight = avatar.isSleeping ? 0.45 : avatar.isSitting ? 0.62 : 1.02;
+    if (markerLife > 0) {
+      markerLife = Math.max(0, markerLife - delta * 1.2);
+      (marker.material as THREE.MeshBasicMaterial).opacity = markerLife * 0.8;
+      marker.scale.setScalar(1 + (1 - markerLife) * 0.8);
+    }
 
     // 3. Room & Systems
     sceneManager.update(delta);
@@ -166,7 +246,7 @@ async function bootstrap() {
 
   // Dev-only handle for debugging and screenshots (stripped from production builds)
   if (import.meta.env.DEV) {
-    (window as unknown as Record<string, unknown>).__portfolio = { eventBus, store, avatar, followCamera, interactionSystem, clickSystem, THREE };
+    (window as unknown as Record<string, unknown>).__portfolio = { eventBus, store, avatar, followCamera, interactionSystem, clickSystem, THREE, sceneManager, companion, navGrid };
   }
 
   loop.start();

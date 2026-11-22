@@ -3,7 +3,7 @@ import { eventBus } from './events';
 export type RoomId = 'bedroom' | 'gameRoom' | 'greenhouse' | 'study' | 'devRealm';
 export type ThemeMode = 'day' | 'dusk';
 export type QualityTier = 'high' | 'medium' | 'low';
-export type OverlayType = 'none' | 'project' | 'tv' | 'chat' | 'contact' | 'about' | 'journal' | 'education' | 'menu' | 'resume' | 'library' | 'skills' | 'community';
+export type OverlayType = 'none' | 'project' | 'tv' | 'chat' | 'contact' | 'about' | 'journal' | 'education' | 'menu' | 'resume' | 'library' | 'skills' | 'community' | 'image' | 'game';
 
 export interface AppState {
   currentRoom: RoomId;
@@ -22,6 +22,17 @@ export interface AppState {
   isWakingUp: boolean;
   isSleeping: boolean;
   completedQuests: string[];
+  /** 'walk': room buttons make her walk there herself. 'instant': jump straight to the room. */
+  travelMode: 'walk' | 'instant';
+  cameraMode: 'third' | 'first';
+}
+
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
 const DEFAULT_STATE: AppState = {
@@ -40,7 +51,9 @@ const DEFAULT_STATE: AppState = {
   inputLocked: true, // Initially locked for waking up sequence
   isWakingUp: true,
   isSleeping: true,
-  completedQuests: ['start_journey']
+  completedQuests: ['start_journey'],
+  travelMode: (readPref('travel_mode') as 'walk' | 'instant') || 'walk',
+  cameraMode: 'third'
 };
 
 class Store {
@@ -62,6 +75,8 @@ class Store {
       localStorage.setItem('quality_tier', value as string);
     } else if (key === 'muted') {
       localStorage.setItem('audio_muted', String(value));
+    } else if (key === 'travelMode') {
+      localStorage.setItem('travel_mode', String(value));
     }
   }
 
