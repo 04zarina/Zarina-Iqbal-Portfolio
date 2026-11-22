@@ -7,6 +7,7 @@ import { DevRealmRoom } from './rooms/devRealm';
 import { RoomId, store } from '../core/store';
 import { eventBus } from '../core/events';
 import { collisionSystem } from './collision';
+import { clickSystem } from './clickables';
 import { Avatar } from './avatar/avatar';
 import { FollowCamera } from './camera/followCamera';
 
@@ -83,6 +84,7 @@ export class SceneManager {
 
     // 2. Clear previous room collisions
     collisionSystem.clear();
+    clickSystem.clear();
 
     // 3. Instantiate new room
     let newRoom: RoomInstance;

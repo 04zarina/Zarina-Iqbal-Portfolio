@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { tokenize, toSparseVector, termCounts } from '../api/_rag';
 
 interface DocumentChunk {
   id: string;
@@ -8,21 +9,9 @@ interface DocumentChunk {
   title: string;
   targetId: string;
   text: string;
-  vector?: number[];
-}
-
-// Simple deterministic term frequency vectorizer for in-memory retrieval
-function textToVector(text: string, vocab: string[]): number[] {
-  const words = text.toLowerCase().match(/\b[a-z0-9_-]+\b/g) || [];
-  const freq: Record<string, number> = {};
-  words.forEach((w) => {
-    freq[w] = (freq[w] || 0) + 1;
-  });
-
-  const vec = vocab.map((term) => freq[term] || 0);
-  // Normalize vector
-  const mag = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
-  return mag > 0 ? vec.map((v) => v / mag) : vec;
+  vector?: Record<string, number>;
+  tf?: Record<string, number>;
+  len?: number;
 }
 
 async function runIngest() {
@@ -44,7 +33,7 @@ async function runIngest() {
       sourceId: p.id,
       type: 'project',
       title: p.title,
-      targetId: 'DOOR_game',
+      targetId: 'DOOR_gameRoom',
       text: `Project: ${p.title} (${p.year}). Tagline: ${p.tagline}. Type: ${p.type}. Roles: ${p.roles.join(', ')}. Key Contributions: ${p.contributions.join(' ')}. Description: ${p.description}. Technologies: ${p.tools.join(', ')}.`
     });
   });
@@ -96,58 +85,57 @@ async function runIngest() {
       sourceId: a.id,
       type: 'achievement',
       title: a.title,
-      targetId: 'shelf',
+      targetId: 'DOOR_bedroom',
       text: `Achievement Award: ${a.title} (${a.date}). Summary: ${a.summary}`
     });
   });
 
-  // 6. Profile & FAQ markdown
-  const profileRaw = fs.readFileSync(path.join(contentDir, 'profile.md'), 'utf-8');
-  chunks.push({
-    id: 'profile-bio',
-    sourceId: 'profile',
-    type: 'profile',
-    title: 'Zarina Iqbal Buriro Profile & Bio',
-    targetId: 'mirror',
-    text: profileRaw
-  });
-
-  const faqRaw = fs.readFileSync(path.join(contentDir, 'faq.md'), 'utf-8');
-  chunks.push({
-    id: 'profile-faq',
-    sourceId: 'faq',
-    type: 'faq',
-    title: 'FAQ and Q&A',
-    targetId: 'companion',
-    text: faqRaw
-  });
-
-  // Build vocabulary
-  const vocabSet = new Set<string>();
-  chunks.forEach((c) => {
-    const words = c.text.toLowerCase().match(/\b[a-z0-9_-]+\b/g) || [];
-    words.forEach((w) => {
-      if (w.length > 2) vocabSet.add(w);
+  // 6. Profile & FAQ markdown, split by heading so each chunk stays focused
+  const mdChunks = (file: string, prefix: string, baseTitle: string, targetId: string) => {
+    const raw = fs.readFileSync(path.join(contentDir, file), 'utf-8');
+    const sections = raw.split(/\n(?=#{1,3} )/);
+    sections.forEach((sec, i) => {
+      const text = sec.trim();
+      if (text.length < 20) return;
+      const heading = text.match(/^#{1,3} (.+)/)?.[1]?.trim();
+      chunks.push({
+        id: `${prefix}-${i}`,
+        sourceId: prefix,
+        type: prefix,
+        title: heading ? `${baseTitle}: ${heading}` : baseTitle,
+        targetId,
+        text: text.replace(/^#{1,3} /gm, '')
+      });
     });
-  });
-  const vocab = Array.from(vocabSet);
+  };
+  mdChunks('profile.md', 'profile', 'Profile', 'DOOR_bedroom');
+  mdChunks('faq.md', 'faq', 'FAQ', 'DOOR_bedroom');
 
-  // Compute vectors
-  chunks.forEach((c) => {
-    c.vector = textToVector(c.text, vocab);
+  // Build the TF-IDF vector index (sparse, so the file stays small)
+  // Titles count three times so a question naming a project finds that project first
+  const tokenized = chunks.map((c) => tokenize(`${c.title} ${c.title} ${c.title} ${c.text}`));
+  const df: Record<string, number> = {};
+  tokenized.forEach((toks) => new Set(toks).forEach((t) => (df[t] = (df[t] || 0) + 1)));
+  const idf: Record<string, number> = {};
+  Object.entries(df).forEach(([t, n]) => (idf[t] = Math.log(1 + chunks.length / n)));
+  chunks.forEach((c, i) => {
+    c.vector = toSparseVector(tokenized[i], idf);
+    c.tf = termCounts(tokenized[i]);
+    c.len = tokenized[i].length;
   });
 
   const indexPayload = {
-    version: '1.0.0',
+    version: '2.0.0',
     createdAt: new Date().toISOString(),
     chunkCount: chunks.length,
-    vocabSize: vocab.length,
-    vocab,
+    vocabSize: Object.keys(idf).length,
+    idf,
+    avgLen: tokenized.reduce((n, t) => n + t.length, 0) / tokenized.length,
     chunks
   };
 
   const outputPath = path.join(serverDataDir, 'index.json');
-  fs.writeFileSync(outputPath, JSON.stringify(indexPayload, null, 2), 'utf-8');
+  fs.writeFileSync(outputPath, JSON.stringify(indexPayload), 'utf-8');
   console.log(`✅ Ingested ${chunks.length} chunks into: ${outputPath}`);
 }
 

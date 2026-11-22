@@ -1,7 +1,6 @@
 import { store } from '../core/store';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
-import skillsData from '../../content/skills.json';
 import { profile } from '../content/profile';
 
 export class AboutOverlay {
@@ -11,16 +10,6 @@ export class AboutOverlay {
     this.overlay = document.createElement('div');
     this.overlay.className = 'modal-overlay';
     this.overlay.id = 'about-modal';
-
-    const skillsHtml = skillsData.map((s) => `
-      <div style="background:var(--surface-color); border:1.5px solid var(--cocoa); border-radius:12px; padding:10px; margin-bottom:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <strong style="font-family:var(--font-display);">${s.name}</strong>
-          <span style="font-size:0.8rem; color:var(--text-muted);">${s.category} </span>
-        </div>
-        <div style="font-size:0.85rem; margin-top:4px;">${s.blurb}</div>
-      </div>
-    `).join('');
 
     const linkBtn = (href: string, label: string, accent: string) =>
       `<a href="${href}" target="_blank" rel="noreferrer" class="sticker-btn ${accent}" style="padding:6px 14px; font-size:0.85rem;">${label}</a>`;
@@ -56,13 +45,15 @@ export class AboutOverlay {
           ${linkBtn(profile.socials.github, 'GitHub 💻', 'accent-mint')}
         </div>
 
-        <h3 style="font-family:var(--font-display); margin-bottom:10px;">🌱 Skills & where I used them:</h3>
-        <div style="max-height:220px; overflow-y:auto; padding-right:4px; margin-bottom:16px;">
-          ${skillsHtml}
-        </div>
+        <p style="font-size:0.85rem; margin-bottom:14px;">🌿 My skills live in the <strong>Greenhouse</strong>, and my projects in the <strong>Arcade</strong> and the 🗂️ library.</p>
 
         <h3 style="font-family:var(--font-display); margin-bottom:8px;">🎤 Leadership & Community</h3>
-        <p style="font-size:0.88rem; line-height:1.5;">${profile.leadership}</p>
+        <p style="font-size:0.88rem; line-height:1.5; margin-bottom:10px;">${profile.leadership}</p>
+        <div style="display:flex; gap:8px; overflow-x:auto;">
+          ${profile.community
+            .map((c, i) => `<button type="button" class="about-photo" data-photo="${i}" title="${c.title}" style="flex:0 0 auto; padding:0; border:2px solid var(--cocoa); border-radius:10px; overflow:hidden; background:none; cursor:pointer;"><img src="${c.src}" alt="${c.title}" loading="lazy" style="height:92px; display:block;" /></button>`)
+            .join('')}
+        </div>
       </div>
     `;
 
@@ -72,12 +63,18 @@ export class AboutOverlay {
 
   private initEvents(): void {
     this.overlay.querySelector('#about-close-btn')?.addEventListener('click', () => this.close());
+    this.overlay.querySelectorAll<HTMLButtonElement>('[data-photo]').forEach((b) =>
+      b.addEventListener('click', () => {
+        this.close();
+        eventBus.emit('open:community', Number(b.dataset.photo));
+      })
+    );
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.close();
     });
 
     eventBus.on('overlay:open', (name: string) => {
-      if (name === 'about' || name === 'skills') this.open();
+      if (name === 'about') this.open();
     });
   }
 

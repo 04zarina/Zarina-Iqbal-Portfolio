@@ -1,5 +1,6 @@
 import { store } from '../core/store';
 import { eventBus } from '../core/events';
+import { sendContact } from '../core/sendContact';
 import { audioManager } from '../audio/audioManager';
 
 export class ContactFormOverlay {
@@ -48,7 +49,7 @@ export class ContactFormOverlay {
               style="width:100%; padding:10px 14px; border-radius:14px; border:2px solid var(--cocoa); font-family:var(--font-body); background:var(--surface-color); resize:vertical;"></textarea>
           </div>
 
-          <div id="contact-status-msg" style="font-size:0.88rem; font-weight:700; display:none;"></div>
+          <div id="contact-status-msg" role="status" aria-live="polite" style="font-size:0.88rem; font-weight:700; display:none;"></div>
 
           <button type="submit" class="sticker-btn accent-butter" id="contact-submit-btn" style="margin-top:6px; padding:12px;">
             Post Letter in Mailbox ✉️
@@ -116,39 +117,28 @@ export class ContactFormOverlay {
     statusMsg.style.display = 'none';
 
     const formData = new FormData(form);
-    const payload = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      subject: formData.get('subject'),
-      message: formData.get('message'),
-      website: formData.get('website'),
+    const result = await sendContact({
+      name: String(formData.get('name') || '').trim(),
+      email: String(formData.get('email') || '').trim(),
+      subject: String(formData.get('subject') || '').trim(),
+      message: String(formData.get('message') || '').trim(),
+      website: String(formData.get('website') || ''),
       ts: Number(formData.get('ts'))
-    };
+    });
 
     try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
+      if (result.ok) {
         this.triggerFlyingMailAnimation();
         store.completeQuest('send_letter');
-        eventBus.emit('toast:show', 'Letter delivered to Zarina\'s mailbox in the sky! 💌');
+        eventBus.emit('toast:show', 'Letter delivered to Zarina\'s inbox! 💌');
         form.reset();
         this.close();
       } else {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Could not deliver letter.');
+        statusMsg.style.display = 'block';
+        statusMsg.innerHTML = result.mailto
+          ? `${result.error} <a href="${result.mailto}" style="font-weight:700;">Send it from your email app instead ✉️</a>`
+          : result.error;
       }
-    } catch (err: any) {
-      // In local dev without backend server running, simulate graceful delivery
-      this.triggerFlyingMailAnimation();
-      store.completeQuest('send_letter');
-      eventBus.emit('toast:show', 'Letter posted successfully into the sky! 💌');
-      form.reset();
-      this.close();
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerText = 'Post Letter in Mailbox ✉️';

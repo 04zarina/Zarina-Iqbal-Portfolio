@@ -36,12 +36,12 @@ describe('Content Schema Integrity', () => {
 });
 
 describe('RAG Index Integrity', () => {
-  it('verifies server-data/index.json has chunks and vocabulary', () => {
+  it('verifies server-data/index.json has chunks and an IDF vocabulary', () => {
     const indexPath = path.resolve(process.cwd(), 'server-data', 'index.json');
     expect(fs.existsSync(indexPath)).toBe(true);
 
     const index = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
     expect(index.chunks.length).toBeGreaterThanOrEqual(20);
-    expect(index.vocab.length).toBeGreaterThan(50);
+    expect(Object.keys(index.idf).length).toBeGreaterThan(50);
   });
 });

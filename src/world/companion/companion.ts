@@ -7,6 +7,7 @@ import { eventBus } from '../../core/events';
 import { store } from '../../core/store';
 import { audioManager } from '../../audio/audioManager';
 import { sparkleSystem } from '../fx/sparkles';
+import { clickSystem } from '../clickables';
 
 export class Companion {
   public group: THREE.Group = new THREE.Group();
@@ -19,15 +20,20 @@ export class Companion {
   private isFollowing = false;
   public isPerched = false;
   private perchedPos = new THREE.Vector3();
+  /** Mochi only appears after the visitor presses "Ask Mochi". */
+  public summoned = false;
+  private lastAvatarPos = new THREE.Vector3();
+  private lastAvatarRotY = 0;
 
   constructor() {
     this.shadow = createBlobShadow(0.22);
     this.group.add(this.shadow);
     this.group.add(this.modelNode);
 
+    this.group.visible = false;
     this.initModel();
-    this.initInteraction();
     this.initEvents();
+    clickSystem.register(this.group, 'Chat with Mochi 🐾', () => this.openChat(), true);
   }
 
   private async initModel(): Promise<void> {
@@ -114,12 +120,17 @@ export class Companion {
     this.modelNode.add(leftEye, rightEye, leftCheek, rightCheek, noseMesh, tailMesh);
   }
 
+  private openChat(): void {
+    store.set('activeOverlay', 'chat');
+    eventBus.emit('overlay:open', 'chat');
+  }
+
   private initInteraction(): void {
     interactionSystem.register({
       id: 'companion',
       label: 'Chat with Mochi 🐾',
       keyHint: 'E',
-      radius: 2.0,
+      radius: 1.4,
       position: this.position,
       mesh: this.modelNode,
       onInteract: () => {
@@ -132,13 +143,16 @@ export class Companion {
   private initEvents(): void {
     // Summon Mochi button
     eventBus.on('companion:summon', (data?: { avatarPos?: THREE.Vector3; avatarRotY?: number }) => {
-      this.summonToAvatar(data?.avatarPos, data?.avatarRotY);
+      this.summonToAvatar(data?.avatarPos ?? this.lastAvatarPos, data?.avatarRotY ?? this.lastAvatarRotY);
     });
 
     eventBus.on('room:entered', (roomId: string) => {
+      if (!this.summoned) return;
+      // Rooms clear their interactables when unloading, so register Mochi again
+      this.initInteraction();
       if (roomId === 'study') {
-        // In the study nook, let Mochi sit on the study desk table!
-        this.sitOnTable(new THREE.Vector3(0.45, 0.76, 1.8), Math.PI * 0.95);
+        // In the study, Mochi naps on the reading-corner coffee table (away from the resume on the desk)
+        this.sitOnTable(new THREE.Vector3(3.0, 0.42, -0.25), -Math.PI / 2);
       } else {
         this.isPerched = false;
         this.shadow.visible = true;
@@ -158,6 +172,11 @@ export class Companion {
   }
 
   summonToAvatar(avatarPos?: THREE.Vector3, avatarRotY?: number): void {
+    if (!this.summoned) {
+      this.summoned = true;
+      this.group.visible = true;
+      this.initInteraction();
+    }
     this.isPerched = false;
     this.shadow.visible = true;
 
@@ -195,6 +214,9 @@ export class Companion {
   }
 
   update(delta: number, avatarPosition: THREE.Vector3, avatarRotationY: number): void {
+    this.lastAvatarPos.copy(avatarPosition);
+    this.lastAvatarRotY = avatarRotationY;
+    if (!this.summoned) return;
     this.animTimer += delta;
 
     if (this.isPerched) {
@@ -209,7 +231,7 @@ export class Companion {
         const targetYaw = Math.atan2(dir.x, dir.z);
         this.rotationY = THREE.MathUtils.lerp(this.rotationY, targetYaw, delta * 4);
       } else {
-        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.PI * 0.95, delta * 3);
+        this.rotationY = THREE.MathUtils.lerp(this.rotationY, -Math.PI / 2, delta * 3);
       }
 
       this.group.position.copy(this.position);

@@ -24,7 +24,7 @@ export class ResumeOverlay {
           <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf" class="sticker-btn accent-butter" id="resume-download-btn">Download PDF ⬇️</a>
           <a href="${profile.resume}" target="_blank" rel="noreferrer" class="sticker-btn accent-sky">Open in new tab ↗</a>
         </div>
-        <div id="resume-viewer" style="width:100%; height:62vh; border:2px solid var(--cocoa); border-radius:12px; overflow:hidden; background:#fff;"></div>
+        <div id="resume-viewer" tabindex="0" aria-label="Resume preview" style="width:100%; height:62vh; border:2px solid var(--cocoa); border-radius:12px; overflow:auto; background:#fff;"></div>
       </div>
     `;
 
@@ -49,14 +49,16 @@ export class ResumeOverlay {
   }
 
   open(): void {
-    // Load the PDF only when the viewer opens, so it never slows down the 3D scene
+    // Show a rendered image of the resume: it reads on every device (phones and some
+    // browsers won't show PDFs inside a page). Loaded only when opened.
     if (!this.viewer.firstChild) {
-      const frame = document.createElement('iframe');
-      frame.src = `${profile.resume}#view=FitH`;
-      frame.title = `${profile.name} resume`;
-      frame.style.cssText = 'width:100%; height:100%; border:0;';
-      this.viewer.appendChild(frame);
+      const img = document.createElement('img');
+      img.src = '/resume/resume-preview.webp';
+      img.alt = `${profile.name} resume, page 1`;
+      img.style.cssText = 'width:100%; height:auto; display:block;';
+      this.viewer.appendChild(img);
     }
+    store.completeQuest('get_resume');
     this.overlay.classList.add('active');
     store.set('inputLocked', true);
   }

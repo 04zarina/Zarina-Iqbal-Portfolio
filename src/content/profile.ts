@@ -15,6 +15,24 @@ export const profile = {
   ],
   leadership:
     "Beyond code, I am active in campus life. I have been part of the GameVerse society's events and logistics team and hosted its flagship event, GameCon, at both editions. I was a member of SENTEC for a year, also part of the organizing team for the MPERC event. Hosting in front of a live audience has made public speaking one of my strongest skills.",
+  community: [
+    {
+      src: '/images/community/gamecon25.webp',
+      title: "Hosting NED GameCon'25",
+      caption: "Hosting GameVerse's flagship event on stage at TechFest'25."
+    },
+    {
+      src: '/images/community/gamecon26.webp',
+      title: "Hosting NED GameCon'26",
+      caption: 'Back at the podium to host the second edition of GameCon.'
+    },
+    {
+      src: '/images/community/luth-gamecon26.webp',
+      title: "Light Up The House at GameCon'26",
+      caption: "Our UE5 game, Light Up The House, presented as a GameCon'26 entry.",
+      projectId: 'light-up-the-house'
+    }
+  ] as { src: string; title: string; caption: string; projectId?: string }[],
   email: 'zarinaiqbal04@gmail.com',
   location: 'Karachi, Pakistan',
   resume: '/resume/Zarina_Iqbal_Resume.pdf',
@@ -25,7 +43,13 @@ export const profile = {
   },
   showreel: {
     title: 'Light Up The House: Trailer',
-    youtubeId: 'd1nB7CZ_fcg'
+    youtubeId: 'd1nB7CZ_fcg',
+    /**
+     * Promo video from After Effects (course module 3). Drop the export at
+     * public/video/promo.mp4 (H.264, under ~15 MB) and set this to '/video/promo.mp4';
+     * the TV then plays it instead of the YouTube trailer.
+     */
+    mp4: '' as string
   }
 } as const;
 

@@ -56,3 +56,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The HUD covers the whole screen; let clicks and drags fall through to the 3D canvas
+   except on its actual controls. */
+#ui-layer > .hud-container { pointer-events: none; }
+.hud-container .hud-top-left,
+.hud-container .hud-top-right,
+.hud-container .joystick-zone,
+.hud-container .action-btn-zone,
+.hud-container button { pointer-events: auto; }
+.hud-container .hud-top-left,
+.hud-container .hud-top-right { pointer-events: none; }
+.hud-container .hud-top-left > *,
+.hud-container .hud-top-right > * { pointer-events: auto; }

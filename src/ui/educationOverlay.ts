@@ -3,6 +3,9 @@ import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import eduData from '../../content/education.json';
 import expData from '../../content/experience.json';
+import achievementsData from '../../content/achievements.json';
+
+type Tab = 'education' | 'experience' | 'certificates';
 
 interface EduEntry {
   id: string;
@@ -26,7 +29,7 @@ interface ExpEntry {
 
 export class EducationOverlay {
   private overlay: HTMLElement;
-  private currentTab: 'education' | 'experience' = 'education';
+  private currentTab: Tab = 'education';
 
   constructor() {
     this.overlay = document.createElement('div');
@@ -45,8 +48,19 @@ export class EducationOverlay {
       }
     });
 
+    // Sticky notes on the corkboard open a specific tab
+    eventBus.on('open:education', (tab: Tab) => {
+      this.currentTab = tab || 'education';
+      store.set('activeOverlay', 'education');
+      this.render();
+      this.open();
+    });
+
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.close();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.overlay.classList.contains('active')) this.close();
     });
   }
 
@@ -63,7 +77,7 @@ export class EducationOverlay {
     eventBus.emit('overlay:close', 'education');
   }
 
-  private setTab(tab: 'education' | 'experience'): void {
+  private setTab(tab: Tab): void {
     this.currentTab = tab;
     audioManager.playPop();
     this.render();
@@ -182,16 +196,24 @@ export class EducationOverlay {
         <button class="sticker-btn ${this.currentTab === 'experience' ? 'accent-mint' : ''}" id="tab-exp" style="padding:6px 16px; font-size:0.9rem;">
           💼 Experience
         </button>
+        <button class="sticker-btn ${this.currentTab === 'certificates' ? 'accent-sky' : ''}" id="tab-cert" style="padding:6px 16px; font-size:0.9rem;">
+          📜 Certificates
+        </button>
       </div>
     `;
 
+    const certs = achievementsData
+      .filter((a) => a.id.startsWith('cert-'))
+      .map((a) => ({ id: a.id, title: a.title, org: a.date, start: '', end: '', summary: a.summary, highlights: [] as string[] }));
     const contentHtml = this.currentTab === 'education'
       ? this.renderTimeline(eduEntries, '--butter')
-      : this.renderTimeline(expEntries, '--mint');
+      : this.currentTab === 'experience'
+        ? this.renderTimeline(expEntries, '--mint')
+        : this.renderTimeline(certs, '--sky');
 
     this.overlay.innerHTML = `
-      <div class="modal-card" style="max-width:580px;">
-        <button class="modal-close-btn" id="edu-close-btn">✕</button>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Education and career timeline" style="max-width:580px;">
+        <button class="modal-close-btn" id="edu-close-btn" aria-label="Close">✕</button>
         <h2 class="modal-title">📚 Education &amp; Career Timeline</h2>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px; font-style:italic;">
           Pinned from the Study Corkboard 📌
@@ -206,5 +228,6 @@ export class EducationOverlay {
     this.overlay.querySelector('#edu-close-btn')?.addEventListener('click', () => this.close());
     this.overlay.querySelector('#tab-edu')?.addEventListener('click', () => this.setTab('education'));
     this.overlay.querySelector('#tab-exp')?.addEventListener('click', () => this.setTab('experience'));
+    this.overlay.querySelector('#tab-cert')?.addEventListener('click', () => this.setTab('certificates'));
   }
 }

@@ -58,6 +58,7 @@
       justify-content: space-between;
     }
   </style>
+<style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}</style>
 </head>
 <body>
   <div class="classic-container">
@@ -131,6 +132,11 @@
       <p style="line-height:1.6;">
         Beyond code, I am active in campus life. I have been part of the GameVerse society's events and logistics team and hosted its flagship event, GameCon, at both editions. I was a member of SENTEC for a year, also part of the organizing team for the MPERC event. Hosting in front of a live audience has made public speaking one of my strongest skills.
       </p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px;">
+        <figure style="margin:0;"><img src="/images/community/gamecon25.webp" alt="Zarina hosting NED GameCon'25 at TechFest'25" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Hosting NED GameCon'25</figcaption></figure>
+        <figure style="margin:0;"><img src="/images/community/gamecon26.webp" alt="Zarina at the podium hosting NED GameCon'26" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Hosting NED GameCon'26</figcaption></figure>
+        <figure style="margin:0;"><img src="/images/community/luth-gamecon26.webp" alt="Light Up The House presented on stage at GameCon'26" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Light Up The House, a GameCon'26 entry</figcaption></figure>
+      </div>
     </section>
 
     <!-- Certificates (collapsed) -->
@@ -145,11 +151,14 @@
     <section class="section-card">
       <h2 style="font-family:var(--font-display); margin-bottom:12px;">Send a Message</h2>
       <form id="classic-contact-form" style="display:flex; flex-direction:column; gap:12px; max-width:540px;">
-        <input type="text" name="name" required placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <input type="email" name="email" required placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <input type="text" name="subject" required placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <textarea name="message" required rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
+        <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px;" />
+        <label class="sr-only" for="cf-name">Your name</label>
+        <input id="cf-name" type="text" name="name" required minlength="2" maxlength="80" placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="email" name="email" required maxlength="254" aria-label="Your email" placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="text" name="subject" required minlength="3" maxlength="120" aria-label="Subject" placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <textarea name="message" required minlength="10" maxlength="2000" aria-label="Message" rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
         <button type="submit" class="sticker-btn accent-butter" style="align-self:flex-start;">Submit Message ✉️</button>
+        <p id="classic-contact-status" role="status" aria-live="polite" style="display:none; font-weight:700;"></p>
       </form>
     </section>
   </div>
