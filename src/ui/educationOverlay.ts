@@ -3,7 +3,7 @@ import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import eduData from '../../content/education.json';
 import expData from '../../content/experience.json';
-import achievementsData from '../../content/achievements.json';
+import { certificates, certificateViewerArg } from '../content/certificates';
 
 type Tab = 'education' | 'experience' | 'certificates';
 
@@ -202,14 +202,20 @@ export class EducationOverlay {
       </div>
     `;
 
-    const certs = achievementsData
-      .filter((a) => a.id.startsWith('cert-'))
-      .map((a) => ({ id: a.id, title: a.title, org: a.date, start: '', end: '', summary: a.summary, highlights: [] as string[] }));
     const contentHtml = this.currentTab === 'education'
       ? this.renderTimeline(eduEntries, '--butter')
       : this.currentTab === 'experience'
         ? this.renderTimeline(expEntries, '--mint')
-        : this.renderTimeline(certs, '--sky');
+        : `<div class="cert-grid">${certificates
+            .map(
+              (c) => `<div class="cert-tile">
+                ${c.thumb ? `<button class="cert-thumb big" data-cert="${c.id}" aria-label="View ${c.title}"><img src="${c.thumb}" alt="" loading="lazy" /></button>` : '<div class="cert-thumb big empty">📜</div>'}
+                <div style="font-family:var(--font-display); font-weight:700; margin-top:6px;">${c.title}</div>
+                <div style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">${c.issuer}</div>
+                ${c.verifyUrl ? `<a class="chip" style="background:var(--mint); margin-top:6px; display:inline-block;" href="${c.verifyUrl}" target="_blank" rel="noopener">Verify ↗</a>` : ''}
+              </div>`
+            )
+            .join('')}</div>`;
 
     this.overlay.innerHTML = `
       <div class="modal-card" role="dialog" aria-modal="true" aria-label="Education and career timeline" style="max-width:580px;">
@@ -229,5 +235,11 @@ export class EducationOverlay {
     this.overlay.querySelector('#tab-edu')?.addEventListener('click', () => this.setTab('education'));
     this.overlay.querySelector('#tab-exp')?.addEventListener('click', () => this.setTab('experience'));
     this.overlay.querySelector('#tab-cert')?.addEventListener('click', () => this.setTab('certificates'));
+    this.overlay.querySelectorAll<HTMLElement>('[data-cert]').forEach((el) =>
+      el.addEventListener('click', () => {
+        this.close();
+        eventBus.emit('open:image', certificateViewerArg(el.dataset.cert!));
+      })
+    );
   }
 }

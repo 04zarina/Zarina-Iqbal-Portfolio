@@ -2,6 +2,7 @@ import { store, RoomId } from '../core/store';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import achievementsData from '../../content/achievements.json';
+import { certificates, certificateViewerArg } from '../content/certificates';
 
 export class JournalOverlay {
   private overlay: HTMLElement;
@@ -33,6 +34,16 @@ export class JournalOverlay {
         this.render();
         this.open();
       }
+    });
+    // open:journal carries the tab to show, e.g. the bedroom shelf opens Achievements
+    eventBus.on('open:journal', (tab?: 'quests' | 'map' | 'collectibles') => {
+      if (tab) this.currentTab = tab;
+      store.set('activeOverlay', 'journal');
+      this.render();
+      this.open();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.overlay.classList.contains('active')) this.close();
     });
 
     this.overlay.addEventListener('click', (e) => {
@@ -71,7 +82,7 @@ export class JournalOverlay {
           🗺️ Room Map
         </button>
         <button class="sticker-btn ${this.currentTab === 'collectibles' ? 'accent-blush' : ''}" id="tab-trophies" style="padding:6px 16px; font-size:0.9rem;">
-          🏆 Trophies
+          🏆 Achievements
         </button>
       </div>
     `;
@@ -117,10 +128,12 @@ export class JournalOverlay {
       }).join('');
       contentHtml = `<div>${roomCards}</div>`;
     } else {
-      const trophyCards = achievementsData.map((a) => `
+      const icons: Record<string, string> = { trophy: '🏆', mic: '🎤', medal: '🏅', star: '⭐', certificate: '📜' };
+      const awards = achievementsData.filter((a) => !a.id.startsWith('cert-'));
+      const trophyCards = awards.map((a) => `
         <div style="display:flex; align-items:center; gap:14px; padding:12px; border-radius:14px; background:var(--surface-color); border:1.5px solid var(--cocoa); margin-bottom:10px;">
-          <div style="width:48px; height:48px; border-radius:50%; background:var(--butter); border:2px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
-            🏆
+          <div style="flex:none; width:48px; height:48px; border-radius:50%; background:var(--butter); border:2px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:1.5rem;">
+            ${icons[a.icon] || '🏆'}
           </div>
           <div>
             <div style="font-family:var(--font-display); font-weight:700; color:var(--ink);">${a.title}</div>
@@ -129,13 +142,25 @@ export class JournalOverlay {
           </div>
         </div>
       `).join('');
-      contentHtml = `<div>${trophyCards}</div>`;
+      const certCards = certificates.map((c) => `
+        <div class="cert-card">
+          ${c.thumb ? `<button class="cert-thumb" data-cert="${c.id}" aria-label="View ${c.title} certificate"><img src="${c.thumb}" alt="" loading="lazy" /></button>` : '<div class="cert-thumb empty">📜</div>'}
+          <div style="flex:1; min-width:0;">
+            <div style="font-family:var(--font-display); font-weight:700;">${c.title}</div>
+            <div style="font-size:0.8rem; font-weight:700; color:var(--text-muted);">${c.issuer}</div>
+            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
+              ${c.image ? `<button class="chip cert-open" data-cert="${c.id}">View certificate</button>` : ''}
+              ${c.verifyUrl ? `<a class="chip" style="background:var(--mint);" href="${c.verifyUrl}" target="_blank" rel="noopener">Verify ↗</a>` : ''}
+            </div>
+          </div>
+        </div>`).join('');
+      contentHtml = `<h3 class="journal-sub">🏆 Awards &amp; Events</h3><div>${trophyCards}</div><h3 class="journal-sub">📜 Certificates</h3><div>${certCards}</div>`;
     }
 
     this.overlay.innerHTML = `
       <div class="modal-card" style="max-width:540px;">
         <button class="modal-close-btn" id="journal-close-btn">✕</button>
-        <h2 class="modal-title">📖 Explorer's Studio Journal</h2>
+        <h2 class="modal-title">${this.currentTab === 'collectibles' ? '🏆 Achievements' : "📖 Explorer's Studio Journal"}</h2>
         ${tabHeaders}
         <div style="max-height:55vh; overflow-y:auto; padding-right:4px;">
           ${contentHtml}
@@ -147,5 +172,11 @@ export class JournalOverlay {
     this.overlay.querySelector('#tab-quests')?.addEventListener('click', () => this.setTab('quests'));
     this.overlay.querySelector('#tab-map')?.addEventListener('click', () => this.setTab('map'));
     this.overlay.querySelector('#tab-trophies')?.addEventListener('click', () => this.setTab('collectibles'));
+    this.overlay.querySelectorAll<HTMLElement>('[data-cert]').forEach((el) =>
+      el.addEventListener('click', () => {
+        this.close();
+        eventBus.emit('open:image', certificateViewerArg(el.dataset.cert!));
+      })
+    );
   }
 }
