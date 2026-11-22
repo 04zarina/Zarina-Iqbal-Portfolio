@@ -23,9 +23,9 @@
 - **RAG-Powered AI Chatbot (Module 4):**
   - **Mochi**, the companion red panda, appears when you press "Ask Mochi" and answers questions about Zarina using retrieval over the portfolio content.
   - Pipeline: `npm run ingest` chunks `content/` (projects, skills, education, experience, achievements, profile and FAQ by heading) into a TF-IDF vector index (`server-data/index.json`). `/api/chat` retrieves the top 5 chunks (cosine similarity blended with BM25), sends them as numbered sources to Claude, and returns the answer with `[n]` citations and source chips.
-  - Guardrails: answers only from the sources, says so when it doesn't know, per-IP rate limit, 500-character question limit. Without `ANTHROPIC_API_KEY` it answers by quoting the best source.
+  - Guardrails: answers only from the sources, says so when it doesn't know, per-IP rate limit, 500-character question limit. Answers come from Google Gemini. Without `GEMINI_API_KEY` it answers by quoting the best source.
 - **Mailbox Contact System (Module 5):**
-  - Mailbox letter modal (and the `/classic` form) with front-end and zod back-end validation, time-trap, honeypot, per-IP rate limit, and delivery through Resend. Clear success and error states, with a mailto fallback if sending fails.
+  - Mailbox letter modal (and the `/classic` form) with front-end and zod back-end validation, time-trap, honeypot, per-IP rate limit, and delivery through Brevo. Clear success and error states, with a mailto fallback if sending fails.
 - **2D Classic View Fallback:**
   - A clean, accessible 2D portfolio at `/classic` with search, project tags, and dark/light mode.
 - **Performance Optimized:**
@@ -156,11 +156,11 @@ Secrets live only in Vercel environment variables, never in the repo.
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
-| `RESEND_API_KEY` | Contact form email | From resend.com > API Keys |
-| `CONTACT_TO_EMAIL` | Contact form email | Where letters arrive (defaults to zarinaiqbal04@gmail.com) |
-| `CONTACT_FROM_EMAIL` | Optional | Sender on a domain verified in Resend |
-| `ANTHROPIC_API_KEY` | Chatbot answers | From platform.claude.com > API Keys |
-| `CHAT_MODEL` | Optional | Defaults to `claude-opus-5-5` |
+| `BREVO_API_KEY` | Contact form email | From app.brevo.com > SMTP & API > API Keys |
+| `CONTACT_TO_EMAIL` | Optional | Where letters arrive (defaults to zarinaiqbal04@gmail.com) |
+| `CONTACT_FROM_EMAIL` | Optional | A sender verified in Brevo (defaults to CONTACT_TO_EMAIL) |
+| `GEMINI_API_KEY` | Chatbot answers | From aistudio.google.com > Get API key |
+| `GEMINI_MODEL` | Optional | Comma list tried in order, defaults to `gemini-3.8-flash,gemini-flash-latest,gemini-flash-lite-latest` |
 
 After changing anything in `content/`, run `npm run ingest` and commit `server-data/index.json`.
 

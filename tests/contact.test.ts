@@ -79,7 +79,7 @@ const goodBody = () => ({
 describe('/api/contact handler', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.RESEND_API_KEY;
+    delete process.env.BREVO_API_KEY;
   });
 
   it('reports 503 when email is not configured', async () => {
@@ -89,20 +89,21 @@ describe('/api/contact handler', () => {
     expect(out.body.code).toBe('not_configured');
   });
 
-  it('sends through Resend when a key is set', async () => {
-    process.env.RESEND_API_KEY = 'test-key';
+  it('sends through Brevo when a key is set', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: async () => '' });
     vi.stubGlobal('fetch', fetchMock);
     const { res, out } = mockRes();
     await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '2.2.2.2' } }, res);
     expect(out.code).toBe(200);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://api.resend.com/emails');
-    expect(JSON.parse(init.body).reply_to).toBe('robin@example.com');
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email');
+    expect(init.headers['api-key']).toBe('test-key');
+    expect(JSON.parse(init.body).replyTo.email).toBe('robin@example.com');
   });
 
-  it('returns 502 when Resend rejects', async () => {
-    process.env.RESEND_API_KEY = 'test-key';
+  it('returns 502 when Brevo rejects', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, text: async () => 'bad' }));
     const { res, out } = mockRes();
     await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '3.3.3.3' } }, res);
@@ -110,7 +111,7 @@ describe('/api/contact handler', () => {
   });
 
   it('silently accepts honeypot submissions without sending', async () => {
-    process.env.RESEND_API_KEY = 'test-key';
+    process.env.BREVO_API_KEY = 'test-key';
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { res, out } = mockRes();
@@ -122,11 +123,38 @@ describe('/api/contact handler', () => {
 
 describe('/api/chat handler without an API key', () => {
   it('answers extractively with cited sources', async () => {
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.GEMINI_API_KEY;
     const { res, out } = mockRes();
     await chatHandler({ method: 'POST', body: { message: 'What is Light Up The House?' }, headers: {} }, res);
     expect(out.code).toBe(200);
     expect(out.body.sources[0].title).toBe('Light Up The House');
     expect(out.body.answer).toContain('[1]');
+  });
+});
+
+describe('/api/chat handler with Gemini', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.GEMINI_API_KEY;
+  });
+
+  it('falls through a busy model and returns only cited sources', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: 'It is a GameCon entry [1].' }] } }] })
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const { res, out } = mockRes();
+    await chatHandler({ method: 'POST', body: { message: 'What is Light Up The House?' }, headers: { 'x-forwarded-for': '9.9.9.9' } }, res);
+    expect(out.code).toBe(200);
+    expect(out.body.mode).toBe('llm');
+    expect(out.body.sources).toHaveLength(1);
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
