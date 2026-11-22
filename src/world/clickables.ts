@@ -127,7 +127,14 @@ class ClickSystem {
   private click(x: number, y: number): void {
     if (this.blocked()) return;
     const item = this.pick(x, y);
-    if (!item) return;
+    if (!item) {
+      // Empty space: let the world decide (click-to-walk on the floor)
+      if (this.camera && this.canvas) {
+        const rect = this.canvas.getBoundingClientRect();
+        eventBus.emit('world:click', { x: ((x - rect.left) / rect.width) * 2 - 1, y: -((y - rect.top) / rect.height) * 2 + 1 });
+      }
+      return;
+    }
     jellyController.trigger(item.object, 0.2, -0.25, 0.2);
     this.hideTooltip();
     item.onClick();

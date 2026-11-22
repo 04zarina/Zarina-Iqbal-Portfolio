@@ -18,6 +18,9 @@ export interface RigPose {
   armSwingR: number;
   legL: number; // forward/back swing at the hip (rad, + = foot forward)
   legR: number;
+  /** Elbow bend (rad, + = forearm folds up toward the shoulder in the T-pose plane). Optional, defaults to 0. */
+  elbowL?: number;
+  elbowR?: number;
 }
 
 export class AvatarRig {
@@ -28,6 +31,8 @@ export class AvatarRig {
     uArmSwingR: { value: 0 },
     uLegL: { value: 0 },
     uLegR: { value: 0 },
+    uElbowL: { value: 0 },
+    uElbowR: { value: 0 },
     uRigCenter: { value: new THREE.Vector3() },
     uRigHeight: { value: 1 }
   };
@@ -62,7 +67,7 @@ export class AvatarRig {
           )
           .replace('#include <begin_vertex>', 'vec3 transformed = rigPos;');
       };
-      mat.customProgramCacheKey = () => 'avatar-rig-v1';
+      mat.customProgramCacheKey = () => 'avatar-rig-v2';
       mat.needsUpdate = true;
     });
     return true;
@@ -76,6 +81,8 @@ export class AvatarRig {
     u.uArmSwingR.value = pose.armSwingR;
     u.uLegL.value = pose.legL;
     u.uLegR.value = pose.legR;
+    u.uElbowL.value = pose.elbowL ?? 0;
+    u.uElbowR.value = pose.elbowR ?? 0;
   }
 }
 
@@ -83,6 +90,7 @@ const RIG_GLSL = /* glsl */ `
 uniform float uArmDownL; uniform float uArmDownR;
 uniform float uArmSwingL; uniform float uArmSwingR;
 uniform float uLegL; uniform float uLegR;
+uniform float uElbowL; uniform float uElbowR;
 uniform vec3 uRigCenter; uniform float uRigHeight;
 
 mat3 rigRotX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
@@ -98,6 +106,15 @@ void rigVertex(inout vec3 p, inout vec3 n) {
     vec3 piv = vec3(0.0, 0.222, 0.118 * side);
     float down = side > 0.0 ? uArmDownR : uArmDownL;
     float swing = side > 0.0 ? uArmSwingR : uArmSwingL;
+    // Elbow first (in the rest pose): the forearm and hand fold around the elbow
+    float elbow = side > 0.0 ? uElbowR : uElbowL;
+    float wFore = smoothstep(0.235, 0.275, abs(q.z));
+    if (wFore > 0.0 && abs(elbow) > 0.001) {
+      vec3 epiv = vec3(-0.012, 0.242, 0.255 * side);
+      mat3 E = rigRotX(-elbow * side);
+      q = mix(q, E * (q - epiv) + epiv, wFore);
+      n = normalize(mix(n, E * n, wFore));
+    }
     mat3 R = rigRotZ(swing) * rigRotX(down * side);
     q = mix(q, R * (q - piv) + piv, wArm);
     n = normalize(mix(n, R * n, wArm));

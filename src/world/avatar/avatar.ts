@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createBlobShadow } from '../fx/blobShadow';
 import { assetLoader } from '../../core/loaders';
 import { AvatarRig, RigPose } from './rig';
+import { MixamoAvatar, RIGGED_AVATAR_URL } from './mixamo';
+import { audioManager } from '../../audio/audioManager';
 
 export class Avatar {
   public group: THREE.Group = new THREE.Group();
@@ -13,6 +15,11 @@ export class Avatar {
   private modelContainer: THREE.Group = new THREE.Group();
   private shadow: THREE.Mesh;
   public hasExternalModel = false;
+  public modelReady = false;
+  private resolveReady!: () => void;
+  /** Resolves once her model (or the fallback) is in the scene. */
+  public readonly ready: Promise<void> = new Promise((r) => (this.resolveReady = r));
+  private lastStep = 0;
 
   // Animation state
   public isMoving = false;
@@ -26,9 +33,16 @@ export class Avatar {
   public groundSpeed = 0;
   private rig = new AvatarRig();
   private rigged = false;
-  private pose: RigPose = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0 };
+  private pose: Required<RigPose> = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0, elbowL: 0.15, elbowR: 0.15 };
   private waveTimer = -1;
   private readonly waveDuration = 2.0;
+  /** Short one-off body gestures (reach toward an object, pet Mochi, cheer, think). */
+  private gesture: { kind: 'reach' | 'pet' | 'cheer' | 'think'; t: number; dur: number } | null = null;
+  private mixamo: MixamoAvatar | null = null;
+  /** Head-height point used by the first-person camera. */
+  public readonly eyeHeight = 1.02;
+  /** Path queue for auto-walking (room travel, click-to-walk). */
+  private pathQueue: THREE.Vector3[] = [];
 
   // Scripted walk (used by the intro)
   private walkTarget: THREE.Vector3 | null = null;
@@ -59,10 +73,27 @@ export class Avatar {
     this.rootNode.add(this.modelContainer);
     this.group.add(this.rootNode);
 
-    this.initModel();
+    this.initModel().finally(() => this.resolveReady());
   }
 
   private async initModel(): Promise<void> {
+    const rigged = await MixamoAvatar.load(RIGGED_AVATAR_URL);
+    if (rigged) {
+      const model = rigged.scene;
+      model.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(model);
+      const s = 1.22 / Math.max(0.01, box.getSize(new THREE.Vector3()).y);
+      model.scale.setScalar(s);
+      model.updateMatrixWorld(true);
+      model.position.y = -new THREE.Box3().setFromObject(model).min.y;
+      model.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).frustumCulled = false) : null));
+      this.modelContainer.add(model);
+      this.mixamo = new MixamoAvatar(model, rigged.clips);
+      this.mixamo.play('idle', 0);
+      this.hasExternalModel = true;
+      this.modelReady = true;
+      return;
+    }
     const gltf = await assetLoader.loadGLTF('avatar');
     if (gltf) {
       // Auto-scale: measure raw height then scale to target
@@ -115,6 +146,7 @@ export class Avatar {
       this.modelContainer.add(gltf);
       this.hasExternalModel = true;
       this.rigged = this.rig.apply(gltf);
+      this.modelReady = true;
       console.log('✨ Loaded avatar GLB successfully! Height:', rawHeight.toFixed(3), '→ scale:', scale.toFixed(4));
     } else {
       // Procedural Chibi Girl fallback
@@ -247,23 +279,33 @@ export class Avatar {
     this.onWakeUpDone = onComplete || null;
   }
 
-  sitOnChair(chairPos: THREE.Vector3, rotY: number = 0): void {
+  sitOnChair(chairPos: THREE.Vector3, rotY: number = 0, seatHeight = 0.42): void {
     this.isSitting = true;
     this.isSleeping = false;
     this.isMoving = false;
+    this.pathQueue = [];
+    this.walkTarget = null;
+    this.waveTimer = -1;
+    this.gesture = null;
     this.position.copy(chairPos);
-    this.position.y = 0.42; // Chair seat height
+    this.position.y = seatHeight;
     this.rotationY = rotY;
     // Drop the hips onto the seat; the rig swings the legs forward (see updateRig)
     this.rootNode.position.set(0, this.rigged ? -0.4 : -0.06, 0);
     this.shadow.visible = false;
   }
 
+  /** Where to stand when getting up from the current seat. */
+  public standUpAt: THREE.Vector3 | null = null;
+
   standUp(standPos?: THREE.Vector3): void {
+    if (!this.isSitting && !standPos) return;
     this.isSitting = false;
-    if (standPos) {
-      this.position.copy(standPos);
+    const to = standPos ?? this.standUpAt;
+    if (to) {
+      this.position.copy(to);
     }
+    this.standUpAt = null;
     this.position.y = 0;
     this.rootNode.position.set(0, 0, 0);
     this.rootNode.rotation.set(0, 0, 0);
@@ -301,6 +343,64 @@ export class Avatar {
     return this.waveTimer >= 0;
   }
 
+  /** One-off gesture. 'reach' for touching objects, 'pet' for Mochi, 'cheer' for wins, 'think' for reading. */
+  doGesture(kind: 'reach' | 'pet' | 'cheer' | 'think', dur?: number): void {
+    if (this.isSleeping || this.isWakingUp) return;
+    if (this.isSitting && kind !== 'think' && kind !== 'reach') return;
+    const d = dur ?? { reach: 0.9, pet: 1.6, cheer: 1.4, think: 1.8 }[kind];
+    this.gesture = { kind, t: 0, dur: d };
+    if (this.mixamo) this.mixamo.play(kind === 'think' ? 'idle' : kind, 0.2, true);
+  }
+
+  /** Walk a list of waypoints in order (from the navigation grid). */
+  followPath(points: THREE.Vector3[], speed = 2.4, onDone?: () => void): void {
+    if (!points.length) {
+      onDone?.();
+      return;
+    }
+    this.pathQueue = points.slice(1).map((p) => p.clone().setY(0));
+    const finish = onDone || null;
+    const next = () => {
+      const p = this.pathQueue.shift();
+      if (p) this.walkTo(p, speed, next);
+      else finish?.();
+    };
+    this.walkTo(points[0], speed, next);
+  }
+
+  /** True while a scripted walk is running (intro, travel, click-to-walk). */
+  get isAutoWalking(): boolean {
+    return this.walkTarget !== null;
+  }
+
+  cancelAutoWalk(): void {
+    this.walkTarget = null;
+    this.pathQueue = [];
+    this.onWalkDone = null;
+    this.isMoving = false;
+    this.groundSpeed = 0;
+  }
+
+  /** Something held in her right hand (e.g. the watering can). */
+  private heldProp: THREE.Object3D | null = null;
+  attachToHand(obj: THREE.Object3D | null): void {
+    if (this.heldProp) this.rootNode.remove(this.heldProp);
+    this.heldProp = obj;
+    if (obj) {
+      obj.position.set(-0.3, 0.5, 0.22);
+      this.rootNode.add(obj);
+    }
+  }
+  get holding(): THREE.Object3D | null {
+    return this.heldProp;
+  }
+
+  /** Hide/show the body (first-person camera hides it). */
+  setBodyVisible(v: boolean): void {
+    this.rootNode.visible = v;
+    this.shadow.visible = v && !this.isSleeping && !this.isSitting;
+  }
+
   /** Walk on her own to a point (used by the intro). Input should be locked meanwhile. */
   walkTo(target: THREE.Vector3, speed = 1.6, onDone?: () => void): void {
     this.walkTarget = target.clone().setY(0);
@@ -321,8 +421,16 @@ export class Avatar {
 
   /** Blend the GPU rig toward the pose for her current state. */
   private updateRig(delta: number): void {
+    if (this.gesture) {
+      this.gesture.t += delta;
+      if (this.gesture.t >= this.gesture.dur) this.gesture = null;
+    }
+    if (this.mixamo) {
+      this.updateMixamo(delta);
+      return;
+    }
     if (!this.rigged) return;
-    const target: RigPose = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0 };
+    const target: Required<RigPose> = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0, elbowL: 0.15, elbowR: 0.15 };
     let snap = false;
 
     if (this.wakeRig) {
@@ -330,9 +438,11 @@ export class Avatar {
       target.armDownL = target.armDownR = this.wakeRig.arms;
       snap = true;
     } else if (this.isSitting) {
+      // Hands resting on the lap: upper arms forward, forearms folded a little
       target.legL = target.legR = 1.05;
-      target.armDownL = target.armDownR = 1.2;
-      target.armSwingL = target.armSwingR = 0.55;
+      target.armDownL = target.armDownR = 1.25;
+      target.armSwingL = target.armSwingR = 0.45;
+      target.elbowL = target.elbowR = 0.7;
     } else if (this.isMoving && !this.isSleeping) {
       const s = THREE.MathUtils.clamp(this.groundSpeed / 3.2, 0, 1.5);
       const stride = Math.sin(this.walkTime) * (0.18 + 0.32 * Math.min(s, 1)) * (this.isRunning ? 1.25 : 1);
@@ -341,6 +451,7 @@ export class Avatar {
       target.armSwingL = -stride * 0.85;
       target.armSwingR = stride * 0.85;
       target.armDownL = target.armDownR = this.isRunning ? 1.15 : 1.25;
+      target.elbowL = target.elbowR = this.isRunning ? 0.9 : 0.3;
       snap = true;
     } else if (!this.isSleeping) {
       // Idle: arms drift very slightly with breathing
@@ -349,20 +460,77 @@ export class Avatar {
       target.armDownR = 1.3 + b;
     }
 
+    if (this.heldProp && !this.isSitting) {
+      // Carry it in front of her: right forearm forward and bent
+      target.armDownR = 1.2;
+      target.armSwingR = 0.55;
+      target.elbowR = 0.85;
+    }
+
+    if (this.gesture && !this.isMoving) {
+      const g = this.gesture;
+      const p = g.t / g.dur;
+      const w = Math.max(0, Math.min(1, Math.min(p, 1 - p) * 5));
+      const set = (k: keyof RigPose, v: number) => (target[k] = THREE.MathUtils.lerp(target[k] as number, v, w));
+      if (g.kind === 'reach') {
+        set('armDownR', 1.05);
+        set('armSwingR', 1.0);
+        set('elbowR', 0.25);
+      } else if (g.kind === 'pet') {
+        // Reach down and forward, hand stroking back and forth
+        set('armDownR', 1.1);
+        set('armSwingR', 0.85 + Math.sin(g.t * 9) * 0.22);
+        set('elbowR', 0.35);
+      } else if (g.kind === 'cheer') {
+        const bounce = Math.sin(g.t * 14) * 0.15;
+        set('armDownL', -1.15 + bounce);
+        set('armDownR', -1.15 - bounce);
+        set('elbowL', 0.35);
+        set('elbowR', 0.35);
+      } else if (g.kind === 'think') {
+        // Hand up to the chin
+        set('armDownR', 1.0);
+        set('armSwingR', 0.9);
+        set('elbowR', 2.1);
+      }
+    }
+
     if (this.waveTimer >= 0) {
       this.waveTimer += delta;
       const t = this.waveTimer / this.waveDuration;
-      const w = Math.min(1, Math.min(t, 1 - t) * 6); // ease in and out
-      target.armDownR = THREE.MathUtils.lerp(target.armDownR, -1.05 + Math.sin(this.waveTimer * 13) * 0.28, Math.max(0, w));
-      target.armSwingR = THREE.MathUtils.lerp(target.armSwingR, 0.35, Math.max(0, w));
+      const w = Math.max(0, Math.min(1, Math.min(t, 1 - t) * 6)); // ease in and out
+      // Upper arm out to the side and a little down, forearm folded up, hand rocking side to side
+      target.armDownR = THREE.MathUtils.lerp(target.armDownR, 0.5, w);
+      target.armSwingR = THREE.MathUtils.lerp(target.armSwingR, 0.3, w);
+      target.elbowR = THREE.MathUtils.lerp(target.elbowR, 1.85 + Math.sin(this.waveTimer * 11) * 0.38, w);
       if (t >= 1) this.waveTimer = -1;
     }
 
     const k = snap ? 1 - Math.exp(-delta * 20) : 1 - Math.exp(-delta * 9);
+    const fast = 1 - Math.exp(-delta * 18);
     (Object.keys(target) as (keyof RigPose)[]).forEach((key) => {
-      this.pose[key] += (target[key] - this.pose[key]) * (this.waveTimer >= 0 && key.endsWith('R') ? 1 - Math.exp(-delta * 18) : k);
+      const quick = (this.waveTimer >= 0 || this.gesture) && key.endsWith('R');
+      this.pose[key] += ((target[key] as number) - this.pose[key]) * (quick ? fast : k);
     });
     this.rig.set(this.pose);
+  }
+
+  private updateMixamo(delta: number): void {
+    const m = this.mixamo!;
+    if (this.isSleeping && !this.isWakingUp) m.play('sleep');
+    else if (this.isWakingUp) m.play(m.has('wake') ? 'wake' : 'idle');
+    else if (this.isSitting) m.play('sit');
+    else if (this.waveTimer >= 0) {
+      m.play('wave', 0.2, true);
+      this.waveTimer += delta;
+      if (this.waveTimer > this.waveDuration) this.waveTimer = -1;
+    } else if (this.gesture) {
+      /* gesture clip already playing */
+    } else if (this.isMoving) {
+      m.play(this.isRunning ? 'run' : 'walk', 0.18);
+      m.setSpeed(this.isRunning ? 'run' : 'walk', THREE.MathUtils.clamp(this.groundSpeed / (this.isRunning ? 5.6 : 3.2), 0.5, 1.4));
+    } else m.play('idle');
+    m.update(delta);
   }
 
   update(delta: number): void {
@@ -479,6 +647,13 @@ export class Avatar {
       // Cadence follows ground speed (about 1.6 steps a second at a walk)
       this.walkTime += delta * (4.5 + this.groundSpeed * 1.6);
 
+      // Footstep sound twice per stride cycle
+      const step = Math.floor(this.walkTime / Math.PI);
+      if (step !== this.lastStep) {
+        this.lastStep = step;
+        audioManager.playStep(this.isRunning);
+      }
+
       // Cute chibi walking bob and side tilt
       const bob = Math.abs(Math.cos(this.walkTime)) * (this.isRunning ? 0.06 : 0.035);
       if (!this.isHopping) {
@@ -510,7 +685,11 @@ export class Avatar {
       const breath = Math.sin(this.idleTime * 2.2) * 0.02;
       this.rootNode.scale.set(1 + breath * 0.5, 1 + breath, 1 + breath * 0.5);
       if (!this.isHopping) {
-        this.rootNode.position.y = 0;
+        // Crouch a little while petting Mochi
+        const g = this.gesture;
+        const crouch = g && g.kind === 'pet' ? Math.min(1, Math.min(g.t, g.dur - g.t) * 4) * 0.12 : 0;
+        this.rootNode.position.y = -crouch;
+        this.rootNode.rotation.x = THREE.MathUtils.lerp(this.rootNode.rotation.x, crouch * 1.4, delta * 10);
       }
 
       if (!this.hasExternalModel) {

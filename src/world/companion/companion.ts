@@ -8,6 +8,18 @@ import { store } from '../../core/store';
 import { audioManager } from '../../audio/audioManager';
 import { sparkleSystem } from '../fx/sparkles';
 import { clickSystem } from '../clickables';
+import { refs } from '../refs';
+import { navGrid } from '../nav';
+import { floatPop } from '../../ui/floatPop';
+
+const IDLE_LINES = [
+  'Psst! Try Bug Bash in the Dev Realm 🐞',
+  'The watering can in the greenhouse makes skills grow 🌱',
+  'Press V for first-person view 👁️',
+  "Zarina's resume is on the Study desk 📄",
+  'Click a certificate on the cork board to see it ✨',
+  'Click me for pets! 💕'
+];
 
 export class Companion {
   public group: THREE.Group = new THREE.Group();
@@ -24,6 +36,10 @@ export class Companion {
   public summoned = false;
   private lastAvatarPos = new THREE.Vector3();
   private lastAvatarRotY = 0;
+  private bubble: HTMLDivElement;
+  private bubbleTimer = 0;
+  private happyTimer = 0;
+  private idleChatTimer = 30;
 
   constructor() {
     this.shadow = createBlobShadow(0.22);
@@ -31,9 +47,13 @@ export class Companion {
     this.group.add(this.modelNode);
 
     this.group.visible = false;
+    this.bubble = document.createElement('div');
+    this.bubble.className = 'mochi-bubble';
+    this.bubble.setAttribute('aria-live', 'polite');
+    document.body.appendChild(this.bubble);
     this.initModel();
     this.initEvents();
-    clickSystem.register(this.group, 'Chat with Mochi 🐾', () => this.openChat(), true);
+    clickSystem.register(this.group, '🤚 Pet Mochi (E to chat)', () => this.pet(), true);
   }
 
   private async initModel(): Promise<void> {
@@ -120,9 +140,50 @@ export class Companion {
     this.modelNode.add(leftEye, rightEye, leftCheek, rightCheek, noseMesh, tailMesh);
   }
 
-  private openChat(): void {
-    store.set('activeOverlay', 'chat');
-    eventBus.emit('overlay:open', 'chat');
+  /** Speech bubble above Mochi's head. */
+  say(text: string, seconds?: number): void {
+    if (!this.summoned) return;
+    const clean = text.replace(/\*\*?|__|`/g, '').replace(/\s*\[\d+\]/g, '');
+    const short = clean.length > 150 ? clean.slice(0, 147).replace(/\s+\S*$/, '') + '…' : clean;
+    this.bubble.textContent = short;
+    this.bubble.classList.add('show');
+    this.bubbleTimer = seconds ?? Math.min(9, 3 + short.length / 22);
+    this.happyTimer = 0.6;
+    audioManager.playMrrp();
+  }
+
+  private showTyping(): void {
+    if (!this.summoned) return;
+    this.bubble.innerHTML = '<span class="typing"><span></span><span></span><span></span></span>';
+    this.bubble.classList.add('show');
+    this.bubbleTimer = 20;
+  }
+
+  /** Click Mochi: she walks over (if needed) and gives Mochi a pet. */
+  private pet(): void {
+    const avatar = refs.avatar;
+    if (!avatar || avatar.isSleeping) return;
+    const doPet = () => {
+      avatar.faceYaw = Math.atan2(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
+      avatar.doGesture('pet');
+      this.happyTimer = 1.6;
+      audioManager.playPurr();
+      store.completeQuest('pet_mochi');
+      const head = this.position.clone().add(new THREE.Vector3(0, 0.6, 0));
+      floatPop('💖', head, 'pink');
+      setTimeout(() => floatPop('💕', head.clone().add(new THREE.Vector3(0.15, 0.1, 0)), 'pink'), 350);
+      sparkleSystem.burst(head, 8);
+      this.say(['Purrr~ 💕', 'Mrrp! More pets please!', 'Hehe, that tickles! 🐾', 'You found my favourite spot ✨'][Math.floor(Math.random() * 4)], 2.5);
+    };
+    if (avatar.isSitting) avatar.standUp();
+    const d = Math.hypot(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
+    if (d > 1.1 && !this.isPerched) {
+      const dir = avatar.position.clone().sub(this.position).setY(0).normalize();
+      const spot = this.position.clone().addScaledVector(dir, 0.75);
+      const path = navGrid.findPath(avatar.position, spot);
+      if (path) avatar.followPath(path, 2.4, doPet);
+      else doPet();
+    } else doPet();
   }
 
   private initInteraction(): void {
@@ -141,6 +202,8 @@ export class Companion {
   }
 
   private initEvents(): void {
+    eventBus.on('mochi:say', (text: string) => this.say(text));
+    eventBus.on('mochi:typing', () => this.showTyping());
     // Summon Mochi button
     eventBus.on('companion:summon', (data?: { avatarPos?: THREE.Vector3; avatarRotY?: number }) => {
       this.summonToAvatar(data?.avatarPos ?? this.lastAvatarPos, data?.avatarRotY ?? this.lastAvatarRotY);
@@ -199,6 +262,13 @@ export class Companion {
 
     audioManager.playChime();
     sparkleSystem.burst(new THREE.Vector3(this.position.x, this.position.y + 0.4, this.position.z), 16);
+    // She turns and waves hello to Mochi
+    const avatar = refs.avatar;
+    if (avatar && !avatar.isSleeping && !avatar.isSitting) {
+      avatar.faceYaw = Math.atan2(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
+      setTimeout(() => avatar.wave(), 250);
+    }
+    setTimeout(() => this.say("Hi! I'm Mochi. Ask me anything about Zarina 🐾", 4), 300);
 
     // Open chat window immediately!
     store.set('activeOverlay', 'chat');
@@ -213,16 +283,53 @@ export class Companion {
     }
   }
 
+  private updateBubble(delta: number): void {
+    if (!this.bubble.classList.contains('show')) return;
+    this.bubbleTimer -= delta;
+    const cam = refs.camera;
+    if (this.bubbleTimer <= 0 || !cam || !this.group.visible) {
+      this.bubble.classList.remove('show');
+      return;
+    }
+    const p = this.position.clone().add(new THREE.Vector3(0, 0.62, 0)).project(cam);
+    if (p.z > 1) {
+      this.bubble.style.opacity = '0';
+      return;
+    }
+    this.bubble.style.opacity = '';
+    const x = THREE.MathUtils.clamp(((p.x + 1) / 2) * window.innerWidth, 140, window.innerWidth - 140);
+    const y = Math.max(120, ((1 - p.y) / 2) * window.innerHeight);
+    this.bubble.style.left = `${x}px`;
+    this.bubble.style.top = `${y}px`;
+  }
+
   update(delta: number, avatarPosition: THREE.Vector3, avatarRotationY: number): void {
     this.lastAvatarPos.copy(avatarPosition);
     this.lastAvatarRotY = avatarRotationY;
     if (!this.summoned) return;
     this.animTimer += delta;
+    this.updateBubble(delta);
+
+    // Happy wiggle after pets / while talking
+    if (this.happyTimer > 0) {
+      this.happyTimer -= delta;
+      this.modelNode.rotation.z = Math.sin(this.animTimer * 18) * 0.12 * Math.min(1, this.happyTimer * 2);
+      this.modelNode.position.y = Math.abs(Math.sin(this.animTimer * 10)) * 0.1;
+    } else this.modelNode.rotation.z *= 0.85;
+
+    // Now and then Mochi shares a tip (not while a panel is open)
+    this.idleChatTimer -= delta;
+    if (this.idleChatTimer <= 0) {
+      this.idleChatTimer = 45 + Math.random() * 30;
+      if (store.get().activeOverlay === 'none' && avatarPosition.distanceTo(this.position) < 4) {
+        this.say(IDLE_LINES[Math.floor(Math.random() * IDLE_LINES.length)], 5);
+      }
+    }
 
     if (this.isPerched) {
       // Sitting peacefully on table in study nook
       this.position.copy(this.perchedPos);
-      this.modelNode.position.y = Math.sin(this.animTimer * 2.0) * 0.02;
+      if (this.happyTimer <= 0) this.modelNode.position.y = Math.sin(this.animTimer * 2.0) * 0.02;
 
       // Look toward avatar if nearby
       const dist = avatarPosition.distanceTo(this.position);
@@ -269,7 +376,7 @@ export class Companion {
         this.rotationY = THREE.MathUtils.lerp(this.rotationY, targetYaw, delta * 8);
       }
       const bounce = Math.abs(Math.sin(this.animTimer * 12)) * 0.12;
-      this.modelNode.position.y = bounce;
+      if (this.happyTimer <= 0) this.modelNode.position.y = bounce;
     } else {
       // Idling near player
       const resolvedPos = collisionSystem.resolve(this.position, 0.35);
@@ -277,7 +384,7 @@ export class Companion {
 
       const breath = Math.sin(this.animTimer * 2.5) * 0.03;
       this.modelNode.scale.set(1 + breath * 0.5, 1 - breath, 1 + breath * 0.5);
-      this.modelNode.position.y = Math.sin(this.animTimer * 3.0) * 0.04;
+      if (this.happyTimer <= 0) this.modelNode.position.y = Math.sin(this.animTimer * 3.0) * 0.04;
 
       const dirToAvatar = avatarPosition.clone().sub(this.position).normalize();
       const targetYaw = Math.atan2(dirToAvatar.x, dirToAvatar.z);

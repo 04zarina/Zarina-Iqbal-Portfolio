@@ -3,6 +3,8 @@ import { store, RoomId } from '../core/store';
 import { eventBus } from '../core/events';
 import { interactionSystem } from '../world/interaction';
 import { audioManager } from '../audio/audioManager';
+import { qualityManager } from '../core/quality';
+import { profile } from '../content/profile';
 
 export class HUD {
   private container: HTMLElement;
@@ -46,7 +48,7 @@ export class HUD {
       }
       btn.onclick = () => {
         audioManager.playPop();
-        eventBus.emit('room:switch', r.id);
+        eventBus.emit('room:travel', r.id);
       };
       roomBar.appendChild(btn);
       this.roomButtons.set(r.id, btn);
@@ -68,20 +70,10 @@ export class HUD {
       eventBus.emit('companion:summon');
     };
 
-    // Theme Toggle
-    const themeBtn = document.createElement('button');
-    themeBtn.className = 'hud-icon-btn';
-    themeBtn.title = 'Toggle Day/Dusk Lamp';
-    themeBtn.innerHTML = store.get().theme === 'dusk' ? '🌙' : '☀️';
-    themeBtn.onclick = () => {
-      audioManager.playPop();
-      eventBus.emit('theme:toggle');
-    };
-
-    // Journal Book Button
+    // Journal stays on the bar; everything else lives in the ☰ menu to keep the screen clean
     const journalBtn = document.createElement('button');
     journalBtn.className = 'hud-icon-btn';
-    journalBtn.title = 'Open Explorer Journal';
+    journalBtn.title = 'Explorer Journal (quests, map, achievements)';
     journalBtn.innerHTML = '📖';
     journalBtn.onclick = () => {
       audioManager.playPop();
@@ -89,57 +81,49 @@ export class HUD {
       eventBus.emit('overlay:open', 'journal');
     };
 
-    // Audio Mute Toggle
-    const audioBtn = document.createElement('button');
-    audioBtn.className = 'hud-icon-btn';
-    audioBtn.title = 'Toggle Audio';
-    audioBtn.innerHTML = store.get().muted ? '🔇' : '🔊';
-    audioBtn.onclick = () => {
-      const nextMuted = !store.get().muted;
-      audioManager.setMuted(nextMuted);
-      audioBtn.innerHTML = nextMuted ? '🔇' : '🔊';
+    // First / third person view
+    const camBtn = document.createElement('button');
+    camBtn.className = 'hud-icon-btn hud-cam-btn';
+    const camLabel = () => (store.get().cameraMode === 'first' ? '👁️' : '🎥');
+    camBtn.title = 'Switch first / third person view (V)';
+    camBtn.innerHTML = camLabel();
+    camBtn.onclick = () => {
+      audioManager.playClick();
+      eventBus.emit('camera:toggleMode');
     };
+    eventBus.on('state:cameraMode', () => (camBtn.innerHTML = camLabel()));
 
-    // Pause / Settings Menu Button
     const menuBtn = document.createElement('button');
-    menuBtn.className = 'hud-icon-btn';
-    menuBtn.title = 'Pause / Navigation Menu';
-    menuBtn.innerHTML = '⚙️';
-    menuBtn.onclick = () => {
+    menuBtn.className = 'hud-icon-btn hud-burger';
+    menuBtn.title = 'Menu and settings';
+    menuBtn.setAttribute('aria-haspopup', 'true');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.innerHTML = '<span></span><span></span><span></span>';
+    const menu = this.buildMenu();
+    menuBtn.onclick = (e) => {
+      e.stopPropagation();
       audioManager.playPop();
-      store.set('activeOverlay', 'menu');
-      eventBus.emit('overlay:open', 'menu');
+      const open = !menu.classList.contains('open');
+      menu.classList.toggle('open', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+      if (open) this.refreshMenu(menu);
     };
+    document.addEventListener('pointerdown', (e) => {
+      if (menu.classList.contains('open') && !menu.contains(e.target as Node) && e.target !== menuBtn && !menuBtn.contains(e.target as Node)) {
+        menu.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && menu.classList.contains('open')) {
+        menu.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
 
-    // Look at her face (camera swings to the front), and wave
-    const faceBtn = document.createElement('button');
-    faceBtn.className = 'hud-icon-btn';
-    faceBtn.title = 'See her face (F). Drag the scene to orbit, scroll to zoom';
-    faceBtn.innerHTML = '👀';
-    faceBtn.onclick = () => {
-      audioManager.playPop();
-      eventBus.emit('camera:face');
-    };
-
-    const waveBtn = document.createElement('button');
-    waveBtn.className = 'hud-icon-btn';
-    waveBtn.title = 'Wave hello (H)';
-    waveBtn.innerHTML = '👋';
-    waveBtn.onclick = () => eventBus.emit('avatar:wave');
-
-    // All projects, with search and filters
-    const libraryBtn = document.createElement('button');
-    libraryBtn.className = 'hud-icon-btn';
-    libraryBtn.title = 'Browse all projects';
-    libraryBtn.innerHTML = '🗂️';
-    libraryBtn.onclick = () => {
-      audioManager.playPop();
-      store.set('activeOverlay', 'library');
-      eventBus.emit('overlay:open', 'library');
-    };
-
-    [themeBtn, journalBtn, audioBtn, menuBtn, faceBtn, waveBtn, libraryBtn].forEach((b) => b.setAttribute('aria-label', b.title));
-    topRight.append(askMochiBtn, libraryBtn, faceBtn, waveBtn, themeBtn, journalBtn, audioBtn, menuBtn);
+    [journalBtn, camBtn, menuBtn].forEach((b) => b.setAttribute('aria-label', b.title));
+    askMochiBtn.setAttribute('aria-label', 'Ask Mochi, the chat guide');
+    topRight.append(askMochiBtn, journalBtn, camBtn, menuBtn, menu);
     this.container.appendChild(topRight);
 
     // 3. Prompt Bubble (Projected 3D Sticker)
@@ -174,6 +158,105 @@ export class HUD {
     this.initJoystickTouch();
   }
 
+  /** The ☰ dropdown: view, sound, travel, quality and shortcuts. */
+  private buildMenu(): HTMLElement {
+    const menu = document.createElement('div');
+    menu.className = 'hud-menu';
+    menu.setAttribute('role', 'menu');
+    menu.innerHTML = `
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Quick actions</div>
+        <div class="hud-menu-grid">
+          <button data-act="library">🗂️ All projects</button>
+          <button data-act="face">👀 See her face</button>
+          <button data-act="wave">👋 Wave</button>
+          <button data-act="theme"><span data-theme-label></span></button>
+        </div>
+      </div>
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Sound</div>
+        <button class="hud-menu-row" data-act="mute"><span data-mute-label></span></button>
+        <label class="hud-slider">🎵 Music <input type="range" min="0" max="1" step="0.05" data-vol="music" /></label>
+        <label class="hud-slider">✨ Effects <input type="range" min="0" max="1" step="0.05" data-vol="sfx" /></label>
+      </div>
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Getting around</div>
+        <div class="hud-seg" data-seg="travel">
+          <button data-val="walk" title="Room buttons make her walk there herself">🚶 Auto walk</button>
+          <button data-val="instant" title="Room buttons jump straight to the room">⚡ Instant</button>
+        </div>
+        <div class="hud-seg" data-seg="camera">
+          <button data-val="third">🎥 3rd person</button>
+          <button data-val="first">👁️ 1st person</button>
+        </div>
+        <p class="hud-menu-hint">Click the floor to walk there. WASD / arrows to move, Shift to run, drag to look, V to switch view.</p>
+      </div>
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Graphics</div>
+        <div class="hud-seg" data-seg="quality">
+          <button data-val="high">High</button><button data-val="medium">Medium</button><button data-val="low">Low</button>
+        </div>
+      </div>
+      <div class="hud-menu-section hud-menu-links">
+        <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf">⬇️ Resume (PDF)</a>
+        <a href="/classic">📄 2D classic view</a>
+        <button data-act="credits">ℹ️ Credits</button>
+      </div>`;
+    menu.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button') as HTMLButtonElement | null;
+      if (!btn) return;
+      const act = btn.dataset.act;
+      const seg = (btn.parentElement as HTMLElement)?.dataset.seg;
+      audioManager.playPop();
+      if (act === 'library') {
+        store.set('activeOverlay', 'library');
+        eventBus.emit('overlay:open', 'library');
+        menu.classList.remove('open');
+      } else if (act === 'face') {
+        eventBus.emit('camera:face');
+        menu.classList.remove('open');
+      } else if (act === 'wave') {
+        eventBus.emit('avatar:wave');
+        menu.classList.remove('open');
+      } else if (act === 'theme') eventBus.emit('theme:toggle');
+      else if (act === 'mute') audioManager.setMuted(!store.get().muted);
+      else if (act === 'credits') {
+        menu.classList.remove('open');
+        store.set('activeOverlay', 'menu');
+        eventBus.emit('overlay:open', 'menu');
+      } else if (seg === 'travel') store.set('travelMode', btn.dataset.val as 'walk' | 'instant');
+      else if (seg === 'camera') {
+        if (store.get().cameraMode !== btn.dataset.val) eventBus.emit('camera:toggleMode');
+      } else if (seg === 'quality') qualityManager.setTier(btn.dataset.val as 'high' | 'medium' | 'low');
+      setTimeout(() => this.refreshMenu(menu), 30);
+    });
+    menu.querySelectorAll<HTMLInputElement>('input[data-vol]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        if (input.dataset.vol === 'music') audioManager.setMusicVolume(v);
+        else {
+          audioManager.setSfxVolume(v);
+          audioManager.playPop();
+        }
+      });
+    });
+    return menu;
+  }
+
+  private refreshMenu(menu: HTMLElement): void {
+    const s = store.get();
+    (menu.querySelector('[data-theme-label]') as HTMLElement).textContent = s.theme === 'dusk' ? '☀️ Day mode' : '🌙 Night mode';
+    (menu.querySelector('[data-mute-label]') as HTMLElement).textContent = s.muted ? '🔇 Sound off (tap to turn on)' : '🔊 Sound on (tap to mute)';
+    const vols = audioManager.volumes;
+    (menu.querySelector('input[data-vol="music"]') as HTMLInputElement).value = String(vols.music);
+    (menu.querySelector('input[data-vol="sfx"]') as HTMLInputElement).value = String(vols.sfx);
+    const mark = (seg: string, val: string) =>
+      menu.querySelectorAll<HTMLButtonElement>(`[data-seg="${seg}"] button`).forEach((b) => b.classList.toggle('on', b.dataset.val === val));
+    mark('travel', s.travelMode);
+    mark('camera', s.cameraMode);
+    mark('quality', qualityManager.config.tier);
+  }
+
   private updateRoomBadge(roomId: RoomId): void {
     this.roomButtons.forEach((btn, id) => {
       if (id === roomId) {
@@ -186,10 +269,6 @@ export class HUD {
 
   private initEvents(): void {
     eventBus.on('room:entered', (roomId: RoomId) => this.updateRoomBadge(roomId));
-    eventBus.on('state:theme', (theme: string) => {
-      const themeBtn = this.container.querySelector('.hud-top-right .hud-icon-btn') as HTMLElement;
-      if (themeBtn) themeBtn.innerHTML = theme === 'dusk' ? '🌙' : '☀️';
-    });
 
     eventBus.on('interaction:available', (data: { id: string; label: string; keyHint: string; position: THREE.Vector3 }) => {
       this.promptTarget3D = data.position;

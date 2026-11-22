@@ -6,14 +6,30 @@ import { store } from '../../core/store';
 import { sparkleSystem } from '../fx/sparkles';
 import { assetLoader } from '../../core/loaders';
 import { DECOR, placeDecor } from '../decor';
+import { makePortal, makeSign, makeRug, makeFireflies, NightLights, Portal, Fireflies } from '../props';
+import { BugBash } from '../games/bugBash';
+import { registerSeat } from '../seats';
+import { clickSystem } from '../clickables';
+import { audioManager } from '../../audio/audioManager';
+import type { RoomId } from '../../core/store';
 
 export class DevRealmRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(0, 0, 1.8);
   private clouds: THREE.Group[] = [];
   private floatingStars: THREE.Mesh[] = [];
+  private portal: Portal | null = null;
+  private fireflies: Fireflies | null = null;
+  private night = new NightLights();
+  private game: BugBash;
+  private gameButton: THREE.Mesh | null = null;
+  public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
+    bedroom: { pos: new THREE.Vector3(0, 0, 2.4), yaw: Math.PI }
+  };
+  public exits: Partial<Record<RoomId, THREE.Vector3>> = { bedroom: new THREE.Vector3(0, 0, 2.75) };
 
   constructor() {
+    this.game = new BugBash(this.group);
     this.buildRealm();
     this.loadGLBModels();
     this.setupInteractions();
@@ -73,14 +89,22 @@ export class DevRealmRoom {
     const portalGroup = new THREE.Group();
     portalGroup.position.set(0, 0, 3.6);
 
-    // Same wardrobe model as the bedroom, doors facing the island (-Z), with a soft pink glow
-    const portalGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.1, 2.1),
-      new THREE.MeshBasicMaterial({ color: 0xFFB3C7, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending })
-    );
-    portalGlow.rotation.y = Math.PI;
-    portalGlow.position.set(0, 1.3, -0.42);
-    portalGroup.add(portalGlow);
+    // Same wardrobe as the bedroom, doors facing the island (-Z), with a swirling portal in its doorway
+    this.portal = makePortal(1.0, 1.85, 0xffb3e1, 0xb18cff);
+    this.portal.group.position.set(0, 1.25, -0.42);
+    this.portal.group.rotation.y = Math.PI;
+    portalGroup.add(this.portal.group);
+    const homeSign = makeSign('BEDROOM', { emoji: '🏠', subtitle: 'Step through to go home', width: 1.2, bg: '#FFE4EC' });
+    homeSign.position.set(0, 3.0, -0.3);
+    homeSign.rotation.y = Math.PI;
+    portalGroup.add(homeSign);
+    // Glowing stepping stones leading to the portal
+    for (let i = 0; i < 3; i++) {
+      const stone = this.night.bulb(0xd9c8ff, 0.18);
+      stone.scale.set(1, 0.15, 0.8);
+      stone.position.set(Math.sin(i * 1.7) * 0.25, 0.02, 1.9 + i * 0.42);
+      this.group.add(stone);
+    }
     this.group.add(portalGroup);
     placeDecor(portalGroup, [{ url: DECOR.wardrobe, position: [0, 0, 0.35], rotY: Math.PI, scale: 1.6 }]);
     collisionSystem.addBox(-1.0, 1.0, 3.2, 4.0);
@@ -90,6 +114,67 @@ export class DevRealmRoom {
 
     // 7. Floating Clouds and Stars around the island
     this.createFloatingSkyElements();
+
+    // 8. Fireflies everywhere, and lamp posts that light up at night
+    this.fireflies = makeFireflies(70, new THREE.Box3(new THREE.Vector3(-5, 0.3, -4.5), new THREE.Vector3(5, 3.2, 4.5)), 0xfff3a0, 0.45);
+    this.group.add(this.fireflies.points);
+    [[-1.3, 2.6], [1.3, 0.6], [-3.6, 0.4], [3.4, 2.8]].forEach(([x, z]) => this.addLampPost(x, z));
+
+    // 9. Picnic blanket and a log bench to sit on
+    const blanket = makeRug({ shape: 'rect', w: 1.8, d: 1.4, colors: ['#FFB3C7', '#FFF6EC', '#E58FA8'], pattern: 'checker' });
+    blanket.position.set(2.9, 0.015, -0.2);
+    blanket.rotation.z = 0.4;
+    this.group.add(blanket);
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 1.5, 12), new THREE.MeshLambertMaterial({ color: 0x8a5a4a }));
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = -0.6;
+    log.position.set(-3.0, 0.2, -1.3);
+    this.group.add(log);
+    collisionSystem.addBox(-3.6, -2.4, -1.7, -0.9);
+
+    // 10. Bug Bash mini game: a big arcade button on a pedestal
+    this.buildGameStation();
+  }
+
+  private addLampPost(x: number, z: number): void {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.6, 8), new THREE.MeshLambertMaterial({ color: 0x5a3a32 }));
+    post.position.set(x, 0.8, z);
+    const bulb = this.night.bulb(0xffd27a, 0.12);
+    bulb.position.set(x, 1.68, z);
+    const halo = this.night.halo(0xffd27a, 1.0);
+    halo.position.set(x, 1.68, z);
+    const light = new THREE.PointLight(0xffd27a, 0, 4);
+    light.position.set(x, 1.7, z);
+    this.group.add(post, bulb, halo, this.night.addLight(light, 0, 1.4));
+    collisionSystem.addBox(x - 0.12, x + 0.12, z - 0.12, z + 0.12);
+  }
+
+  private buildGameStation(): void {
+    const g = new THREE.Group();
+    g.position.set(-2.2, 0, 1.5);
+    g.rotation.y = 0.6;
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.8, 16), new THREE.MeshLambertMaterial({ color: 0x3a2a4e }));
+    pedestal.position.y = 0.4;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 8, 24), new THREE.MeshLambertMaterial({ color: 0xffe9a3 }));
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 0.81;
+    this.gameButton = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.24, 0.12, 24),
+      new THREE.MeshLambertMaterial({ color: 0xff5577, emissive: 0xff2255, emissiveIntensity: 0.4 })
+    );
+    this.gameButton.position.y = 0.86;
+    const sign = makeSign('BUG BASH', { emoji: '🐞', subtitle: 'Mini game · 30 s', width: 1.2, bg: '#281D35', fg: '#FFE9A3' });
+    sign.position.set(0, 1.6, 0);
+    g.add(pedestal, rim, this.gameButton, sign);
+    this.group.add(g);
+    collisionSystem.addBox(-2.6, -1.8, 1.1, 1.9);
+    clickSystem.register(g, '🐞 Play Bug Bash', () => this.startGame());
+  }
+
+  private startGame(): void {
+    if (this.game.running) return;
+    audioManager.playCoin();
+    this.game.showIntro();
   }
 
   private async loadGLBModels(): Promise<void> {
@@ -180,6 +265,17 @@ export class DevRealmRoom {
       }
     });
 
+    interactionSystem.register({
+      id: 'bug_bash',
+      label: 'Play Bug Bash 🐞 (mini game)',
+      keyHint: 'E',
+      radius: 1.6,
+      position: new THREE.Vector3(-2.2, 0.6, 1.5),
+      onInteract: () => this.startGame()
+    });
+
+    registerSeat({ id: 'seat_log', label: 'Sit on the log 🪵', position: new THREE.Vector3(-2.85, 0, -0.75), yaw: 0.0, height: 0.4, radius: 1.0 });
+
     // 2. Return Portal to Bedroom
     interactionSystem.register({
       id: 'wardrobe_return',
@@ -189,6 +285,7 @@ export class DevRealmRoom {
       position: new THREE.Vector3(0, 1.0, 2.8),
       onInteract: () => {
         sparkleSystem.burst(new THREE.Vector3(0, 1.5, 2.8), 24);
+        audioManager.playPortal();
         eventBus.emit('room:switch', 'bedroom');
       }
     });
@@ -196,6 +293,11 @@ export class DevRealmRoom {
 
   update(delta: number): void {
     const t = performance.now() * 0.001;
+    this.portal?.update(delta);
+    this.fireflies?.update(delta);
+    this.night.update();
+    this.game.update(delta);
+    if (this.gameButton) this.gameButton.position.y = 0.86 + (this.game.running ? -0.04 : Math.sin(t * 4) * 0.015);
 
     // Orbit clouds gently
     this.clouds.forEach((cloud, i) => {
@@ -209,7 +311,9 @@ export class DevRealmRoom {
   }
 
   dispose(): void {
+    this.game.dispose();
     interactionSystem.clear();
+    this.portal = null;
     this.clouds = [];
     this.floatingStars = [];
     this.group.clear();

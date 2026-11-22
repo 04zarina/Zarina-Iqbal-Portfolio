@@ -11,14 +11,43 @@ import { clickSystem } from '../clickables';
 import { jellyController } from '../fx/jelly';
 import projectsData from '../../../content/projects.json';
 import type { Project } from '../../content/types';
+import { makeDoor, makeRug, NightLights, Door } from '../props';
+import { registerSeat } from '../seats';
+import { refs } from '../refs';
+import type { RoomId } from '../../core/store';
+import { certificates, certificateViewerArg } from '../../content/certificates';
 
-const BOARD_Z = 2.1;
+/** Big "More Projects" board on the left wall (z centre). */
+const BOARD_Z = 0.3;
+
+function makeNoteLabel(text: string): THREE.Mesh {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 64;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#5A3A32';
+  let size = 36;
+  ctx.font = `bold ${size}px sans-serif`;
+  while (ctx.measureText(text).width > 490 && size > 18) ctx.font = `bold ${--size}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 34);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.09), new THREE.MeshBasicMaterial({ map: t, transparent: true }));
+}
 
 export class StudyRoom {
   public group: THREE.Group = new THREE.Group();
   public spawnPoint = new THREE.Vector3(0, 0, -2.8);
   private avatar: Avatar | null = null;
   private resumeTag: THREE.Mesh | null = null;
+  private doors: Door[] = [];
+  private night = new NightLights();
+  public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
+    bedroom: { pos: new THREE.Vector3(0, 0, -2.9), yaw: 0 }
+  };
+  public exits: Partial<Record<RoomId, THREE.Vector3>> = { bedroom: new THREE.Vector3(0, 0, -3.25) };
 
   constructor(avatar?: Avatar) {
     this.avatar = avatar || null;
@@ -43,11 +72,14 @@ export class StudyRoom {
     floor.rotation.x = -Math.PI / 2;
     this.group.add(floor);
 
-    // Fluffy mint area rug under desk
-    const rug = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 2.8), new THREE.MeshLambertMaterial({ color: 0xBDEBD3 }));
-    rug.rotation.x = -Math.PI / 2;
-    rug.position.set(0, 0.01, 1.4);
-    this.group.add(rug);
+    // Rugs: a checked one under the desk, a round one in the reading corner, a runner from the door
+    const rug = makeRug({ shape: 'rect', w: 3.6, d: 2.6, colors: ['#BDEBD3', '#FFF6EC', '#76B885'], pattern: 'checker' });
+    rug.position.set(0, 0.012, 1.3);
+    const cornerRug = makeRug({ shape: 'round', w: 2.4, colors: ['#FFE9A3', '#FFF6EC', '#E8B53E'], pattern: 'rings' });
+    cornerRug.position.set(3.4, 0.013, 0);
+    const runner = makeRug({ shape: 'rect', w: 1.1, d: 2.4, colors: ['#FFC9B0', '#FFF6EC', '#E58F6F'], pattern: 'stripes' });
+    runner.position.set(0, 0.013, -2.4);
+    this.group.add(rug, cornerRug, runner);
 
     // 2. Walls (Back, Left, Right, Front segments)
     const backWall = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 0.2), wallMat);
@@ -120,10 +152,12 @@ export class StudyRoom {
       return mesh;
     };
 
-    const note1 = makeNote('🎓 Education', 'BS CS, Gaming & Animation · NED · CGPA 3.657', 0xFFF6EC, 1.4, 0.3, 0.05);
-    const note2 = makeNote('💼 Experience', 'Game Dev Intern, Aerox ERP · IT Intern, KDA', 0xFFE9A3, 0.45, 0.42, -0.04);
-    const note3 = makeNote('🎤 Community', "Hosted GameCon'25 & '26 · GameVerse · SENTEC", 0xFFB3C7, -0.5, 0.3, 0.08);
-    const note4 = makeNote('📜 Certificates', 'CEGA Unreal · Pre & Post-Production · Google AI', 0xBDEBD3, -1.45, 0.4, -0.06);
+    // Bottom row: sticky notes that open each section
+    const note1 = makeNote('🎓 Education', 'BS CS, Gaming & Animation · NED · CGPA 3.657', 0xFFF6EC, 1.5, -0.5, 0.05);
+    const note2 = makeNote('💼 Experience', 'Game Dev Intern, Aerox ERP · IT Intern, KDA', 0xFFE9A3, 0.52, -0.42, -0.04);
+    const note3 = makeNote('🎤 Community', "Hosted GameCon'25 & '26 · GameVerse · SENTEC", 0xFFB3C7, -0.5, -0.5, 0.08);
+    const note4 = makeNote('📜 Certificates', 'CEGA Unreal · Pre & Post-Production · Google AI', 0xBDEBD3, -1.5, -0.42, -0.06);
+    [note1, note2, note3, note4].forEach((n) => n.scale.setScalar(0.85));
     corkGroup.add(note1, note2, note3, note4);
 
     // Each sticky note is clickable and opens its own section
@@ -133,10 +167,36 @@ export class StudyRoom {
     clickSystem.register(note3, '🎤 Community & GameCon photos', () => eventBus.emit('open:community', 0));
     clickSystem.register(note4, '📜 Certificates: click to read', openTab('certificates'));
     [note1, note2, note3, note4].forEach((n) => jellyController.register(n));
+
+    // Top row: the actual certificate scans, pinned like polaroids. Click one to see it full size.
+    const loader = new THREE.TextureLoader();
+    const pinned = certificates.filter((c) => c.thumb);
+    pinned.forEach((c, i) => {
+      const photo = new THREE.Group();
+      const x = 1.45 - i * (2.9 / Math.max(1, pinned.length - 1));
+      photo.position.set(x, 0.42, -0.07);
+      photo.rotation.set(0, Math.PI, [0.04, -0.05, 0.03, -0.03][i % 4]);
+      const border = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.66), new THREE.MeshBasicMaterial({ color: 0xfffdf8 }));
+      const tex = loader.load(c.thumb!);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.5), new THREE.MeshBasicMaterial({ map: tex }));
+      pic.position.set(0, 0.04, 0.002);
+      const pin = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), new THREE.MeshLambertMaterial({ color: [0xe74c3c, 0x3a7bd5, 0x2ead6b, 0xf2c14e][i % 4] }));
+      pin.position.set(0, 0.3, 0.02);
+      const label = makeNoteLabel(c.title);
+      label.position.set(0, -0.27, 0.003);
+      photo.add(border, pic, pin, label);
+      corkGroup.add(photo);
+      clickSystem.register(photo, `📜 ${c.title}: click to view`, () => eventBus.emit('open:image', certificateViewerArg(c.id)));
+      jellyController.register(photo);
+    });
     this.group.add(corkGroup);
 
-    // 4. Bookshelves on Left Wall (furniture-pack models load in loadGLBModels)
-    collisionSystem.addBox(-4.8, -4.1, -1.3, 1.3);
+    // 4. Bookshelves now stand against the front wall, either side of the door
+    collisionSystem.addBox(-3.35, -1.85, -3.8, -3.25);
+    collisionSystem.addBox(1.85, 3.35, -3.8, -3.25);
+    // Big project board on the left wall sticks out a little
+    collisionSystem.addBox(-4.8, -4.55, BOARD_Z - 1.6, BOARD_Z + 1.6);
 
     // 5. Reading corner on Right Wall: couch, coffee table, floor lamp
     collisionSystem.addBox(3.9, 4.8, -1.1, 1.1);
@@ -147,11 +207,21 @@ export class StudyRoom {
     collisionSystem.addBox(3.8, 4.8, 2.9, 3.8);
 
     // 6. Doorway back to Bedroom (Front wall: x = 0, z = -3.9)
-    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.4, 0.15), baseboardMat);
-    doorFrame.position.set(0, 1.2, -3.8);
-    const doorSign = this.createSign('BEDROOM', 0xFFC9B0);
-    doorSign.position.set(0, 2.5, -3.75);
-    this.group.add(doorFrame, doorSign);
+    const homeDoor = makeDoor('home', 'BEDROOM', 'Back to the hub');
+    homeDoor.group.position.set(0, 0, -3.8);
+    this.doors.push(homeDoor);
+    this.group.add(homeDoor.group);
+    void baseboardMat;
+
+    // Warm lamps for night mode
+    const deskLamp = new THREE.PointLight(0xffd59a, 0.2, 5);
+    deskLamp.position.set(0.6, 1.6, 1.8);
+    const cornerLamp = new THREE.PointLight(0xffc98a, 0.15, 6);
+    cornerLamp.position.set(4.3, 1.8, 1.65);
+    this.group.add(this.night.addLight(deskLamp, 0.2, 1.6), this.night.addLight(cornerLamp, 0.15, 1.8));
+    const shade = this.night.halo(0xffd59a, 0.9);
+    shade.position.set(4.4, 1.75, 1.65);
+    this.group.add(shade);
 
     // 6b. Board of smaller projects on the left wall, between the bookshelves and the plant
     this.buildProjectBoard();
@@ -163,10 +233,8 @@ export class StudyRoom {
   private async loadGLBModels(): Promise<void> {
     const decorReady = placeDecor(this.group, [
       // Bookshelves against the left wall, facing into the room
-      { url: DECOR.bookshelf, position: [-4.76, 0, -0.6], rotY: Math.PI / 2, scale: 1.3 },
-      { url: DECOR.bookshelf, position: [-4.76, 0, 0.6], rotY: Math.PI / 2, scale: 1.3 },
-      { url: DECOR.bookRow, position: [-4.45, 2.06, -0.6], rotY: Math.PI / 2, scale: 0.9 },
-      { url: DECOR.bookStack, position: [-4.45, 2.06, 0.6], rotY: Math.PI / 2 },
+      { url: DECOR.bookshelf, position: [-2.6, 0, -3.76], scale: 1.3 },
+      { url: DECOR.bookshelf, position: [2.6, 0, -3.76], scale: 1.3 },
       // Reading corner
       { url: DECOR.couchPink, position: [4.45, 0, 0], rotY: -Math.PI / 2, scale: 1.2 },
       { url: DECOR.coffeeTable, position: [3.1, 0.353, 0] },
@@ -263,8 +331,8 @@ export class StudyRoom {
    */
   private buildProjectBoard(): void {
     const side = (projectsData as Project[]).filter((p) => !p.featured).slice(0, 9);
-    const W = 1024;
-    const H = 1100;
+    const W = 1600;
+    const H = 1020;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -274,8 +342,8 @@ export class StudyRoom {
     tex.anisotropy = 4;
 
     const cols = 3;
-    const pad = 28;
-    const top = 150;
+    const pad = 34;
+    const top = 160;
     const cw = (W - pad * (cols + 1)) / cols;
     const ch = (H - top - pad * 4) / 3;
     const images: (HTMLImageElement | null)[] = side.map(() => null);
@@ -287,13 +355,13 @@ export class StudyRoom {
       for (let i = 0; i < 400; i++) ctx.fillRect((i * 97) % W, (i * 53) % H, 4, 4);
       ctx.fillStyle = '#FFF6EC';
       ctx.beginPath();
-      ctx.roundRect(W / 2 - 330, 30, 660, 92, 24);
+      ctx.roundRect(W / 2 - 520, 26, 1040, 108, 30);
       ctx.fill();
       ctx.fillStyle = '#5A3A32';
-      ctx.font = 'bold 54px sans-serif';
+      ctx.font = 'bold 66px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🗂️ More Projects', W / 2, 78);
+      ctx.fillText('🗂️ More Projects · click a card', W / 2, 82);
       side.forEach((p, i) => {
         const x = pad + (i % cols) * (cw + pad);
         const y = top + pad + Math.floor(i / cols) * (ch + pad);
@@ -305,7 +373,7 @@ export class StudyRoom {
         ctx.fillRect(6, 8, cw, ch);
         ctx.fillStyle = '#FFFDF8';
         ctx.fillRect(0, 0, cw, ch);
-        const ih = ch - 92;
+        const ih = ch - 84;
         const img = images[i];
         if (img) {
           const r = Math.max((cw - 20) / img.width, ih / img.height);
@@ -317,15 +385,15 @@ export class StudyRoom {
           ctx.fillRect(10, 10, cw - 20, ih);
         }
         ctx.fillStyle = '#5A3A32';
-        ctx.font = 'bold 30px sans-serif';
+        ctx.font = 'bold 34px sans-serif';
         ctx.textAlign = 'center';
         let title = p.title;
         while (ctx.measureText(title).width > cw - 24 && title.length > 4) title = title.slice(0, -2);
         if (title !== p.title) title = title.trimEnd() + '…';
-        ctx.fillText(title, cw / 2, ih + 40);
-        ctx.font = '22px sans-serif';
+        ctx.fillText(title, cw / 2, ih + 38);
+        ctx.font = '24px sans-serif';
         ctx.fillStyle = '#8A5A4A';
-        ctx.fillText(`${p.year} · ${p.tools[0] ?? ''}`.slice(0, 30), cw / 2, ih + 72);
+        ctx.fillText(`${p.year} · ${p.tools[0] ?? ''}`.slice(0, 34), cw / 2, ih + 70);
         // pin
         ctx.fillStyle = ['#E74C3C', '#3A7BD5', '#2EAD6B'][i % 3];
         ctx.beginPath();
@@ -347,10 +415,10 @@ export class StudyRoom {
       img.src = src;
     });
 
-    const boardW = 1.5;
+    const boardW = 3.1;
     const boardH = (boardW * H) / W;
     const board = new THREE.Group();
-    board.position.set(-4.78, 1.75, BOARD_Z);
+    board.position.set(-4.76, 1.65, BOARD_Z);
     board.rotation.y = Math.PI / 2; // face into the room (+X)
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(boardW + 0.1, boardH + 0.1, 0.05),
@@ -466,11 +534,14 @@ export class StudyRoom {
       id: 'project_board',
       label: 'Browse my other projects 🗂️',
       keyHint: 'E',
-      radius: 1.7,
+      radius: 2.0,
       priority: 0.3,
-      position: new THREE.Vector3(-4.1, 0.5, BOARD_Z),
+      position: new THREE.Vector3(-4.0, 0.5, BOARD_Z),
       onInteract: () => eventBus.emit('open:library', 'All')
     });
+
+    registerSeat({ id: 'seat_couch_l', label: 'Sit on the couch 🛋️', position: new THREE.Vector3(4.15, 0, -0.45), yaw: -Math.PI / 2, height: 0.42 });
+    registerSeat({ id: 'seat_couch_r', label: 'Sit on the couch 🛋️', position: new THREE.Vector3(4.15, 0, 0.5), yaw: -Math.PI / 2, height: 0.42 });
 
     // 4. Doorway back to Bedroom
     interactionSystem.register({
@@ -504,6 +575,9 @@ export class StudyRoom {
   }
 
   update(delta: number): void {
+    const av = refs.avatar?.position ?? null;
+    this.doors.forEach((d) => d.update(delta, av));
+    this.night.update();
     if (this.resumeTag) {
       const t = performance.now() * 0.002;
       this.resumeTag.position.y = 1.12 + Math.sin(t) * 0.03;
@@ -515,6 +589,7 @@ export class StudyRoom {
   dispose(): void {
     interactionSystem.clear();
     this.resumeTag = null;
+    this.doors = [];
     this.group.clear();
   }
 }
