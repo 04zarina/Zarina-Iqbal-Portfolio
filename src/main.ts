@@ -26,6 +26,11 @@ import { AboutOverlay } from './ui/aboutOverlay';
 import { EducationOverlay } from './ui/educationOverlay';
 import { ResumeOverlay } from './ui/resumeOverlay';
 import { toastManager } from './ui/toast';
+import { ProjectLibraryOverlay } from './ui/projectLibrary';
+import { SkillsOverlay } from './ui/skillsOverlay';
+import { CommunityOverlay } from './ui/communityOverlay';
+import { clickSystem } from './world/clickables';
+import { interactionSystem } from './world/interaction';
 
 async function bootstrap() {
   // 1. Three.js Scene & Lights
@@ -54,16 +59,31 @@ async function bootstrap() {
 
   // 5. Loading Screen
   const loading = new LoadingScreen(() => {
-    // Start in dusk/night mode and play waking-up sequence!
+    // Intro: she wakes up, sits up, stretches, steps out of bed, walks toward the camera and waves.
     const bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
-    const outPos = new THREE.Vector3(-1.8, 0, -1.8);
-
-    toastManager.show('Yaaawn... 🥱 Good morning! Waking up...');
-    avatar.wakeUp(bedPos, outPos, () => {
+    const outPos = new THREE.Vector3(-1.75, 0, -1.65);
+    const greetPos = new THREE.Vector3(-1.1, 0, 0.75);
+    const greetCam = new THREE.Vector3(-0.6, 1.45, 3.1);
+    const finish = () => {
+      followCamera.setCinematic(null, avatar.position);
       store.set('inputLocked', false);
       store.set('isWakingUp', false);
       store.set('isSleeping', false);
-      toastManager.show('Ready to explore! Use WASD or joystick. Need help? Click "Ask Mochi" anytime! 🐾');
+      toastManager.show('Ready to explore! WASD to walk, drag to look around, 👀 to see her face. Need help? Ask Mochi! 🐾');
+    };
+
+    followCamera.setCinematic({ position: new THREE.Vector3(-1.0, 1.9, 1.4), lookAt: new THREE.Vector3(-2.9, 0.7, -1.9) });
+    toastManager.show('Yaaawn... 🥱 Good morning!');
+    avatar.wakeUp(bedPos, outPos, () => {
+      followCamera.setCinematic({ position: greetCam, lookAt: new THREE.Vector3(greetPos.x, 0.85, greetPos.z) });
+      avatar.walkTo(greetPos, 1.5, () => {
+        avatar.faceYaw = Math.atan2(greetCam.x - greetPos.x, greetCam.z - greetPos.z);
+        setTimeout(() => {
+          avatar.wave();
+          toastManager.show("Hi, I'm Zarina! Welcome to my little game room 👋");
+        }, 300);
+        setTimeout(finish, 2600);
+      });
     });
   });
   loading.setProgress(30);
@@ -78,10 +98,8 @@ async function bootstrap() {
   scene.add(companion.group);
   loading.setProgress(75);
 
-  // Companion Summoning
-  eventBus.on('companion:summon', () => {
-    companion.summonToAvatar(avatar.position, avatar.rotationY);
-  });
+  // Mochi stays hidden until "Ask Mochi" is pressed (the Companion listens for companion:summon)
+  eventBus.on('avatar:wave', () => avatar.wave());
 
   // 7. FX Systems
   scene.add(sparkleSystem.group);
@@ -102,6 +120,10 @@ async function bootstrap() {
   const aboutOverlay = new AboutOverlay();
   const educationOverlay = new EducationOverlay();
   const resumeOverlay = new ResumeOverlay();
+  new ProjectLibraryOverlay();
+  new SkillsOverlay();
+  new CommunityOverlay();
+  clickSystem.attach(appRenderer.renderer.domElement, followCamera.camera);
 
   // Focus Camera Events
   eventBus.on('interaction:trigger', (id: string) => {
@@ -144,7 +166,7 @@ async function bootstrap() {
 
   // Dev-only handle for debugging and screenshots (stripped from production builds)
   if (import.meta.env.DEV) {
-    (window as unknown as Record<string, unknown>).__portfolio = { eventBus, store, avatar, followCamera };
+    (window as unknown as Record<string, unknown>).__portfolio = { eventBus, store, avatar, followCamera, interactionSystem, clickSystem, THREE };
   }
 
   loop.start();

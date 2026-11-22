@@ -182,19 +182,25 @@ export class ChatPanel {
     };
   }
 
-  private appendMessage(role: 'user' | 'bot', text: string, sources?: { title: string; targetId?: string }[]): void {
+  private appendMessage(role: 'user' | 'bot', text: string, sources?: { title: string; targetId?: string; n?: number; excerpt?: string }[]): void {
     const bubble = document.createElement('div');
     bubble.className = `chat-bubble ${role}`;
     bubble.innerText = text;
 
     if (sources && sources.length > 0) {
       const srcWrap = document.createElement('div');
-      srcWrap.style.cssText = 'margin-top:8px; display:flex; flex-wrap:wrap; gap:4px;';
+      srcWrap.style.cssText = 'margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;';
+      const label = document.createElement('span');
+      label.style.cssText = 'font-size:0.7rem; font-weight:700; opacity:0.7;';
+      label.innerText = 'Sources:';
+      srcWrap.appendChild(label);
       sources.forEach((s) => {
-        const chip = document.createElement('span');
+        const chip = document.createElement('button');
+        chip.type = 'button';
         chip.className = 'starter-chip';
+        if (s.excerpt) chip.title = s.excerpt;
         chip.style.cssText = 'background:var(--mint); font-size:0.75rem;';
-        chip.innerText = `📌 ${s.title}`;
+        chip.innerText = s.n ? `[${s.n}] ${s.title}` : `📌 ${s.title}`;
         chip.onclick = () => {
           this.close();
           if (s.targetId?.startsWith('DOOR_')) {

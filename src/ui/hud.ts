@@ -111,7 +111,35 @@ export class HUD {
       eventBus.emit('overlay:open', 'menu');
     };
 
-    topRight.append(askMochiBtn, themeBtn, journalBtn, audioBtn, menuBtn);
+    // Look at her face (camera swings to the front), and wave
+    const faceBtn = document.createElement('button');
+    faceBtn.className = 'hud-icon-btn';
+    faceBtn.title = 'See her face (F). Drag the scene to orbit, scroll to zoom';
+    faceBtn.innerHTML = '👀';
+    faceBtn.onclick = () => {
+      audioManager.playPop();
+      eventBus.emit('camera:face');
+    };
+
+    const waveBtn = document.createElement('button');
+    waveBtn.className = 'hud-icon-btn';
+    waveBtn.title = 'Wave hello (H)';
+    waveBtn.innerHTML = '👋';
+    waveBtn.onclick = () => eventBus.emit('avatar:wave');
+
+    // All projects, with search and filters
+    const libraryBtn = document.createElement('button');
+    libraryBtn.className = 'hud-icon-btn';
+    libraryBtn.title = 'Browse all projects';
+    libraryBtn.innerHTML = '🗂️';
+    libraryBtn.onclick = () => {
+      audioManager.playPop();
+      store.set('activeOverlay', 'library');
+      eventBus.emit('overlay:open', 'library');
+    };
+
+    [themeBtn, journalBtn, audioBtn, menuBtn, faceBtn, waveBtn, libraryBtn].forEach((b) => b.setAttribute('aria-label', b.title));
+    topRight.append(askMochiBtn, libraryBtn, faceBtn, waveBtn, themeBtn, journalBtn, audioBtn, menuBtn);
     this.container.appendChild(topRight);
 
     // 3. Prompt Bubble (Projected 3D Sticker)

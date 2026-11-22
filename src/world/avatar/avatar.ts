@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createBlobShadow } from '../fx/blobShadow';
 import { assetLoader } from '../../core/loaders';
+import { AvatarRig, RigPose } from './rig';
 
 export class Avatar {
   public group: THREE.Group = new THREE.Group();
@@ -20,6 +21,19 @@ export class Avatar {
   public isHopping = false;
   public isSleeping = false;
   public isWakingUp = false;
+
+  /** Current ground speed in m/s, set by the controller; drives stride length and cadence. */
+  public groundSpeed = 0;
+  private rig = new AvatarRig();
+  private rigged = false;
+  private pose: RigPose = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0 };
+  private waveTimer = -1;
+  private readonly waveDuration = 2.0;
+
+  // Scripted walk (used by the intro)
+  private walkTarget: THREE.Vector3 | null = null;
+  private walkScriptSpeed = 1.6;
+  private onWalkDone: (() => void) | null = null;
 
   private hopTimer = 0;
   private walkTime = 0;
@@ -100,6 +114,7 @@ export class Avatar {
 
       this.modelContainer.add(gltf);
       this.hasExternalModel = true;
+      this.rigged = this.rig.apply(gltf);
       console.log('✨ Loaded avatar GLB successfully! Height:', rawHeight.toFixed(3), '→ scale:', scale.toFixed(4));
     } else {
       // Procedural Chibi Girl fallback
@@ -239,7 +254,8 @@ export class Avatar {
     this.position.copy(chairPos);
     this.position.y = 0.42; // Chair seat height
     this.rotationY = rotY;
-    this.rootNode.position.set(0, -0.06, 0);
+    // Drop the hips onto the seat; the rig swings the legs forward (see updateRig)
+    this.rootNode.position.set(0, this.rigged ? -0.4 : -0.06, 0);
     this.shadow.visible = false;
   }
 
@@ -262,7 +278,118 @@ export class Avatar {
     }
   }
 
+  /** Rig override used while getting out of bed (legs and arms angles). */
+  private wakeRig: { legs: number; arms: number } | null = null;
+
+  /** Upper body tilted by theta (−π/2 = lying, 0 = upright) around the hips, which stay put on the mattress. */
+  private setSitUpPose(theta: number): void {
+    const hip = 0.525; // hip height above the feet for a 1.22 m avatar
+    this.rootNode.rotation.set(theta, 0, 0);
+    this.rootNode.position.set(0, 0.22 - hip * Math.cos(theta), -hip - hip * Math.sin(theta));
+  }
+
+  private stepOutYaw(): number {
+    return Math.atan2(this.wakeUpTarget.x - this.bedOrigin.x, this.wakeUpTarget.z - this.bedOrigin.z);
+  }
+
+  /** Friendly wave with her right hand. */
+  wave(): void {
+    if (!this.isSleeping && !this.isSitting) this.waveTimer = 0;
+  }
+
+  get isWaving(): boolean {
+    return this.waveTimer >= 0;
+  }
+
+  /** Walk on her own to a point (used by the intro). Input should be locked meanwhile. */
+  walkTo(target: THREE.Vector3, speed = 1.6, onDone?: () => void): void {
+    this.walkTarget = target.clone().setY(0);
+    this.walkScriptSpeed = speed;
+    this.onWalkDone = onDone || null;
+  }
+
+  /** Smoothly turn toward a yaw over time; returns true once facing it. */
+  private turnToward(yaw: number, delta: number, rate = 8): boolean {
+    let d = yaw - this.rotationY;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    this.rotationY += d * (1 - Math.exp(-delta * rate));
+    return Math.abs(d) < 0.05;
+  }
+
+  public faceYaw: number | null = null;
+
+  /** Blend the GPU rig toward the pose for her current state. */
+  private updateRig(delta: number): void {
+    if (!this.rigged) return;
+    const target: RigPose = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0 };
+    let snap = false;
+
+    if (this.wakeRig) {
+      target.legL = target.legR = this.wakeRig.legs;
+      target.armDownL = target.armDownR = this.wakeRig.arms;
+      snap = true;
+    } else if (this.isSitting) {
+      target.legL = target.legR = 1.05;
+      target.armDownL = target.armDownR = 1.2;
+      target.armSwingL = target.armSwingR = 0.55;
+    } else if (this.isMoving && !this.isSleeping) {
+      const s = THREE.MathUtils.clamp(this.groundSpeed / 3.2, 0, 1.5);
+      const stride = Math.sin(this.walkTime) * (0.18 + 0.32 * Math.min(s, 1)) * (this.isRunning ? 1.25 : 1);
+      target.legL = stride;
+      target.legR = -stride;
+      target.armSwingL = -stride * 0.85;
+      target.armSwingR = stride * 0.85;
+      target.armDownL = target.armDownR = this.isRunning ? 1.15 : 1.25;
+      snap = true;
+    } else if (!this.isSleeping) {
+      // Idle: arms drift very slightly with breathing
+      const b = Math.sin(this.idleTime * 2.2) * 0.03;
+      target.armDownL = 1.3 + b;
+      target.armDownR = 1.3 + b;
+    }
+
+    if (this.waveTimer >= 0) {
+      this.waveTimer += delta;
+      const t = this.waveTimer / this.waveDuration;
+      const w = Math.min(1, Math.min(t, 1 - t) * 6); // ease in and out
+      target.armDownR = THREE.MathUtils.lerp(target.armDownR, -1.05 + Math.sin(this.waveTimer * 13) * 0.28, Math.max(0, w));
+      target.armSwingR = THREE.MathUtils.lerp(target.armSwingR, 0.35, Math.max(0, w));
+      if (t >= 1) this.waveTimer = -1;
+    }
+
+    const k = snap ? 1 - Math.exp(-delta * 20) : 1 - Math.exp(-delta * 9);
+    (Object.keys(target) as (keyof RigPose)[]).forEach((key) => {
+      this.pose[key] += (target[key] - this.pose[key]) * (this.waveTimer >= 0 && key.endsWith('R') ? 1 - Math.exp(-delta * 18) : k);
+    });
+    this.rig.set(this.pose);
+  }
+
   update(delta: number): void {
+    // Scripted walk for the intro
+    if (this.walkTarget && !this.isSleeping && !this.isSitting) {
+      const toTarget = this.walkTarget.clone().sub(this.position).setY(0);
+      const dist = toTarget.length();
+      if (dist > 0.05) {
+        const step = Math.min(dist, this.walkScriptSpeed * delta);
+        this.position.addScaledVector(toTarget.normalize(), step);
+        this.turnToward(Math.atan2(toTarget.x, toTarget.z), delta, 10);
+        this.isMoving = true;
+        this.isRunning = false;
+        this.groundSpeed = this.walkScriptSpeed;
+      } else {
+        this.walkTarget = null;
+        this.isMoving = false;
+        this.groundSpeed = 0;
+        const done = this.onWalkDone;
+        this.onWalkDone = null;
+        done?.();
+      }
+    } else if (this.faceYaw !== null && !this.isMoving) {
+      if (this.turnToward(this.faceYaw, delta, 6)) this.faceYaw = null;
+    }
+
+    this.updateRig(delta);
     this.group.position.copy(this.position);
     this.group.rotation.y = this.rotationY;
 
@@ -272,33 +399,41 @@ export class Avatar {
       const p = Math.min(this.wakeUpTimer / this.wakeUpDuration, 1.0);
 
       if (p < 0.35) {
-        // Phase 1: Slowly sit up in bed
-        const sitProgress = p / 0.35;
-        this.rootNode.rotation.x = THREE.MathUtils.lerp(-Math.PI / 2, 0, sitProgress);
-        this.rootNode.position.y = 0.22;
+        // Phase 1: Sit up in bed, pivoting at the hips so the legs stay flat on the mattress
+        const sitProgress = THREE.MathUtils.smoothstep(p / 0.35, 0, 1);
+        const theta = THREE.MathUtils.lerp(-Math.PI / 2, 0, sitProgress);
+        this.setSitUpPose(theta);
+        this.wakeRig = { legs: -theta, arms: 1.3 };
       } else if (p < 0.65) {
-        // Phase 2: Yawn and stretch!
+        // Phase 2: Yawn and stretch both arms up
         const yawnP = (p - 0.35) / 0.3;
-        const stretch = Math.sin(yawnP * Math.PI) * 0.18;
-        this.rootNode.scale.set(1.0 - stretch * 0.3, 1.0 + stretch, 1.0 - stretch * 0.3);
-        this.rootNode.rotation.z = Math.sin(yawnP * Math.PI * 2) * 0.08;
+        const stretch = Math.sin(yawnP * Math.PI);
+        this.setSitUpPose(0);
+        this.rootNode.scale.set(1.0 - stretch * 0.04, 1.0 + stretch * 0.06, 1.0 - stretch * 0.04);
+        this.rootNode.rotation.z = Math.sin(yawnP * Math.PI * 2) * 0.06;
+        this.wakeRig = { legs: Math.PI / 2, arms: THREE.MathUtils.lerp(1.3, -1.25, stretch) };
       } else {
-        // Phase 3: Step out of bed onto the floor rug
+        // Phase 3: Swing the legs down, stand, and step out of bed
         const stepP = (p - 0.65) / 0.35;
-        this.position.lerpVectors(this.bedOrigin, this.wakeUpTarget, stepP);
-        // Turn to face the back wall (mirror, desk and TV) while stepping out
-        this.rotationY = THREE.MathUtils.lerp(0, Math.PI, stepP);
-        this.position.y = THREE.MathUtils.lerp(0.52, 0, stepP);
+        const standP = THREE.MathUtils.smoothstep(stepP / 0.45, 0, 1);
         this.rootNode.scale.set(1, 1, 1);
         this.rootNode.rotation.set(0, 0, 0);
-        this.shadow.visible = true;
+        this.rootNode.position.set(0, THREE.MathUtils.lerp(-0.3, 0, standP), THREE.MathUtils.lerp(-0.52, 0, standP));
+        this.wakeRig = { legs: (Math.PI / 2) * (1 - standP), arms: 1.3 };
+        this.position.lerpVectors(this.bedOrigin, this.wakeUpTarget, stepP);
+        // Turn toward the side of the bed she steps out of
+        this.rotationY = THREE.MathUtils.lerp(0, this.stepOutYaw(), Math.min(1, stepP * 1.6));
+        this.position.y = THREE.MathUtils.lerp(0.52, 0, THREE.MathUtils.smoothstep(stepP, 0.35, 1));
+        this.shadow.visible = stepP > 0.5;
       }
 
       if (p >= 1.0) {
         this.isWakingUp = false;
         this.isSleeping = false;
+        this.wakeRig = null;
+        this.rootNode.position.set(0, 0, 0);
         this.position.copy(this.wakeUpTarget);
-        this.rotationY = Math.PI;
+        this.rotationY = this.stepOutYaw();
         this.rootNode.rotation.set(0, 0, 0);
         this.rootNode.scale.set(1, 1, 1);
         this.shadow.visible = true;
@@ -341,19 +476,19 @@ export class Avatar {
     // 3. Locomotion & Idle Animation
     if (this.isMoving) {
       this.idleTime = 0;
-      const speedMult = this.isRunning ? 14 : 9;
-      this.walkTime += delta * speedMult;
+      // Cadence follows ground speed (about 1.6 steps a second at a walk)
+      this.walkTime += delta * (4.5 + this.groundSpeed * 1.6);
 
       // Cute chibi walking bob and side tilt
-      const bob = Math.abs(Math.sin(this.walkTime)) * (this.isRunning ? 0.08 : 0.05);
+      const bob = Math.abs(Math.cos(this.walkTime)) * (this.isRunning ? 0.06 : 0.035);
       if (!this.isHopping) {
         this.rootNode.position.y = bob;
       }
 
       // Waddle side-to-side tilt
-      const tilt = Math.sin(this.walkTime) * (this.isRunning ? 0.08 : 0.04);
+      const tilt = Math.sin(this.walkTime) * (this.isRunning ? 0.05 : 0.025);
       this.rootNode.rotation.z = tilt;
-      this.rootNode.rotation.x = this.isRunning ? 0.12 : 0.04;
+      this.rootNode.rotation.x = THREE.MathUtils.lerp(this.rootNode.rotation.x, this.isRunning ? 0.1 : 0.03, delta * 8);
 
       // If using procedural parts, swing limbs
       if (!this.hasExternalModel) {

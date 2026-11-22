@@ -65,7 +65,19 @@ export class TVVideoOverlay {
 
   private playVideo(): void {
     const screen = this.overlay.querySelector('#tv-screen');
-    if (!screen || screen.querySelector('iframe')) return;
+    if (!screen || screen.querySelector('iframe, video')) return;
+    if (profile.showreel.mp4) {
+      const video = document.createElement('video');
+      video.src = profile.showreel.mp4;
+      video.controls = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.title = profile.showreel.title;
+      video.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; background:#000;';
+      screen.appendChild(video);
+      (this.overlay.querySelector('#tv-play-btn') as HTMLElement | null)?.style.setProperty('display', 'none');
+      return;
+    }
     const iframe = document.createElement('iframe');
     iframe.src = `https://www.youtube-nocookie.com/embed/${profile.showreel.youtubeId}?autoplay=1&rel=0`;
     iframe.title = profile.showreel.title;
@@ -78,7 +90,7 @@ export class TVVideoOverlay {
 
   close(): void {
     // Stop any playing video by removing the player
-    this.overlay.querySelector('#tv-screen iframe')?.remove();
+    this.overlay.querySelector('#tv-screen iframe, #tv-screen video')?.remove();
     (this.overlay.querySelector('#tv-play-btn') as HTMLElement | null)?.style.setProperty('display', '');
     this.overlay.classList.remove('active');
     store.set('activeOverlay', 'none');

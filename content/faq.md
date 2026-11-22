@@ -23,3 +23,6 @@ It is built with vanilla Three.js and TypeScript, with responsive HTML/CSS overl
 
 ### Who is Mochi?
 Mochi is the companion red panda who lives in the studio. Mochi knows Zarina's background, games and skills and answers visitor questions in the chat.
+
+### Has Zarina presented or hosted at events?
+Yes. Zarina hosted NED GameCon'25 (at TechFest'25) and GameCon'26, the flagship event of the GameVerse society. Light Up The House was presented on stage as a GameCon'26 entry, and Echoes of the Fallen was a GameCon'25 entry. Photos hang on the Community wall in the bedroom.

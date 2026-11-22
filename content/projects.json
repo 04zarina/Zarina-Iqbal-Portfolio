@@ -4,7 +4,7 @@
     "title": "Light Up The House",
     "tagline": "Third-person sci-fi repair adventure: fix three broken systems before the countdown hits zero.",
     "year": 2026,
-    "type": "Team of 3 · Unreal Engine 5",
+    "type": "Team of 3 · Unreal Engine 5 · NED GameCon'26",
     "featured": true,
     "roles": [
       "Project Manager",
@@ -36,6 +36,10 @@
       {
         "src": "/images/projects/light-up-the-house-1.webp",
         "alt": "Cover / logo image: Light Up The House"
+      },
+      {
+        "src": "/images/community/luth-gamecon26.webp",
+        "alt": "Light Up The House presented on stage at NED GameCon'26"
       }
     ],
     "links": {
@@ -49,7 +53,8 @@
       "Blueprints",
       "UI/UX",
       "Team"
-    ]
+    ],
+    "badge": "NED GameCon'26 Entry"
   },
   {
     "id": "floor-is-a-liar",

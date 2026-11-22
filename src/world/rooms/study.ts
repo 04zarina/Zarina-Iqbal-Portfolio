@@ -7,6 +7,12 @@ import { assetLoader } from '../../core/loaders';
 import { Avatar } from '../avatar/avatar';
 import { sparkleSystem } from '../fx/sparkles';
 import { DECOR, placeDecor, recenter } from '../decor';
+import { clickSystem } from '../clickables';
+import { jellyController } from '../fx/jelly';
+import projectsData from '../../../content/projects.json';
+import type { Project } from '../../content/types';
+
+const BOARD_Z = 2.1;
 
 export class StudyRoom {
   public group: THREE.Group = new THREE.Group();
@@ -116,9 +122,17 @@ export class StudyRoom {
 
     const note1 = makeNote('🎓 Education', 'BS CS, Gaming & Animation · NED · CGPA 3.657', 0xFFF6EC, 1.4, 0.3, 0.05);
     const note2 = makeNote('💼 Experience', 'Game Dev Intern, Aerox ERP · IT Intern, KDA', 0xFFE9A3, 0.45, 0.42, -0.04);
-    const note3 = makeNote('🛠 Skills', 'Unreal 5 · Unity C# · VR · Three.js', 0xFFB3C7, -0.5, 0.3, 0.08);
+    const note3 = makeNote('🎤 Community', "Hosted GameCon'25 & '26 · GameVerse · SENTEC", 0xFFB3C7, -0.5, 0.3, 0.08);
     const note4 = makeNote('📜 Certificates', 'CEGA Unreal · Pre & Post-Production · Google AI', 0xBDEBD3, -1.45, 0.4, -0.06);
     corkGroup.add(note1, note2, note3, note4);
+
+    // Each sticky note is clickable and opens its own section
+    const openTab = (tab: string) => () => eventBus.emit('open:education', tab);
+    clickSystem.register(note1, '🎓 Education: click to read', openTab('education'));
+    clickSystem.register(note2, '💼 Experience: click to read', openTab('experience'));
+    clickSystem.register(note3, '🎤 Community & GameCon photos', () => eventBus.emit('open:community', 0));
+    clickSystem.register(note4, '📜 Certificates: click to read', openTab('certificates'));
+    [note1, note2, note3, note4].forEach((n) => jellyController.register(n));
     this.group.add(corkGroup);
 
     // 4. Bookshelves on Left Wall (furniture-pack models load in loadGLBModels)
@@ -138,6 +152,9 @@ export class StudyRoom {
     const doorSign = this.createSign('BEDROOM', 0xFFC9B0);
     doorSign.position.set(0, 2.5, -3.75);
     this.group.add(doorFrame, doorSign);
+
+    // 6b. Board of smaller projects on the left wall, between the bookshelves and the plant
+    this.buildProjectBoard();
 
     // 7. Table collision box (sealed toward back wall)
     collisionSystem.addBox(-1.6, 1.6, 1.3, 2.5);
@@ -197,10 +214,12 @@ export class StudyRoom {
       resumeGroup.add(sheet);
     }
     this.group.add(resumeGroup);
+    clickSystem.register(resumeGroup, '📄 Read & download my resume', () => this.openResume());
 
     this.resumeTag = this.createResumeTag();
     this.resumeTag.position.set(0.42, 1.12, 1.6);
     this.group.add(this.resumeTag);
+    clickSystem.register(this.resumeTag, '📄 Read & download my resume', () => this.openResume());
 
     await decorReady;
   }
@@ -229,6 +248,132 @@ export class StudyRoom {
       new THREE.PlaneGeometry(0.5, 0.16),
       new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
     );
+  }
+
+  private openResume(): void {
+    sparkleSystem.burst(new THREE.Vector3(0.42, 1.0, 1.6), 14);
+    store.completeQuest('get_resume');
+    store.set('activeOverlay', 'resume');
+    eventBus.emit('overlay:open', 'resume');
+  }
+
+  /**
+   * A cork display board of the smaller projects (everything that isn't an arcade cabinet).
+   * One canvas texture for the whole board, plus an invisible click target per card.
+   */
+  private buildProjectBoard(): void {
+    const side = (projectsData as Project[]).filter((p) => !p.featured).slice(0, 9);
+    const W = 1024;
+    const H = 1100;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+
+    const cols = 3;
+    const pad = 28;
+    const top = 150;
+    const cw = (W - pad * (cols + 1)) / cols;
+    const ch = (H - top - pad * 4) / 3;
+    const images: (HTMLImageElement | null)[] = side.map(() => null);
+
+    const draw = () => {
+      ctx.fillStyle = '#C99A6B';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      for (let i = 0; i < 400; i++) ctx.fillRect((i * 97) % W, (i * 53) % H, 4, 4);
+      ctx.fillStyle = '#FFF6EC';
+      ctx.beginPath();
+      ctx.roundRect(W / 2 - 330, 30, 660, 92, 24);
+      ctx.fill();
+      ctx.fillStyle = '#5A3A32';
+      ctx.font = 'bold 54px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🗂️ More Projects', W / 2, 78);
+      side.forEach((p, i) => {
+        const x = pad + (i % cols) * (cw + pad);
+        const y = top + pad + Math.floor(i / cols) * (ch + pad);
+        ctx.save();
+        ctx.translate(x + cw / 2, y + ch / 2);
+        ctx.rotate(((i * 37) % 7 - 3) * 0.006);
+        ctx.translate(-cw / 2, -ch / 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(6, 8, cw, ch);
+        ctx.fillStyle = '#FFFDF8';
+        ctx.fillRect(0, 0, cw, ch);
+        const ih = ch - 92;
+        const img = images[i];
+        if (img) {
+          const r = Math.max((cw - 20) / img.width, ih / img.height);
+          const sw = (cw - 20) / r;
+          const sh = ih / r;
+          ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 10, 10, cw - 20, ih);
+        } else {
+          ctx.fillStyle = p.accentColor || '#FFE9A3';
+          ctx.fillRect(10, 10, cw - 20, ih);
+        }
+        ctx.fillStyle = '#5A3A32';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.textAlign = 'center';
+        let title = p.title;
+        while (ctx.measureText(title).width > cw - 24 && title.length > 4) title = title.slice(0, -2);
+        if (title !== p.title) title = title.trimEnd() + '…';
+        ctx.fillText(title, cw / 2, ih + 40);
+        ctx.font = '22px sans-serif';
+        ctx.fillStyle = '#8A5A4A';
+        ctx.fillText(`${p.year} · ${p.tools[0] ?? ''}`.slice(0, 30), cw / 2, ih + 72);
+        // pin
+        ctx.fillStyle = ['#E74C3C', '#3A7BD5', '#2EAD6B'][i % 3];
+        ctx.beginPath();
+        ctx.arc(cw / 2, 4, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+      tex.needsUpdate = true;
+    };
+    draw();
+    side.forEach((p, i) => {
+      const src = p.images?.[0]?.src;
+      if (!src) return;
+      const img = new Image();
+      img.onload = () => {
+        images[i] = img;
+        draw();
+      };
+      img.src = src;
+    });
+
+    const boardW = 1.5;
+    const boardH = (boardW * H) / W;
+    const board = new THREE.Group();
+    board.position.set(-4.78, 1.75, BOARD_Z);
+    board.rotation.y = Math.PI / 2; // face into the room (+X)
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(boardW + 0.1, boardH + 0.1, 0.05),
+      new THREE.MeshLambertMaterial({ color: 0x8a5a4a })
+    );
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(boardW, boardH), new THREE.MeshBasicMaterial({ map: tex }));
+    face.position.z = 0.03;
+    board.add(frame, face);
+
+    // One invisible click target per card
+    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+    side.forEach((p, i) => {
+      const x = pad + (i % cols) * (cw + pad) + cw / 2;
+      const y = top + pad + Math.floor(i / cols) * (ch + pad) + ch / 2;
+      const hit = new THREE.Mesh(new THREE.PlaneGeometry((cw / W) * boardW, (ch / H) * boardH), hitMat);
+      hit.position.set((x / W - 0.5) * boardW, (0.5 - y / H) * boardH, 0.04);
+      board.add(hit);
+      clickSystem.register(hit, `🎮 ${p.title}`, () => {
+        store.set('activeOverlay', 'project');
+        eventBus.emit('project:select', p.id);
+      });
+    });
+    this.group.add(board);
   }
 
   private buildFallbackDesk(): void {
@@ -304,19 +449,27 @@ export class StudyRoom {
       }
     });
 
-    // 3. Resume on the desk: preview + download
+    // 3. Resume on the desk: preview + download. Priority makes it win over the chair
+    //    and corkboard, which overlap the same spot at the desk.
     interactionSystem.register({
       id: 'resume',
       label: 'Read & Download Resume 📄',
       keyHint: 'E',
       radius: 1.6,
-      position: new THREE.Vector3(0.75, 0.9, 1.2),
-      onInteract: () => {
-        sparkleSystem.burst(new THREE.Vector3(0.42, 1.0, 1.6), 14);
-        store.completeQuest('get_resume');
-        store.set('activeOverlay', 'resume');
-        eventBus.emit('overlay:open', 'resume');
-      }
+      priority: 0.45,
+      position: new THREE.Vector3(0.75, 0.9, 1.15),
+      onInteract: () => this.openResume()
+    });
+
+    // 3b. Side-project board on the left wall
+    interactionSystem.register({
+      id: 'project_board',
+      label: 'Browse my other projects 🗂️',
+      keyHint: 'E',
+      radius: 1.7,
+      priority: 0.3,
+      position: new THREE.Vector3(-4.1, 0.5, BOARD_Z),
+      onInteract: () => eventBus.emit('open:library', 'All')
     });
 
     // 4. Doorway back to Bedroom

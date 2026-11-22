@@ -13,15 +13,19 @@
   - **Study Nook:** Pinned corkboard timeline of education and career experience, reading armchair, and bookshelf.
   - **Dev Realm:** Secret floating sky island finale accessible through the wardrobe portal!
 - **Interactive Avatar (Module 2):**
-  - Cute chibi character with walking bob, run lean, happy hops, and idle quirks.
+  - Wakes up in bed, sits up, stretches, walks to the camera and waves on start.
+  - The static T-pose GLB is animated with a small vertex-shader rig (`src/world/avatar/rig.ts`): arms rest at her sides, arms and legs swing while walking, she sits on chairs and waves (H or 👋).
+  - Orbit camera: drag to look around, scroll to zoom, F or 👀 to see her face, Q/R to rotate.
   - Desktop keyboard controls (WASD, Arrows, Shift, Space, E) + Mobile virtual touch joystick and action button.
+  - Mouse interaction: click sticky notes, project cards, plants, photos, the resume and the tape.
 - **Promo Video Showcase (Module 3):**
   - Pick up the cassette tape in the bedroom and insert it into the vintage TV to watch the promo video reel.
 - **RAG-Powered AI Chatbot (Module 4):**
-  - **Mochi**, the companion red panda, follows you around the studio and answers questions about your work, skills, and background using vector-indexed content.
-  - Anti-hallucination guardrails and source citation chips that navigate the 3D world when clicked!
+  - **Mochi**, the companion red panda, appears when you press "Ask Mochi" and answers questions about Zarina using retrieval over the portfolio content.
+  - Pipeline: `npm run ingest` chunks `content/` (projects, skills, education, experience, achievements, profile and FAQ by heading) into a TF-IDF vector index (`server-data/index.json`). `/api/chat` retrieves the top 5 chunks (cosine similarity blended with BM25), sends them as numbered sources to Claude, and returns the answer with `[n]` citations and source chips.
+  - Guardrails: answers only from the sources, says so when it doesn't know, per-IP rate limit, 500-character question limit. Without `ANTHROPIC_API_KEY` it answers by quoting the best source.
 - **Mailbox Contact System (Module 5):**
-  - Mailbox letter modal with input validation, time-trap, honeypot spam protection, and email delivery adapters.
+  - Mailbox letter modal (and the `/classic` form) with front-end and zod back-end validation, time-trap, honeypot, per-IP rate limit, and delivery through Resend. Clear success and error states, with a mailto fallback if sending fails.
 - **2D Classic View Fallback:**
   - A clean, accessible 2D portfolio at `/classic` with search, project tags, and dark/light mode.
 - **Performance Optimized:**
@@ -148,19 +152,17 @@ All 3D models can be swapped without code changes via `src/assets/manifest.ts`:
 
 ## 🔒 Environment Variables (`.env.example`)
 
-```env
-# Mailbox Delivery
-MAIL_PROVIDER=resend
-RESEND_API_KEY=re_your_api_key_here
-CONTACT_TO_EMAIL=your.email@example.com
-CONTACT_FROM_EMAIL="Portfolio <onboarding@resend.dev>"
+Secrets live only in Vercel environment variables, never in the repo.
 
-# RAG & AI Chatbot
-EMBEDDING_PROVIDER=gemini
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=
-OPENAI_API_KEY=
-```
+| Variable | Needed for | Notes |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Contact form email | From resend.com > API Keys |
+| `CONTACT_TO_EMAIL` | Contact form email | Where letters arrive (defaults to zarinaiqbal04@gmail.com) |
+| `CONTACT_FROM_EMAIL` | Optional | Sender on a domain verified in Resend |
+| `ANTHROPIC_API_KEY` | Chatbot answers | From platform.claude.com > API Keys |
+| `CHAT_MODEL` | Optional | Defaults to `claude-opus-5-5` |
+
+After changing anything in `content/`, run `npm run ingest` and commit `server-data/index.json`.
 
 ---
 

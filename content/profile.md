@@ -30,7 +30,7 @@ I'm Zarina, a Computer Science undergrad at NED University, specializing in Gami
 Interning at Aerox ERP on web and 3D interactions, final year at NED University.
 
 ## Leadership & Community
-Beyond code, I am active in campus life. I have been part of the GameVerse society's events and logistics team and hosted its flagship event, GameCon, at both editions. I was a member of SENTEC for a year, also part of the organizing team for the MPERC event. Hosting in front of a live audience has made public speaking one of my strongest skills.
+Beyond code, I am active in campus life. I have been part of the GameVerse society's events and logistics team and hosted its flagship event, GameCon, at both editions. I was a member of SENTEC for a year, also part of the organizing team for the MPERC event. Hosting in front of a live audience has made public speaking one of my strongest skills. My team's Unreal Engine 5 game, Light Up The House, was presented as an entry at NED GameCon'26, and Echoes of the Fallen was an entry at GameCon'25.
 
 ## Contact
 - Email: zarinaiqbal04@gmail.com

@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { clickSystem } from '../clickables';
+
+const TAPE_POS = new THREE.Vector3(1.18, 0.77, -2.66);
 import { collisionSystem } from '../collision';
 import { interactionSystem } from '../interaction';
 import { themeManager } from '../theme';
@@ -8,6 +11,7 @@ import { sparkleSystem } from '../fx/sparkles';
 import { assetLoader } from '../../core/loaders';
 import { Avatar } from '../avatar/avatar';
 import { DECOR, placeDecor, recenter } from '../decor';
+import { profile } from '../../content/profile';
 
 export class BedroomRoom {
   public group: THREE.Group = new THREE.Group();
@@ -19,6 +23,8 @@ export class BedroomRoom {
 
   private avatar: Avatar | null = null;
   private tapeMesh: THREE.Object3D | null = null;
+  private pickUpTape: (() => void) | null = null;
+  private tapeTag: THREE.Mesh | null = null;
   private lampLight: THREE.PointLight | null = null;
   private fairyLights: THREE.Mesh[] = [];
   private portalGlow: THREE.Mesh | null = null;
@@ -28,6 +34,7 @@ export class BedroomRoom {
     this.buildRoom();
     this.loadGLBModels();
     this.setupInteractions();
+    this.buildCommunityWall();
     this.setupEvents();
   }
 
@@ -192,8 +199,9 @@ export class BedroomRoom {
     // 4. Desk Chair (Chair_17.glb)
     const chairGltf = await assetLoader.loadGLTF('chair');
     if (chairGltf) {
-      chairGltf.position.set(1.8, 0, -2.15);
-      chairGltf.rotation.y = 0;
+      // Tucked at the right end of the desk so it no longer sits between you and the tape
+      chairGltf.position.set(2.75, 0, -2.05);
+      chairGltf.rotation.y = -0.5;
       this.group.add(chairGltf);
     }
 
@@ -211,11 +219,13 @@ export class BedroomRoom {
     // 6. Cassette Tape (Poly by Google Cassette Tape with texture)
     const tapeGltf = await assetLoader.loadGLTF('tape');
     if (tapeGltf) {
-      tapeGltf.position.set(1.55, 0.77, -2.9);
+      tapeGltf.position.set(TAPE_POS.x, 0.77, TAPE_POS.z);
       tapeGltf.rotation.set(-Math.PI / 2, 0, 0.2);
-      tapeGltf.scale.set(0.02, 0.02, 0.02);
+      tapeGltf.scale.set(0.026, 0.026, 0.026);
       this.tapeMesh = tapeGltf;
       this.group.add(tapeGltf);
+      if (store.get().holdingTape) tapeGltf.visible = false;
+      else clickSystem.register(tapeGltf, 'Pick up the showreel tape 📼', () => this.pickUpTape?.());
     } else {
       this.buildFallbackTape();
     }
@@ -357,7 +367,7 @@ export class BedroomRoom {
 
   private buildFallbackTape(): void {
     const tapeMesh = new THREE.Group();
-    tapeMesh.position.set(1.35, 0.8, -2.9);
+    tapeMesh.position.set(TAPE_POS.x, 0.8, TAPE_POS.z);
     const tapeBody = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.15), new THREE.MeshLambertMaterial({ color: 0xFFB3C7 }));
     tapeMesh.add(tapeBody);
     this.tapeMesh = tapeMesh;
@@ -408,6 +418,70 @@ export class BedroomRoom {
     }
   }
 
+  /** Framed GameCon photos on the right wall; click one (or press E nearby) for the story. */
+  private buildCommunityWall(): void {
+    const loader = new THREE.TextureLoader();
+    const frames: { z: number; w: number; h: number }[] = [
+      { z: 1.0, w: 0.66, h: 0.5 }, // GameCon'25 (landscape)
+      { z: 0.15, w: 0.45, h: 0.6 }, // GameCon'26 (portrait)
+      { z: 1.95, w: 0.7, h: 0.33 } // Light Up The House on stage (wide)
+    ];
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0xffb3c7 });
+    profile.community.forEach((photo, i) => {
+      const f = frames[i];
+      if (!f) return;
+      const g = new THREE.Group();
+      g.position.set(4.77, 1.75, f.z);
+      g.rotation.y = -Math.PI / 2;
+      const border = new THREE.Mesh(new THREE.BoxGeometry(f.w + 0.08, f.h + 0.08, 0.04), frameMat);
+      const tex = loader.load(photo.src);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(f.w, f.h), new THREE.MeshBasicMaterial({ map: tex }));
+      pic.position.z = 0.025;
+      g.add(border, pic);
+      this.group.add(g);
+      clickSystem.register(g, `📸 ${photo.title}`, () => eventBus.emit('open:community', i));
+    });
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.9, 0.2),
+      new THREE.MeshBasicMaterial({ map: this.makeSignTexture('🎤 Community'), transparent: true })
+    );
+    sign.position.set(4.78, 2.38, 1.0);
+    sign.rotation.y = -Math.PI / 2;
+    this.group.add(sign);
+
+    interactionSystem.register({
+      id: 'community_wall',
+      label: 'See GameCon photos 🎤',
+      keyHint: 'E',
+      radius: 1.6,
+      position: new THREE.Vector3(4.3, 0.5, 1.0),
+      onInteract: () => eventBus.emit('open:community', 0)
+    });
+  }
+
+  private makeSignTexture(text: string): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 112;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#FFF6EC';
+    ctx.beginPath();
+    ctx.roundRect(4, 4, 504, 104, 30);
+    ctx.fill();
+    ctx.strokeStyle = '#8A5A4A';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.fillStyle = '#5A3A32';
+    ctx.font = 'bold 54px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 256, 58);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+
   private setupInteractions(): void {
     // 1. Bed Interaction: "Lie Down & Sleep" / "Wake Up"
     interactionSystem.register({
@@ -439,22 +513,42 @@ export class BedroomRoom {
       }
     });
 
-    // 3. Tape Pickup
-    interactionSystem.register({
-      id: 'tape',
-      label: 'Pick up Reel Tape',
-      keyHint: 'E',
-      radius: 1.6,
-      position: new THREE.Vector3(1.55, 0.8, -2.8),
-      onInteract: () => {
-        store.set('holdingTape', true);
-        if (this.tapeMesh) this.tapeMesh.visible = false;
-        sparkleSystem.burst(new THREE.Vector3(1.55, 1.0, -2.8), 16);
-        store.collectItem('tape');
-        store.completeQuest('pickup_tape');
-        eventBus.emit('toast:show', 'Picked up Zarina\'s Showreel Tape! 📼 Insert it into the TV.');
+    // 3. Tape Pickup: front-left corner of the desk, ahead of the TV and lamp so it wins when you walk up
+    const pickUpTape = () => {
+      if (store.get().holdingTape) return;
+      store.set('holdingTape', true);
+      if (this.tapeMesh) {
+        this.tapeMesh.visible = false;
+        clickSystem.unregister(this.tapeMesh);
       }
-    });
+      interactionSystem.unregister('tape');
+      sparkleSystem.burst(new THREE.Vector3(TAPE_POS.x, 1.0, TAPE_POS.z), 16);
+      store.collectItem('tape');
+      store.completeQuest('pickup_tape');
+      eventBus.emit('toast:show', 'Picked up Zarina\'s Showreel Tape! 📼 Insert it into the TV.');
+    };
+    if (!store.get().holdingTape) {
+      interactionSystem.register({
+        id: 'tape',
+        label: 'Pick up Reel Tape 📼',
+        keyHint: 'E',
+        radius: 1.7,
+        priority: 0.25,
+        position: new THREE.Vector3(TAPE_POS.x, 0.8, TAPE_POS.z + 0.3),
+        onInteract: pickUpTape
+      });
+    }
+    this.pickUpTape = pickUpTape;
+
+    // Floating tag so the small tape is easy to spot (and click)
+    this.tapeTag = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.46, 0.1),
+      new THREE.MeshBasicMaterial({ map: this.makeSignTexture('📼 Showreel'), transparent: true, depthWrite: false })
+    );
+    this.tapeTag.position.set(TAPE_POS.x, 1.08, TAPE_POS.z + 0.05);
+    this.tapeTag.rotation.y = 0;
+    this.group.add(this.tapeTag);
+    clickSystem.register(this.tapeTag, 'Pick up the showreel tape 📼', () => this.pickUpTape?.());
 
     // 4. TV (Play Promo Video)
     interactionSystem.register({
@@ -597,12 +691,18 @@ export class BedroomRoom {
     if (this.portalGlow) {
       (this.portalGlow.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(time * 0.6) * 0.1;
     }
+
+    if (this.tapeTag) {
+      this.tapeTag.visible = !store.get().holdingTape;
+      this.tapeTag.position.y = 1.08 + Math.sin(time * 0.7) * 0.03;
+    }
   }
 
   dispose(): void {
     interactionSystem.clear();
     this.fairyLights = [];
     this.portalGlow = null;
+    this.tapeTag = null;
     this.group.clear();
   }
 }

@@ -1,3 +1,4 @@
+import { sendContact } from '../core/sendContact';
 import projectsData from '../../content/projects.json';
 import type { Project } from '../content/types';
 import skillsData from '../../content/skills.json';
@@ -114,9 +115,31 @@ if (certList) {
     .join('');
 }
 
-// 5. Form Submit
-document.getElementById('classic-contact-form')?.addEventListener('submit', (e) => {
+// 5. Form Submit (same /api/contact endpoint as the 3D mailbox)
+const classicForm = document.getElementById('classic-contact-form') as HTMLFormElement | null;
+const formOpenedAt = Date.now();
+classicForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  alert('Thank you! Your letter has been posted to Zarina.');
-  (e.target as HTMLFormElement).reset();
+  const fd = new FormData(classicForm);
+  const status = document.getElementById('classic-contact-status');
+  const btn = classicForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  btn.disabled = true;
+  const result = await sendContact({
+    name: String(fd.get('name') || '').trim(),
+    email: String(fd.get('email') || '').trim(),
+    subject: String(fd.get('subject') || '').trim(),
+    message: String(fd.get('message') || '').trim(),
+    website: String(fd.get('website') || ''),
+    ts: formOpenedAt
+  });
+  btn.disabled = false;
+  if (status) {
+    status.style.display = 'block';
+    if (result.ok) {
+      status.textContent = 'Thank you! Your message is on its way to Zarina.';
+      classicForm.reset();
+    } else {
+      status.innerHTML = result.mailto ? `${result.error} <a href="${result.mailto}">Email Zarina directly instead.</a>` : result.error;
+    }
+  }
 });

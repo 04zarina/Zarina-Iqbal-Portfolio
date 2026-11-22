@@ -30,7 +30,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   // 1. IP Rate Limiting (max 5 per hour)
-  const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket?.remoteAddress || '127.0.0.1';
+  const clientIp = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
   const now = Date.now();
   const rateRecord = ipRateLimit.get(clientIp);
 
@@ -55,48 +55,55 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const { name, email, subject, message, website, ts } = parsed.data;
 
-  // 3. Spam: Honeypot check
+  // 3. Spam: honeypot field. Pretend it worked so bots don't learn anything.
   if (website && website.trim().length > 0) {
-    return res.status(400).json({ error: 'Spam detected.' });
+    return res.status(200).json({ ok: true, message: 'Letter delivered!' });
   }
 
-  // 4. Spam: Time trap check (must take at least 3 seconds)
+  // 4. Spam: time trap (a human takes at least 3 seconds to fill the form)
   if (now - ts < 3000) {
-    return res.status(400).json({ error: 'Form submitted suspiciously fast.' });
+    return res.status(400).json({ error: 'That was fast! Please take a moment and try again.' });
   }
 
-  // 5. Sanitize header injection (no newlines in name or subject)
-  if (name.includes('\n') || subject.includes('\n') || email.includes('\n')) {
+  // 5. Header injection guard (no newlines in single-line fields)
+  if (/[\r\n]/.test(name + subject + email)) {
     return res.status(400).json({ error: 'Invalid characters in fields.' });
   }
 
-  console.log(`✉️ [Contact Delivery Log] Received message from "${name}" <${email}>: "${subject}"`);
-
-  // If RESEND_API_KEY is provided in environment variables, dispatch email
+  // 6. Deliver through Resend (https://resend.com). Keys live only in Vercel env vars.
   const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey && !resendKey.includes('placeholder')) {
-    try {
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: process.env.CONTACT_FROM_EMAIL || 'Portfolio <onboarding@resend.dev>',
-          to: process.env.CONTACT_TO_EMAIL || 'zarinaiqbal04@gmail.com',
-          reply_to: email,
-          subject: `[Portfolio Letter] ${subject}`,
-          text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
-        })
-      });
-    } catch (err) {
-      console.error('Email provider error:', err);
-    }
+  if (!resendKey) {
+    return res.status(503).json({ error: 'Email delivery is not configured yet.', code: 'not_configured' });
   }
 
-  return res.status(200).json({
-    ok: true,
-    message: 'Letter successfully delivered to Zarina!'
-  });
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: process.env.CONTACT_FROM_EMAIL || 'Portfolio Mailbox <onboarding@resend.dev>',
+        to: [process.env.CONTACT_TO_EMAIL || 'zarinaiqbal04@gmail.com'],
+        reply_to: email,
+        subject: `[Portfolio] ${subject}`,
+        text: `From: ${name} <${email}>\n\n${message}\n\n(Sent from the 3D portfolio mailbox)`,
+        html: `<p><strong>From:</strong> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;</p><p style="white-space:pre-wrap">${escapeHtml(message)}</p><p style="color:#888">Sent from the 3D portfolio mailbox</p>`
+      })
+    });
+    if (!r.ok) {
+      console.error('Resend error', r.status, await r.text().catch(() => ''));
+      return res.status(502).json({ error: 'The mail service rejected the letter. Please email directly instead.' });
+    }
+  } catch (err) {
+    console.error('Email provider error:', err);
+    return res.status(502).json({ error: 'Could not reach the mail service. Please try again later.' });
+  }
+
+  return res.status(200).json({ ok: true, message: 'Letter successfully delivered to Zarina!' });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 }

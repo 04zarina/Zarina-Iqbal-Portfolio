@@ -11,6 +11,8 @@ export interface InteractableConfig {
   position: THREE.Vector3;
   mesh?: THREE.Object3D;
   focusPose?: { position: THREE.Vector3; lookAt: THREE.Vector3 };
+  /** Meters subtracted from the distance when picking between overlapping items. */
+  priority?: number;
   onInteract: () => void | Promise<void>;
 }
 
@@ -56,16 +58,18 @@ export class InteractionSystem {
     let minDistance = Infinity;
 
     for (const item of this.interactables.values()) {
-      const dist = avatarPosition.distanceTo(item.position);
+      // Compare on the floor plane so tall props (corkboards, shelves) aren't penalised
+      const dist = Math.hypot(item.position.x - avatarPosition.x, item.position.z - avatarPosition.z);
       if (dist <= item.radius) {
         // Check facing direction roughly
-        this.tempVec.subVectors(item.position, avatarPosition).normalize();
+        this.tempVec.subVectors(item.position, avatarPosition).setY(0).normalize();
         const dot = forward.dot(this.tempVec);
 
         // Require either very close (<= 1.1m) or roughly facing (dot > -0.2)
         if (dist <= 1.1 || dot > -0.2) {
-          if (dist < minDistance) {
-            minDistance = dist;
+          const score = dist - (item.priority || 0);
+          if (score < minDistance) {
+            minDistance = score;
             nearest = item;
           }
         }

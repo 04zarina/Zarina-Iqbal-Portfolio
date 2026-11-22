@@ -11,11 +11,11 @@ export class AvatarController {
   public moveDirection: THREE.Vector3 = new THREE.Vector3();
 
   // Settings
-  public walkSpeed = 3.6;
-  public runSpeed = 6.2;
-  public acceleration = 24.0;
-  public damping = 16.0;
-  public turnSmoothness = 12.0;
+  public walkSpeed = 3.2;
+  public runSpeed = 5.6;
+  public acceleration = 9.0; // exponential ease toward target speed (per second)
+  public damping = 11.0;
+  public turnSmoothness = 13.0;
 
   // Keyboard state
   private keys: Record<string, boolean> = {};
@@ -44,6 +44,10 @@ export class AvatarController {
       if (e.code === 'Space') {
         e.preventDefault();
         this.avatar.hop();
+      }
+
+      if (e.code === 'KeyH' && !store.get().inputLocked) {
+        this.avatar.wave();
       }
     });
 
@@ -120,7 +124,7 @@ export class AvatarController {
       const targetSpeed = isRunning ? this.runSpeed : this.walkSpeed;
       const targetVel = this.moveDirection.clone().multiplyScalar(targetSpeed);
 
-      this.velocity.lerp(targetVel, Math.min(delta * this.acceleration, 1));
+      this.velocity.lerp(targetVel, 1 - Math.exp(-delta * this.acceleration));
 
       // Rotation towards direction
       const targetAngle = Math.atan2(this.moveDirection.x, this.moveDirection.z);
@@ -129,13 +133,13 @@ export class AvatarController {
       while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
       while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-      this.avatar.rotationY += angleDiff * Math.min(delta * this.turnSmoothness, 1);
+      this.avatar.rotationY += angleDiff * (1 - Math.exp(-delta * this.turnSmoothness));
       this.avatar.isMoving = true;
       this.avatar.isRunning = isRunning;
     } else {
       // Damping deceleration
-      this.velocity.lerp(new THREE.Vector3(0, 0, 0), Math.min(delta * this.damping, 1));
-      if (this.velocity.length() < 0.05) {
+      this.velocity.multiplyScalar(Math.exp(-delta * this.damping));
+      if (this.velocity.length() < 0.08) {
         this.velocity.set(0, 0, 0);
         this.avatar.isMoving = false;
         this.avatar.isRunning = false;
@@ -147,7 +151,8 @@ export class AvatarController {
     const resolvedPos = collisionSystem.resolve(newPos, 0.45);
     this.avatar.position.copy(resolvedPos);
 
-    // 3. Update Avatar animation
+    // 3. Update Avatar animation (stride follows actual ground speed so feet don't skate)
+    this.avatar.groundSpeed = this.velocity.length();
     this.avatar.update(delta);
 
     // 4. Update Interaction detection
