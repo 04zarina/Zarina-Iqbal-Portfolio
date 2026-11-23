@@ -241,7 +241,7 @@ export class HUD {
         store.set('activeOverlay', 'menu');
         eventBus.emit('overlay:open', 'menu');
       } else if (seg === 'travel') store.set('travelMode', btn.dataset.val as 'walk' | 'instant');
-      else if (seg === 'quality') qualityManager.setTier(btn.dataset.val as 'high' | 'medium' | 'low');
+      else if (seg === 'quality') qualityManager.setTier(btn.dataset.val as 'high' | 'medium' | 'low', true);
       setTimeout(() => this.refreshMenu(menu), 30);
     });
     menu.querySelectorAll<HTMLInputElement>('input[data-vol]').forEach((input) => {

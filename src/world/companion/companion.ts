@@ -173,29 +173,34 @@ export class Companion {
     // Zuzu waits where it is (otherwise it would trot round to her other side)
     this.holdTimer = 6;
     const doPet = () => {
-      // Turn a little to the left of Zuzu so it sits right under her right hand
       const toZuzu = Math.atan2(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
-      avatar.faceYaw = toZuzu + 0.34;
+      // The rigged Petting clip strokes straight ahead; the GPU rig uses the right hand
+      avatar.faceYaw = toZuzu + (avatar.hasRig ? 0 : 0.34);
       const petFor = avatar.doGesture('pet', 1.8) || 1.8;
+      const contact = avatar.gestureContact('pet');
       this.holdTimer = petFor + 0.4;
-      this.happyTimer = petFor;
       this.rotationY = toZuzu + Math.PI;
-      audioManager.playPurr();
       store.completeQuest('pet_zuzu');
-      const head = this.position.clone().add(new THREE.Vector3(0, 0.62, 0));
-      setTimeout(() => floatPop('💖', head, 'heart'), 250);
-      setTimeout(() => floatPop('💕', head.clone().add(new THREE.Vector3(0.15, 0.1, 0)), 'heart'), 650);
-      sparkleSystem.burst(head, 8);
-      this.say(['Purrr~ 💕', 'Mrrp! More pets please!', 'Hehe, that tickles! 🐾', 'You found my favourite spot ✨'][Math.floor(Math.random() * 4)], 2.5);
+      // Purr, hearts and the happy wiggle start when her hand actually reaches Zuzu
+      setTimeout(() => {
+        this.happyTimer = Math.max(0.8, petFor - contact);
+        audioManager.playPurr();
+        const head = this.position.clone().add(new THREE.Vector3(0, 0.62, 0));
+        floatPop('💖', head, 'heart');
+        setTimeout(() => floatPop('💕', head.clone().add(new THREE.Vector3(0.15, 0.1, 0)), 'heart'), 400);
+        sparkleSystem.burst(head, 8);
+        this.say(['Purrr~ 💕', 'Mrrp! More pets please!', 'Hehe, that tickles! 🐾', 'You found my favourite spot ✨'][Math.floor(Math.random() * 4)], 2.5);
+      }, contact * 1000);
     };
     if (avatar.isSitting) avatar.standUp();
     const d = Math.hypot(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
-    // Stand 0.55 m from Zuzu (arm's reach for a chibi), on the side she's coming from
+    // Stand at arm's reach from Zuzu, on the side she's coming from
     const dir = avatar.position.clone().sub(this.position).setY(0);
     if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
     dir.normalize();
-    const spot = this.position.clone().addScaledVector(dir, 0.55).setY(0);
-    if (this.isPerched || Math.abs(d - 0.55) < 0.2) doPet();
+    const reach = avatar.hasRig ? 0.45 : 0.55;
+    const spot = this.position.clone().addScaledVector(dir, reach).setY(0);
+    if (this.isPerched || Math.abs(d - reach) < 0.15) doPet();
     else {
       const path = navGrid.findPath(avatar.position, spot);
       if (path && path.length) avatar.followPath(path, 2.2, doPet);

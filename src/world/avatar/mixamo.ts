@@ -22,10 +22,20 @@ export const CLIP_KEYWORDS: Record<AvatarClip, string[]> = {
   wake: ['wakeup', 'getting up', 'stand up', 'wake'],
   pet: ['petting', 'pet', 'kneel', 'crouch'],
   cheer: ['cheer', 'victory', 'happy', 'clap', 'wave'],
-  reach: ['button', 'reach', 'grab', 'throw']
+  reach: ['button', 'reach', 'grab', 'throw'],
+  throw: ['throw']
 };
 
-export type AvatarClip = 'idle' | 'walk' | 'run' | 'wave' | 'sit' | 'sleep' | 'wake' | 'pet' | 'cheer' | 'reach';
+export type AvatarClip = 'idle' | 'walk' | 'run' | 'wave' | 'sit' | 'sleep' | 'wake' | 'pet' | 'cheer' | 'reach' | 'throw';
+
+/**
+ * Seconds to keep from long Mixamo clips: Petting stands idle for 2 s before reaching down and
+ * after standing back up; Throw has a slow start and a long settle at the end.
+ */
+const TRIM: Record<string, [number, number]> = {
+  Petting: [2.0, 8.6],
+  Throw: [0.25, 1.75]
+};
 
 export class MixamoAvatar {
   mixer: THREE.AnimationMixer;
@@ -34,6 +44,10 @@ export class MixamoAvatar {
 
   constructor(public root: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.mixer = new THREE.AnimationMixer(root);
+    clips = clips.map((c) => {
+      const t = TRIM[c.name];
+      return t ? THREE.AnimationUtils.subclip(c, c.name, Math.round(t[0] * 30), Math.round(t[1] * 30), 30) : c;
+    });
     (Object.keys(CLIP_KEYWORDS) as AvatarClip[]).forEach((key) => {
       const clip = CLIP_KEYWORDS[key]
         .map((kw) => clips.find((c) => c.name.toLowerCase().includes(kw)))

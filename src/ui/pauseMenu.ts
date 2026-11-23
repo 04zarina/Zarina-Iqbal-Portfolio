@@ -83,7 +83,7 @@ export class PauseMenuOverlay {
     this.overlay.querySelectorAll('.quality-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const q = (e.currentTarget as HTMLElement).getAttribute('data-quality') as QualityTier;
-        qualityManager.setTier(q);
+        qualityManager.setTier(q, true);
         this.render();
       });
     });

@@ -101,9 +101,11 @@ export class SceneManager {
 
     // 1. Dispose previous room
     if (this.currentRoom) {
-      this.scene.remove(this.currentRoom.group);
+      const old = this.currentRoom.group;
+      this.scene.remove(old);
       this.currentRoom.dispose();
       this.currentRoom = null;
+      releaseGpu(old);
     }
 
     // 2. Clear previous room collisions
@@ -217,4 +219,25 @@ export class SceneManager {
       this.currentRoom.update(delta);
     }
   }
+}
+
+/**
+ * Frees the GPU buffers of a room we left. Cached models are cloned and share geometry and
+ * textures with the cache; three.js simply re-uploads them if that room is visited again.
+ */
+function releaseGpu(root: THREE.Object3D): void {
+  const textures = new Set<THREE.Texture>();
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.geometry && !mesh.material) return;
+    mesh.geometry?.dispose();
+    const mats = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+    mats.forEach((m) => {
+      Object.values(m).forEach((v) => {
+        if (v && (v as THREE.Texture).isTexture) textures.add(v as THREE.Texture);
+      });
+      m.dispose();
+    });
+  });
+  textures.forEach((t) => t.dispose());
 }

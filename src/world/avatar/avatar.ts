@@ -5,6 +5,8 @@ import { AvatarRig, RigPose } from './rig';
 import { MixamoAvatar, RIGGED_AVATAR_URL } from './mixamo';
 import { audioManager } from '../../audio/audioManager';
 
+export type GestureKind = 'reach' | 'pet' | 'cheer' | 'think' | 'throw';
+
 export class Avatar {
   public group: THREE.Group = new THREE.Group();
   public position: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -37,8 +39,12 @@ export class Avatar {
   private waveTimer = -1;
   private readonly waveDuration = 2.0;
   /** Short one-off body gestures (reach toward an object, pet Zuzu, cheer, think). */
-  private gesture: { kind: 'reach' | 'pet' | 'cheer' | 'think'; t: number; dur: number } | null = null;
+  private gesture: { kind: GestureKind; t: number; dur: number } | null = null;
   private mixamo: MixamoAvatar | null = null;
+  /** True when the Mixamo-rigged model with real clips is in use. */
+  get hasRig(): boolean {
+    return this.mixamo !== null;
+  }
   /** Head-height point used by the first-person camera. */
   public readonly eyeHeight = 1.02;
   /** Path queue for auto-walking (room travel, click-to-walk). */
@@ -104,8 +110,9 @@ export class Avatar {
       this.mixamo = new MixamoAvatar(model, rigged.clips);
       this.mixamo.setSpeed('wave', 1.3);
       this.mixamo.setSpeed('cheer', 1.4);
-      this.mixamo.setSpeed('reach', 1.5);
-      this.mixamo.setSpeed('pet', 1.8);
+      this.mixamo.setSpeed('reach', 1.3);
+      this.mixamo.setSpeed('throw', 1.2);
+      this.mixamo.setSpeed('pet', 1.6);
       this.mixamo.setSpeed('sleep', 1.4);
       this.mixamo.setSpeed('wake', 1.5);
       this.hasExternalModel = true;
@@ -254,6 +261,9 @@ export class Avatar {
     this.modelContainer.add(this.leftLeg, this.rightLeg);
   }
 
+  /** Blend from where she stood into the bed-edge pose when she lies down. */
+  private bedTween: { from: THREE.Vector3; yaw: number; t: number } | null = null;
+
   /** Last bed spot given to startInBed/goToBed. */
   private lastBedPos: THREE.Vector3 | null = null;
 
@@ -269,8 +279,10 @@ export class Avatar {
     const hipsZ = p < 0.4 ? -0.27 : p < 0.6 ? THREE.MathUtils.lerp(-0.27, -0.23, (p - 0.4) / 0.2) : p < 0.8 ? THREE.MathUtils.lerp(-0.23, -0.02, (p - 0.6) / 0.2) : -0.01;
     const k = THREE.MathUtils.smoothstep(p, 0.42, 0.78);
     const yaw = k * (Math.PI / 2);
-    const hipsX = THREE.MathUtils.lerp(bedPos.x, bedPos.x + 0.62, k);
-    const hipsWZ = THREE.MathUtils.lerp(bedPos.z - 0.55, bedPos.z - 0.35, k);
+    // Lying on the room-side half of the bed (head on that pillow), so going from the edge to
+    // lying down is a short shuffle sideways rather than a slide across the mattress
+    const hipsX = THREE.MathUtils.lerp(bedPos.x + 0.4, bedPos.x + 0.62, k);
+    const hipsWZ = bedPos.z - 0.55;
     this.position.set(hipsX - Math.sin(yaw) * hipsZ, 0.27, hipsWZ - Math.cos(yaw) * hipsZ);
     this.rotationY = yaw;
     this.rootNode.position.set(0, 0, 0);
@@ -286,6 +298,7 @@ export class Avatar {
     this.isMoving = false;
     this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
+      this.bedTween = null;
       this.placeInBed(bedPos, 0);
       this.mixamo.play('sleep', 0, true, true); // already lying down
       return;
@@ -312,10 +325,22 @@ export class Avatar {
     this.gesture = null;
     this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
-      // Sit on the edge, lie back and swivel onto the pillow (LyingDown clip, held on its last frame)
-      this.placeInBed(bedPos, 1);
-      this.mixamo.play('sleep', 0.3, true);
-      onComplete?.();
+      // Walk up to the side of the bed, sit on the edge, lie back and swivel onto the pillow
+      // (LyingDown clip, held on its last frame)
+      this.isSleeping = false;
+      const stand = new THREE.Vector3(bedPos.x + 1.1, 0, bedPos.z - 0.55);
+      const lie = () => {
+        this.isSleeping = true;
+        this.isWakingUp = false;
+        this.isMoving = false;
+        this.groundSpeed = 0;
+        this.bedTween = { from: this.position.clone(), yaw: this.rotationY, t: 0 };
+        this.mixamo!.play('sleep', 0.45, true);
+        this.shadow.visible = false;
+        onComplete?.();
+      };
+      if (Math.hypot(this.position.x - stand.x, this.position.z - stand.z) > 0.25) this.walkTo(stand, 1.8, lie);
+      else lie();
       return;
     }
     this.position.copy(bedPos);
@@ -346,6 +371,7 @@ export class Avatar {
     this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
       // WakeUp clip (LyingDown reversed): sit up on the edge, then hop down and walk out
+      this.bedTween = null;
       this.placeInBed(bedPos, 0);
       this.mixamo.play('sleep', 0, true, true);
       this.mixamo.play('wake', 0.15, true);
@@ -375,8 +401,41 @@ export class Avatar {
     // them ~0.07 m above the seat. GPU rig: the rig swings the legs forward (see updateRig).
     this.rootNode.rotation.set(0, 0, 0);
     this.rootNode.scale.set(1, 1, 1);
-    this.rootNode.position.set(0, this.mixamo ? 0.07 - 0.365 : this.rigged ? -0.4 : -0.06, 0);
+    if (this.mixamo) {
+      // Seat heights in room code are estimates; measure the real seat top under her hips so she
+      // never sinks into a stool or floats above a cushion. Sitting clip: hips 0.365 m above its floor.
+      const top = this.findSeatTop(chairPos.x, chairPos.z, seatHeight);
+      this.rootNode.position.set(0, top - seatHeight + 0.06 - 0.365, 0);
+    } else {
+      this.rootNode.position.set(0, this.rigged ? -0.4 : -0.06, 0);
+    }
     this.shadow.visible = false;
+  }
+
+  private seatRay = new THREE.Raycaster();
+
+  /** Highest surface within ~0.3 m of the expected seat height at (x, z), or the guess itself. */
+  private findSeatTop(x: number, z: number, guess: number): number {
+    let root: THREE.Object3D = this.group;
+    while (root.parent) root = root.parent;
+    if (root === this.group) return guess;
+    const meshes: THREE.Object3D[] = [];
+    root.traverseVisible((o) => {
+      if ((o as THREE.Mesh).isMesh && !(o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o);
+    });
+    const avatar = this.group;
+    this.seatRay.set(new THREE.Vector3(x, guess + 0.35, z), new THREE.Vector3(0, -1, 0));
+    this.seatRay.far = 0.65;
+    for (const hit of this.seatRay.intersectObjects(meshes, false)) {
+      let o: THREE.Object3D | null = hit.object;
+      let mine = false;
+      while (o) {
+        if (o === avatar) mine = true;
+        o = o.parent;
+      }
+      if (!mine && hit.point.y >= guess - 0.25) return hit.point.y;
+    }
+    return guess;
   }
 
   /** Where to stand when getting up from the current seat. */
@@ -429,7 +488,7 @@ export class Avatar {
 
   /** One-off gesture. 'reach' for touching objects, 'pet' for Zuzu, 'cheer' for wins, 'think' for reading. */
   /** Returns how long the gesture lasts in seconds (0 if skipped). */
-  doGesture(kind: 'reach' | 'pet' | 'cheer' | 'think', dur?: number): number {
+  doGesture(kind: GestureKind, dur?: number): number {
     if (this.isSleeping || this.isWakingUp) return 0;
     if (this.isSitting && kind !== 'think' && kind !== 'reach') return 0;
     if (this.mixamo) {
@@ -440,9 +499,21 @@ export class Avatar {
       this.mixamo.play(kind, 0.2, true);
       return d;
     }
-    const d = dur ?? { reach: 0.9, pet: 1.6, cheer: 1.4, think: 1.8 }[kind];
+    const d = dur ?? { reach: 0.9, pet: 1.6, cheer: 1.4, think: 1.8, throw: 0.9 }[kind];
     this.gesture = { kind, t: 0, dur: d };
     return d;
+  }
+
+  /**
+   * Seconds from the start of a gesture to its key moment: the hand touching Zuzu ('pet') or
+   * letting go of the ball ('throw'). Use it to time hearts, purrs and the ball's launch.
+   */
+  gestureContact(kind: GestureKind): number {
+    if (!this.mixamo) return kind === 'pet' ? 0.4 : kind === 'throw' ? 0.35 : 0;
+    // Clip times after trimming (see TRIM in mixamo.ts), divided by playback speed
+    if (kind === 'pet') return 2.5 / 1.6;
+    if (kind === 'throw') return 0.6 / 1.2;
+    return 0;
   }
 
   /** Walk a list of waypoints in order (from the navigation grid). */
@@ -565,7 +636,7 @@ export class Avatar {
       const p = g.t / g.dur;
       const w = Math.max(0, Math.min(1, Math.min(p, 1 - p) * 5));
       const set = (k: keyof RigPose, v: number) => (target[k] = THREE.MathUtils.lerp(target[k] as number, v, w));
-      if (g.kind === 'reach') {
+      if (g.kind === 'reach' || g.kind === 'throw') {
         set('armDownR', 1.05);
         set('armSwingR', 1.0);
         set('elbowR', 0.25);
@@ -779,7 +850,20 @@ export class Avatar {
     }
 
     if (this.isSleeping && this.mixamo) {
-      if (this.lastBedPos) this.placeInBed(this.lastBedPos, 1 - this.mixamo.progress('sleep'));
+      if (this.lastBedPos) {
+        this.placeInBed(this.lastBedPos, 1 - this.mixamo.progress('sleep'));
+        const tw = this.bedTween;
+        if (tw) {
+          tw.t += delta;
+          const k = THREE.MathUtils.smoothstep(Math.min(1, tw.t / 0.45), 0, 1);
+          this.position.lerpVectors(tw.from, this.position, k);
+          let d = this.rotationY - tw.yaw;
+          while (d > Math.PI) d -= Math.PI * 2;
+          while (d < -Math.PI) d += Math.PI * 2;
+          this.rotationY = tw.yaw + d * k;
+          if (k >= 1) this.bedTween = null;
+        }
+      }
       return;
     }
 

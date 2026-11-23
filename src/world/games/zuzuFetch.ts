@@ -9,7 +9,7 @@ import { refs } from '../refs';
 
 const ROUNDS = 5;
 const BEST_KEY = 'zuzu_fetch_best';
-type Phase = 'idle' | 'flying' | 'chasing' | 'returning' | 'celebrate';
+type Phase = 'idle' | 'windup' | 'flying' | 'chasing' | 'returning' | 'celebrate';
 
 const PRAISE = ['Got it! 🎾', 'Zoom zoom! 💨', 'Again again! 🐾', 'Best throw ever! 💕', 'Fetch master! ✨'];
 
@@ -146,20 +146,36 @@ export class ZuzuFetch {
         break;
       }
     }
-    this.ballFrom.set(av.position.x, 1.2, av.position.z);
+    // Turn toward the landing spot and wind up; the ball leaves her hand at the Throw clip's release
+    av.faceYaw = Math.atan2(spot.x - av.position.x, spot.z - av.position.z);
+    av.doGesture('throw');
     this.ballTo.copy(spot).setY(0.11);
+    this.windupLeft = av.gestureContact('throw');
+    this.carrying = false;
+    this.phase = 'windup';
+    this.t = 0;
+    this.renderBar();
+  }
+
+  private windupLeft = 0;
+
+  private launchBall(): void {
+    const av = refs.avatar;
+    const zuzu = refs.companion;
+    if (!av || !zuzu) return;
+    // From just above her right shoulder, where the hand is at release
+    const yaw = av.rotationY;
+    this.ballFrom.set(av.position.x - Math.cos(yaw) * 0.12 + Math.sin(yaw) * 0.2, 1.1, av.position.z + Math.sin(yaw) * 0.12 + Math.cos(yaw) * 0.2);
     this.ball.position.copy(this.ballFrom);
     this.ballFade = 0;
     this.ball.scale.setScalar(1);
     this.ball.visible = true;
-    this.carrying = false;
     this.phase = 'flying';
     this.t = 0;
     audioManager.playPop();
     // Zuzu sets off right away, watching the ball land
-    zuzu.gameTarget = spot.clone();
+    zuzu.gameTarget = this.ballTo.clone().setY(0);
     zuzu.say('Wheee! 🐾', 1.2);
-    this.renderBar();
   }
 
   update(delta: number): void {
@@ -169,7 +185,10 @@ export class ZuzuFetch {
     if (!zuzu || !av) return;
     this.t += delta;
 
-    if (this.phase === 'flying') {
+    if (this.phase === 'windup') {
+      this.windupLeft -= delta;
+      if (this.windupLeft <= 0) this.launchBall();
+    } else if (this.phase === 'flying') {
       const k = Math.min(1, this.t / 0.8);
       this.ball.position.lerpVectors(this.ballFrom, this.ballTo, k);
       this.ball.position.y = THREE.MathUtils.lerp(this.ballFrom.y, this.ballTo.y, k) + Math.sin(k * Math.PI) * 1.6;
