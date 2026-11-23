@@ -171,9 +171,9 @@
         <input id="cf-name" type="text" name="name" required minlength="2" maxlength="80" placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
         <input type="email" name="email" required maxlength="254" aria-label="Your email" placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
         <input type="text" name="subject" required minlength="3" maxlength="120" aria-label="Subject" placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <textarea name="message" required minlength="10" maxlength="2000" aria-label="Message" rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
+        <textarea name="message" required maxlength="2000" aria-label="Message" rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
         <button type="submit" class="sticker-btn accent-butter" style="align-self:flex-start;">Submit Message ✉️</button>
-        <p id="classic-contact-status" role="status" aria-live="polite" style="display:none; font-weight:700;"></p>
+        <div id="classic-contact-status" class="contact-status" role="status" aria-live="polite"></div>
       </form>
     </section>
   </div>

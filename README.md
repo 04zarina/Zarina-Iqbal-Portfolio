@@ -189,6 +189,12 @@ Secrets live only in Vercel environment variables, never in the repo.
 | `GEMINI_API_KEY` | Chatbot answers | From aistudio.google.com > Get API key |
 | `GEMINI_MODEL` | Optional | Comma list tried in order, defaults to `gemini-3.8-flash,gemini-flash-latest,gemini-flash-lite-latest` |
 
+**Contact form checklist (Brevo):**
+1. Set the variables above for the **Production** environment, then **redeploy** (Vercel only picks up new values on a new deployment).
+2. In Brevo > Security > Authorised IPs, **deactivate IP blocking**. Vercel functions have no fixed IP, so with blocking on every send fails with 401.
+3. The sender (`CONTACT_FROM_EMAIL`, or `CONTACT_TO_EMAIL` if unset) must be a verified sender in Brevo.
+4. Open `https://<your-site>/api/contact` in a browser. It sends nothing and answers with `status` (`ok`, `not_configured`, `ip_blocked`, `invalid_key`, `sender_not_verified`) and a hint on what to fix. Failed sends are logged in Vercel > Logs with the reason.
+
 After changing anything in `content/`, run `npm run ingest` and commit `server-data/index.json`.
 
 ---
