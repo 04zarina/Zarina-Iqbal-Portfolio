@@ -7,7 +7,7 @@ import type { RoomId } from '../../core/store';
 import { audioManager } from '../../audio/audioManager';
 
 /** Showreel tape: stands on the desk between the lamp and the front edge, big enough to spot. */
-const TAPE_POS = new THREE.Vector3(1.6, 0.76, -2.82);
+const TAPE_POS = new THREE.Vector3(1.75, 0.76, -2.82);
 /** Desk lamp state survives leaving and re-entering the bedroom. Off when she first wakes up. */
 let lampOn = false;
 const MIRROR_X = -0.8;
@@ -124,7 +124,7 @@ export class BedroomRoom {
     // Bed collision
     collisionSystem.addBox(-4.8, -2.1, -3.8, -1.0);
     // Desk collision (matches the 1.3 x 0.74 m table, so you can walk right up to it)
-    collisionSystem.addBox(1.15, 2.47, -3.8, -2.76);
+    collisionSystem.addBox(0.8, 2.8, -3.8, -2.76);
     // Wardrobe collision
     collisionSystem.addBox(4.0, 4.8, -1.9, -0.5);
     // Grandfather clock, floor lamp, armchair and plant
@@ -135,13 +135,13 @@ export class BedroomRoom {
 
     // 4. Point light for bedroom lamp
     this.lampLight = new THREE.PointLight(0xFFC27A, 1.4, 12, 1.2);
-    this.lampLight.position.set(1.35, 1.25, -3.0);
+    this.lampLight.position.set(1.1, 1.25, -3.0);
     this.group.add(this.lampLight);
     // Glowing bulb + halo inside the shade, only lit when the lamp is on
     this.lampBulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true }));
-    this.lampBulb.position.set(1.35, 1.12, -3.25);
+    this.lampBulb.position.set(1.1, 1.12, -3.25);
     this.lampHalo = this.night.halo(0xffd08a, 1.4);
-    this.lampHalo.position.set(1.35, 1.15, -3.2);
+    this.lampHalo.position.set(1.1, 1.15, -3.2);
     this.lampHalo.userData.manual = true;
     this.group.add(this.lampBulb, this.lampHalo);
     themeManager.setInteriorLight(lampOn ? 1 : 0, true);
@@ -249,6 +249,7 @@ export class BedroomRoom {
     if (deskGltf) {
       deskGltf.position.set(1.8, 0, -3.1);
       deskGltf.rotation.y = 0;
+      deskGltf.scale.x = 1.5; // wider top: lamp, cassette and TV each get their own spot
       this.group.add(deskGltf);
     } else {
       this.buildFallbackDesk();
@@ -268,7 +269,7 @@ export class BedroomRoom {
     const tvGltf = await assetLoader.loadGLTF('tv');
     if (tvGltf) {
       const tv = recenter(tvGltf);
-      tv.position.set(2.1, 0.76, -3.15);
+      tv.position.set(2.4, 0.76, -3.15);
       tv.rotation.y = Math.PI;
       tv.scale.setScalar(0.36);
       this.group.add(tv);
@@ -306,7 +307,7 @@ export class BedroomRoom {
     const lampGltf = await assetLoader.loadGLTF('lamp_table');
     if (lampGltf) {
       const lamp = recenter(lampGltf);
-      lamp.position.set(1.35, 0.76, -3.25);
+      lamp.position.set(1.1, 0.76, -3.25);
       lamp.scale.setScalar(1.9);
       this.group.add(lamp);
     } else {
@@ -371,7 +372,7 @@ export class BedroomRoom {
 
   private buildFallbackLamp(): void {
     const lampGroup = new THREE.Group();
-    lampGroup.position.set(1.35, 0.76, -3.25);
+    lampGroup.position.set(1.1, 0.76, -3.25);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 16), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
     base.position.y = 0.02;
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 8), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
@@ -650,8 +651,9 @@ export class BedroomRoom {
       id: 'lamp',
       label: lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡',
       keyHint: 'E',
-      radius: 1.8,
-      position: new THREE.Vector3(1.35, 1.0, -3.0),
+      radius: 1.5,
+      priority: 0.6,
+      position: new THREE.Vector3(1.1, 0.9, -2.55),
       onInteract: () => this.toggleLamp()
     });
 
@@ -795,7 +797,7 @@ export class BedroomRoom {
     // Lamp on = morning: the whole studio turns to day. Lamp off = back to night.
     store.set('theme', lampOn ? 'day' : 'dusk');
     audioManager.playClick();
-    sparkleSystem.burst(new THREE.Vector3(1.35, 1.3, -3.1), 12);
+    sparkleSystem.burst(new THREE.Vector3(1.1, 1.3, -3.1), 12);
     const item = (interactionSystem as any).interactables?.get('lamp');
     if (item) {
       item.label = lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡';
