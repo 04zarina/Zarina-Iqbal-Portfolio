@@ -198,6 +198,7 @@ export class Companion {
     const dir = avatar.position.clone().sub(this.position).setY(0);
     if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
     dir.normalize();
+    // Rigged: her hand ends ~0.33 m in front of her at Zuzu's head height
     const reach = avatar.hasRig ? 0.45 : 0.55;
     const spot = this.position.clone().addScaledVector(dir, reach).setY(0);
     if (this.isPerched || Math.abs(d - reach) < 0.15) doPet();

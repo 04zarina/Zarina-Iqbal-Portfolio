@@ -96,6 +96,7 @@ export class Avatar {
       model.position.y = -new THREE.Box3().setFromObject(model).min.y;
       model.traverse((o) => {
         if ((o as THREE.Bone).isBone && /RightHand$/.test(o.name)) this.rightHand = o;
+        if ((o as THREE.Bone).isBone && /RightForeArm$/.test(o.name)) this.rightForeArm = o;
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;
         mesh.frustumCulled = false;
@@ -113,7 +114,8 @@ export class Avatar {
       this.mixamo.setSpeed('cheer', 1.4);
       this.mixamo.setSpeed('reach', 1.3);
       this.mixamo.setSpeed('throw', 1.2);
-      this.mixamo.setSpeed('pet', 2.0);
+      this.mixamo.setSpeed('pet', 1.2);
+      this.mixamo.setSpeed('petUp', 1.2);
       this.mixamo.setSpeed('sleep', 1.4);
       this.mixamo.setSpeed('wake', 1.5);
       this.hasExternalModel = true;
@@ -496,7 +498,9 @@ export class Avatar {
       // Clips: keep the Sitting pose while seated; standing gestures play their whole clip.
       // Touching objects (lamp, books...) has no fitting clip, so she just stays relaxed.
       if (this.isSitting || kind === 'think' || kind === 'reach') return 0;
-      const d = this.mixamo.duration(kind) || dur || 1;
+      this.waveTimer = -1; // a new gesture replaces a wave in progress
+      // Petting: bend down (PetDown), stroke for a moment, straighten up (PetUp)
+      const d = kind === 'pet' ? this.mixamo.duration('pet') + this.petHold + this.mixamo.duration('petUp') : this.mixamo.duration(kind) || dur || 1;
       this.gesture = { kind, t: 0, dur: d };
       this.mixamo.play(kind, 0.2, true);
       return d;
@@ -513,7 +517,7 @@ export class Avatar {
   gestureContact(kind: GestureKind): number {
     if (!this.mixamo) return kind === 'pet' ? 0.4 : kind === 'throw' ? 0.35 : 0;
     // Clip times after trimming (see TRIM in mixamo.ts), divided by playback speed
-    if (kind === 'pet') return 1.85 / 2.0;
+    if (kind === 'pet') return this.mixamo.duration('pet') * 0.85;
     if (kind === 'throw') return 0.6 / 1.2;
     return 0;
   }
@@ -550,6 +554,9 @@ export class Avatar {
   /** Something held in her right hand (e.g. the watering can). */
   private heldProp: THREE.Object3D | null = null;
   private rightHand: THREE.Object3D | null = null;
+  private rightForeArm: THREE.Object3D | null = null;
+  /** Seconds she keeps stroking Zuzu before straightening up. */
+  private readonly petHold = 1.6;
   private handTmp = new THREE.Vector3();
   attachToHand(obj: THREE.Object3D | null): void {
     if (this.heldProp) this.rootNode.remove(this.heldProp);
@@ -718,9 +725,18 @@ export class Avatar {
       this.waveTimer += delta;
       if (this.waveTimer > m.duration('wave')) this.waveTimer = -1;
     } else if (this.gesture) {
-      m.play(this.gesture.kind === 'think' ? 'idle' : this.gesture.kind, 0.2, true);
+      const g = this.gesture;
+      if (g.kind === 'pet') m.play(g.t < m.duration('pet') + this.petHold ? 'pet' : 'petUp', 0.25, true);
+      else m.play(g.kind === 'think' ? 'idle' : g.kind, 0.2, true);
     } else m.play('idle', 0.3);
     m.update(delta);
+    // Stroke Zuzu while bent over: rock the forearm on top of the clip's held pose
+    const g = this.gesture;
+    if (g && g.kind === 'pet' && this.rightForeArm) {
+      const down = m.duration('pet');
+      const k = THREE.MathUtils.clamp(Math.min(g.t - down * 0.8, down + this.petHold - g.t) * 4, 0, 1);
+      if (k > 0) this.rightForeArm.rotateX(Math.sin((g.t - down) * 9) * 0.22 * k);
+    }
   }
 
   update(delta: number): void {

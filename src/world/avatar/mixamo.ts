@@ -20,21 +20,31 @@ export const CLIP_KEYWORDS: Record<AvatarClip, string[]> = {
   sit: ['sitting idle', 'sit idle', 'sitting', 'sit'],
   sleep: ['lyingdown', 'lying', 'laying', 'sleep'],
   wake: ['wakeup', 'getting up', 'stand up', 'wake'],
-  pet: ['petting', 'pet', 'kneel', 'crouch'],
+  pet: ['petdown', 'petting', 'pet', 'kneel', 'crouch'],
+  petUp: ['petup'],
   cheer: ['cheer', 'victory', 'happy', 'clap', 'wave'],
   reach: ['button', 'reach', 'grab'],
   throw: ['throw']
 };
 
-export type AvatarClip = 'idle' | 'walk' | 'run' | 'wave' | 'sit' | 'sleep' | 'wake' | 'pet' | 'cheer' | 'reach' | 'throw';
+export type AvatarClip = 'idle' | 'walk' | 'run' | 'wave' | 'sit' | 'sleep' | 'wake' | 'pet' | 'petUp' | 'cheer' | 'reach' | 'throw';
 
 /**
  * Seconds to keep from long Mixamo clips: Petting stands idle for 2 s before reaching down and
  * after standing back up; Throw has a slow start and a long settle at the end.
  */
 const TRIM: Record<string, [number, number]> = {
-  Petting: [2.6, 8.0],
   Throw: [0.25, 1.75]
+};
+
+/**
+ * Extra clips cut from a source clip. Mixamo's Petting bends right down to pet a dog on the
+ * floor, which would put her head into Zuzu; so she only bends until her hand is at Zuzu's head
+ * height (PetDown, held while she strokes), then straightens up with the clip's own stand-up.
+ */
+const CUTS: Record<string, [string, number, number]> = {
+  PetDown: ['Petting', 2.6, 3.8],
+  PetUp: ['Petting', 7.3, 8.0]
 };
 
 export class MixamoAvatar {
@@ -44,10 +54,15 @@ export class MixamoAvatar {
 
   constructor(public root: THREE.Object3D, clips: THREE.AnimationClip[]) {
     this.mixer = new THREE.AnimationMixer(root);
+    const cuts = Object.entries(CUTS).flatMap(([name, [src, a, b]]) => {
+      const c = clips.find((x) => x.name === src);
+      return c ? [THREE.AnimationUtils.subclip(c, name, Math.round(a * 30), Math.round(b * 30), 30)] : [];
+    });
     clips = clips.map((c) => {
       const t = TRIM[c.name];
       return t ? THREE.AnimationUtils.subclip(c, c.name, Math.round(t[0] * 30), Math.round(t[1] * 30), 30) : c;
     });
+    clips = [...cuts, ...clips];
     (Object.keys(CLIP_KEYWORDS) as AvatarClip[]).forEach((key) => {
       const clip = CLIP_KEYWORDS[key]
         .map((kw) => clips.find((c) => c.name.toLowerCase().includes(kw)))
