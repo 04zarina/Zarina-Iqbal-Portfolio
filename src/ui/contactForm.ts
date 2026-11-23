@@ -28,13 +28,13 @@ export class ContactFormOverlay {
 
           <div>
             <label style="font-family:var(--font-display); font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Your Name</label>
-            <input type="text" name="name" required minlength="2" maxlength="80" placeholder="e.g. Robin" 
+            <input type="text" name="name" required minlength="2" maxlength="80" placeholder="e.g. Zuzu" 
               style="width:100%; padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa); font-family:var(--font-body); background:var(--surface-color);" />
           </div>
 
           <div>
             <label style="font-family:var(--font-display); font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Your Email Address</label>
-            <input type="email" name="email" required maxlength="254" placeholder="robin@example.com"
+            <input type="email" name="email" required maxlength="254" placeholder="zuzu@meow.com"
               style="width:100%; padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa); font-family:var(--font-body); background:var(--surface-color);" />
           </div>
 
