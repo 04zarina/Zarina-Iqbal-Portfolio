@@ -2,6 +2,7 @@ import { store } from '../core/store';
 import { eventBus } from '../core/events';
 import { sendContact } from '../core/sendContact';
 import { audioManager } from '../audio/audioManager';
+import { clearFieldErrors, hideStatus, setError, setSending, showFieldErrors } from './contactStatus';
 
 export class ContactFormOverlay {
   private overlay: HTMLElement;
@@ -49,12 +50,22 @@ export class ContactFormOverlay {
               style="width:100%; padding:10px 14px; border-radius:14px; border:2px solid var(--cocoa); font-family:var(--font-body); background:var(--surface-color); resize:vertical;"></textarea>
           </div>
 
-          <div id="contact-status-msg" role="status" aria-live="polite" style="font-size:0.88rem; font-weight:700; display:none;"></div>
+          <div id="contact-status-msg" class="contact-status" role="status" aria-live="polite"></div>
 
           <button type="submit" class="sticker-btn accent-butter" id="contact-submit-btn" style="margin-top:6px; padding:12px;">
             Post Letter in Mailbox ✉️
           </button>
         </form>
+
+        <div id="contact-success" class="contact-success" hidden>
+          <div class="contact-success-icon" aria-hidden="true">💌</div>
+          <h3>Letter delivered!</h3>
+          <p>Thanks for writing. Zarina will reply to the email address you gave.</p>
+          <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button type="button" class="sticker-btn accent-mint" id="contact-done-btn">Back to the room</button>
+            <button type="button" class="sticker-btn accent-butter" id="contact-another-btn">Write another</button>
+          </div>
+        </div>
       </div>
     `;
 
@@ -69,6 +80,8 @@ export class ContactFormOverlay {
     });
 
     const form = this.overlay.querySelector('#contact-form') as HTMLFormElement;
+    this.overlay.querySelector('#contact-done-btn')?.addEventListener('click', () => this.close());
+    this.overlay.querySelector('#contact-another-btn')?.addEventListener('click', () => this.showForm());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       await this.handleSubmit(form);
@@ -79,7 +92,19 @@ export class ContactFormOverlay {
     });
   }
 
+  /** Shows the empty form again (after a delivered letter or on reopen). */
+  private showForm(): void {
+    const form = this.overlay.querySelector('#contact-form') as HTMLFormElement;
+    (this.overlay.querySelector('#contact-success') as HTMLElement).hidden = true;
+    form.hidden = false;
+    clearFieldErrors(form);
+    hideStatus(this.overlay.querySelector('#contact-status-msg') as HTMLElement);
+    this.formTimestamp = Date.now();
+    (this.overlay.querySelector('#form-ts') as HTMLInputElement).value = String(this.formTimestamp);
+  }
+
   open(): void {
+    if (!(this.overlay.querySelector('#contact-success') as HTMLElement).hidden) this.showForm();
     this.formTimestamp = Date.now();
     (this.overlay.querySelector('#form-ts') as HTMLInputElement).value = String(this.formTimestamp);
     this.overlay.classList.add('active');
@@ -114,31 +139,38 @@ export class ContactFormOverlay {
 
     submitBtn.disabled = true;
     submitBtn.innerText = 'Delivering Letter... 🕊️';
-    statusMsg.style.display = 'none';
+    clearFieldErrors(form);
+    setSending(statusMsg);
 
     const formData = new FormData(form);
-    const result = await sendContact({
-      name: String(formData.get('name') || '').trim(),
-      email: String(formData.get('email') || '').trim(),
-      subject: String(formData.get('subject') || '').trim(),
-      message: String(formData.get('message') || '').trim(),
-      website: String(formData.get('website') || ''),
-      ts: Number(formData.get('ts'))
-    });
-
     try {
+      const result = await sendContact({
+        name: String(formData.get('name') || '').trim(),
+        email: String(formData.get('email') || '').trim(),
+        subject: String(formData.get('subject') || '').trim(),
+        message: String(formData.get('message') || '').trim(),
+        website: String(formData.get('website') || ''),
+        ts: Number(formData.get('ts'))
+      });
+
       if (result.ok) {
         this.triggerFlyingMailAnimation();
         audioManager.playMailSent();
         store.completeQuest('send_letter');
         eventBus.emit('toast:show', 'Letter delivered to Zarina\'s inbox! 💌');
         form.reset();
-        this.close();
+        hideStatus(statusMsg);
+        form.hidden = true;
+        const success = this.overlay.querySelector('#contact-success') as HTMLElement;
+        success.hidden = false;
+        (success.querySelector('#contact-done-btn') as HTMLButtonElement).focus();
       } else {
-        statusMsg.style.display = 'block';
-        statusMsg.innerHTML = result.mailto
-          ? `${result.error} <a href="${result.mailto}" style="font-weight:700;">Send it from your email app instead ✉️</a>`
-          : result.error;
+        setError(statusMsg, result);
+        showFieldErrors(form, result.fields)?.focus();
+        if (result.code === 'too_fast') {
+          this.formTimestamp = Date.now() - 3000;
+          (this.overlay.querySelector('#form-ts') as HTMLInputElement).value = String(this.formTimestamp);
+        }
         audioManager.playError();
       }
     } finally {

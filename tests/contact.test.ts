@@ -121,6 +121,79 @@ describe('/api/contact handler', () => {
   });
 });
 
+describe('/api/contact error reporting', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.BREVO_API_KEY;
+    delete process.env.CONTACT_FROM_EMAIL;
+  });
+
+  it('names the bad field so the form can point at it', async () => {
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: { ...goodBody(), email: 'nope' }, headers: { 'x-forwarded-for': '5.5.5.5' } }, res);
+    expect(out.code).toBe(400);
+    expect(out.body.code).toBe('invalid');
+    expect(out.body.fields.email).toMatch(/email/i);
+  });
+
+  it('does not count invalid attempts against the hourly limit', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '' }));
+    for (let i = 0; i < 6; i++) {
+      const { res } = mockRes();
+      await handler({ method: 'POST', body: { ...goodBody(), message: 'short' }, headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
+    }
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
+    expect(out.code).toBe(200);
+  });
+
+  it('flags a Brevo IP block / bad key as provider_auth', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '{"code":"unauthorized","message":"We have detected you are using an unrecognised IP address"}' })
+    );
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '7.7.7.7' } }, res);
+    expect(out.code).toBe(502);
+    expect(out.body.code).toBe('provider_auth');
+    expect(JSON.stringify(out.body)).not.toContain('test-key');
+  });
+
+  it('health check reports a missing key', async () => {
+    const { res, out } = mockRes();
+    await handler({ method: 'GET', headers: {} }, res);
+    expect(out.body.status).toBe('not_configured');
+  });
+
+  it('health check spots an IP block', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => 'unrecognised IP address' }));
+    const { res, out } = mockRes();
+    await handler({ method: 'GET', headers: {} }, res);
+    expect(out.body.status).toBe('ip_blocked');
+  });
+
+  it('health check spots an unverified sender, and passes when verified', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    process.env.CONTACT_FROM_EMAIL = 'hello@example.com';
+    const make = (email: string) =>
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ senders: [{ email, active: true }] }) });
+    vi.stubGlobal('fetch', make('other@example.com'));
+    let r = mockRes();
+    await handler({ method: 'GET', headers: {} }, r.res);
+    expect(r.out.body.status).toBe('sender_not_verified');
+    vi.stubGlobal('fetch', make('Hello@Example.com'));
+    r = mockRes();
+    await handler({ method: 'GET', headers: {} }, r.res);
+    expect(r.out.body.status).toBe('ok');
+  });
+});
+
 describe('/api/chat handler without an API key', () => {
   it('answers extractively with cited sources', async () => {
     delete process.env.GEMINI_API_KEY;

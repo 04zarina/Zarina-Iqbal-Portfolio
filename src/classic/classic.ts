@@ -1,4 +1,5 @@
 import { sendContact } from '../core/sendContact';
+import { clearFieldErrors, setError, setSending, setSuccess, showFieldErrors } from '../ui/contactStatus';
 import projectsData from '../../content/projects.json';
 import type { Project } from '../content/types';
 import skillsData from '../../content/skills.json';
@@ -121,25 +122,28 @@ const formOpenedAt = Date.now();
 classicForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(classicForm);
-  const status = document.getElementById('classic-contact-status');
+  const status = document.getElementById('classic-contact-status') as HTMLElement;
   const btn = classicForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   btn.disabled = true;
-  const result = await sendContact({
-    name: String(fd.get('name') || '').trim(),
-    email: String(fd.get('email') || '').trim(),
-    subject: String(fd.get('subject') || '').trim(),
-    message: String(fd.get('message') || '').trim(),
-    website: String(fd.get('website') || ''),
-    ts: formOpenedAt
-  });
-  btn.disabled = false;
-  if (status) {
-    status.style.display = 'block';
+  clearFieldErrors(classicForm);
+  setSending(status);
+  try {
+    const result = await sendContact({
+      name: String(fd.get('name') || '').trim(),
+      email: String(fd.get('email') || '').trim(),
+      subject: String(fd.get('subject') || '').trim(),
+      message: String(fd.get('message') || '').trim(),
+      website: String(fd.get('website') || ''),
+      ts: formOpenedAt
+    });
     if (result.ok) {
-      status.textContent = 'Thank you! Your message is on its way to Zarina.';
+      setSuccess(status, 'Thank you! Your message was delivered. Zarina will reply to the email address you gave.');
       classicForm.reset();
     } else {
-      status.innerHTML = result.mailto ? `${result.error} <a href="${result.mailto}">Email Zarina directly instead.</a>` : result.error;
+      setError(status, result);
+      showFieldErrors(classicForm, result.fields)?.focus();
     }
+  } finally {
+    btn.disabled = false;
   }
 });
