@@ -29,7 +29,8 @@ const STOP = new Set(
 
 /** Lowercase word tokens with a light plural/suffix strip so "projects" matches "project". */
 export function tokenize(text: string): string[] {
-  const words = text.toLowerCase().match(/[a-z0-9+#]+/g) || [];
+  // NFKD + strip accents so "résumé" (common in translations) matches "resume"
+  const words = text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9+#]+/g) || [];
   const out: string[] = [];
   for (let w of words) {
     if (w.length < 2 || STOP.has(w)) continue;

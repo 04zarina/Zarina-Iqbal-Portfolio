@@ -42,6 +42,9 @@
     "api/chat.ts": {
       "includeFiles": "server-data/**",
       "maxDuration": 30
+    },
+    "api/tts.ts": {
+      "maxDuration": 30
     }
   }
 }

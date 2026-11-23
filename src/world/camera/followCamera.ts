@@ -202,7 +202,9 @@ export class FollowCamera {
     const b = collisionSystem.roomBounds;
     const outdoors = store.get().currentRoom === 'devRealm';
     const pad = outdoors ? -3 : 0.3; // outdoors the camera may float past the island edge
-    return { minX: b.minX + pad, maxX: b.maxX - pad, minZ: b.minZ + pad, maxZ: b.maxZ - pad, maxY: outdoors ? 9 : 4.6 };
+    // The arcade has no front wall, so the camera may pull back past it for a wider view
+    const openFront = store.get().currentRoom === 'gameRoom' ? 2.6 : 0;
+    return { minX: b.minX + pad, maxX: b.maxX - pad, minZ: b.minZ + pad, maxZ: b.maxZ - pad + openFront, maxY: outdoors ? 9 : 4.6 };
   }
 
   /** How far along `dir` from `pivot` the camera can go before leaving the room. */

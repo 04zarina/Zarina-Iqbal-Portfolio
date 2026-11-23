@@ -134,7 +134,7 @@ export class BedroomRoom {
     collisionSystem.addBox(-4.8, -3.7, 2.8, 3.8);
 
     // 4. Point light for bedroom lamp
-    this.lampLight = new THREE.PointLight(0xFFC27A, 1.4, 9, 1.4);
+    this.lampLight = new THREE.PointLight(0xFFC27A, 1.4, 12, 1.2);
     this.lampLight.position.set(1.4, 1.25, -3.0);
     this.group.add(this.lampLight);
     // Glowing bulb + halo inside the shade, only lit when the lamp is on
@@ -800,7 +800,7 @@ export class BedroomRoom {
       if (interactionSystem.currentActive?.id === 'lamp') eventBus.emit('interaction:available', { id: 'lamp', label: item.label, keyHint: 'E', position: item.position });
     }
     if (lampOn) store.completeQuest('lamp_on');
-    eventBus.emit('toast:show', lampOn ? 'Lamp on! Cozy 💡 (☰ menu → Day mode for daylight)' : 'Lamp off 🌙');
+    eventBus.emit('toast:show', lampOn ? 'Lights on! 💡 The room is all cozy now. (☰ menu → Day mode for morning sunshine)' : 'Lamp off 🌙');
   }
 
   private setupSeats(): void {
@@ -869,7 +869,7 @@ export class BedroomRoom {
     if (this.lampLight) {
       // Lamp on: warm pool of light (brighter at night). Off: nothing.
       const on = themeManager.interiorLight * (lampOn ? 1 : 0);
-      this.lampLight.intensity = on * THREE.MathUtils.lerp(1.0, 3.2, themeManager.themeProgress);
+      this.lampLight.intensity = on * THREE.MathUtils.lerp(1.0, 4.5, themeManager.themeProgress);
       if (this.lampBulb) (this.lampBulb.material as THREE.MeshBasicMaterial).opacity = 0.25 + on * 0.75;
       if (this.lampHalo) (this.lampHalo.material as THREE.SpriteMaterial).opacity = on * (0.45 + themeManager.themeProgress * 0.35);
     }

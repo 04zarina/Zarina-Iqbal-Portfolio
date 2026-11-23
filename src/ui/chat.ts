@@ -59,7 +59,7 @@ export class ChatPanel {
     this.element.setAttribute('aria-label', 'Chat with Zuzu');
 
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const canSpeak = 'speechSynthesis' in window;
+    const canSpeak = typeof Audio !== 'undefined';
 
     this.element.innerHTML = `
       <div class="chat-header">
@@ -171,17 +171,59 @@ export class ChatPanel {
     }
   }
 
-  /** Read Zuzu's answer aloud (Web Speech API), in the chat's language when a voice exists. */
-  private speak(text: string): void {
-    if (!this.speakAnswers || !('speechSynthesis' in window)) return;
-    const clean = text.replace(/\[\d+\]/g, '').replace(/[\u{1F300}-\u{1FAFF}]/gu, '');
+  /**
+   * Read Zuzu's answer aloud. Uses the /api/tts voice (real Urdu, cute style) and
+   * falls back to the browser voice, raised in pitch, when that is unavailable.
+   */
+  private audio: HTMLAudioElement | null = null;
+  private speakSeq = 0;
+  private stopSpeaking(): void {
+    this.speakSeq++;
+    this.audio?.pause();
+    this.audio = null;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  private async speak(text: string): Promise<void> {
+    if (!this.speakAnswers) return;
+    this.stopSpeaking();
+    const seq = this.speakSeq;
+    const clean = text.replace(/\[\d+\]/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
+    if (!clean) return;
+    try {
+      const r = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, lang: this.lang })
+      });
+      if (r.ok) {
+        const { audio, mime } = await r.json();
+        if (seq !== this.speakSeq || !this.speakAnswers) return;
+        const a = new Audio(`data:${mime || 'audio/wav'};base64,${audio}`);
+        // A touch faster without pitch correction makes the voice a little squeakier, like Zuzu
+        a.playbackRate = 1.08;
+        (a as any).preservesPitch = false;
+        this.audio = a;
+        await a.play();
+        return;
+      }
+    } catch {
+      /* fall through to the browser voice */
+    }
+    if (seq !== this.speakSeq || !('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices();
+    const voice =
+      this.lang === 'ur'
+        ? voices.find((v) => v.lang.toLowerCase().startsWith('ur'))
+        : voices.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|aria|jenny|google us english/i.test(v.name)) ||
+          voices.find((v) => /^en/i.test(v.lang));
+    // Without a real Urdu voice the browser reads Urdu with an English accent, so stay quiet instead
+    if (this.lang === 'ur' && !voice) return;
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = this.lang === 'ur' ? 'ur-PK' : 'en-US';
-    const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(this.lang));
     if (voice) u.voice = voice;
-    u.rate = 1.02;
-    u.pitch = 1.25;
-    speechSynthesis.cancel();
+    u.rate = 1.05;
+    u.pitch = 1.7;
     speechSynthesis.speak(u);
   }
 
@@ -210,7 +252,7 @@ export class ChatPanel {
       this.speakAnswers = !this.speakAnswers;
       speakBtn.textContent = this.speakAnswers ? '🔊' : '🔈';
       speakBtn.setAttribute('aria-pressed', String(this.speakAnswers));
-      if (!this.speakAnswers) speechSynthesis.cancel();
+      if (!this.speakAnswers) this.stopSpeaking();
     });
     this.sendBtn.addEventListener('click', () => this.sendMessage());
     this.inputField.addEventListener('keydown', (e) => {
@@ -229,6 +271,7 @@ export class ChatPanel {
   }
 
   close(): void {
+    this.stopSpeaking();
     this.element.classList.remove('active');
     store.set('activeOverlay', 'none');
     store.set('inputLocked', false);

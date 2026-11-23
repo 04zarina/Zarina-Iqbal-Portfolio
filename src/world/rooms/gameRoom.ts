@@ -19,10 +19,10 @@ type ProjectEntry = (typeof allProjects)[number];
 
 /** Bean bags in the lounge: [x, z, yaw (0 = facing +Z), colour]. They face the featured row. */
 const BEAN_BAGS: [number, number, number, number][] = [
-  [-2.3, 2.55, Math.PI - 0.35, 0xffb3c7],
-  [-0.85, 2.85, Math.PI - 0.1, 0xbde0ff],
-  [0.85, 2.85, Math.PI + 0.1, 0xffe9a3],
-  [2.3, 2.55, Math.PI + 0.35, 0xbdebd3]
+  [-2.1, 2.2, Math.PI - 0.4, 0xffb3c7],
+  [-0.8, 2.6, Math.PI - 0.12, 0xbde0ff],
+  [0.8, 2.6, Math.PI + 0.12, 0xffe9a3],
+  [2.1, 2.2, Math.PI + 0.4, 0xbdebd3]
 ];
 
 /** Featured cabinets: one big row along the back wall, evenly spaced, on a lit stage. */
@@ -35,6 +35,47 @@ const featuredX = (i: number) => (i - (Math.min(5, projectsData.length) - 1) / 2
  * Mini cabinet slots: [x, z, rotY], evenly spaced 1.15 m apart with clear gaps between them.
  * Left wall faces +X; right wall faces -X and leaves the door (z = 0) free.
  */
+/** Shared spotlight pieces for the featured cabinets. */
+// Each beam leans from a ceiling can over the aisle down onto the front of the stage
+const SPOT_TOP = new THREE.Vector3(0, 3.9, FEATURED_Z + 2.0);
+const SPOT_FOOT = new THREE.Vector3(0, 0.13, FEATURED_Z + 0.55);
+const SPOT_BEAM_H = SPOT_TOP.distanceTo(SPOT_FOOT);
+const SPOT_TILT = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), SPOT_TOP.clone().sub(SPOT_FOOT).normalize());
+const SPOT_CAN_GEO = new THREE.CylinderGeometry(0.16, 0.22, 0.22, 16);
+const SPOT_CAN_MAT = new THREE.MeshLambertMaterial({ color: 0x2b2238 });
+const SPOT_BEAM_GEO = new THREE.CylinderGeometry(0.13, 0.62, SPOT_BEAM_H, 28, 1, true);
+const SPOT_BEAM_MAT = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+  uniforms: { color: { value: new THREE.Color(0xfff0c8) } },
+  vertexShader: `varying float vY; varying vec3 vN; varying vec3 vV;
+    void main(){ vY = uv.y; vec4 mv = modelViewMatrix * vec4(position,1.0);
+      vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform vec3 color; varying float vY; varying vec3 vN; varying vec3 vV;
+    void main(){ float edge = pow(abs(dot(normalize(vN), normalize(vV))), 1.5);
+      float a = mix(0.55, 0.1, vY) * edge; gl_FragColor = vec4(color * a, a); }`
+});
+const SPOT_POOL_GEO = new THREE.CircleGeometry(0.66, 32);
+let spotPool: THREE.MeshBasicMaterial | null = null;
+function spotPoolMat(): THREE.MeshBasicMaterial {
+  if (spotPool) return spotPool;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,244,210,1)');
+  grad.addColorStop(0.6, 'rgba(255,232,185,0.55)');
+  grad.addColorStop(1, 'rgba(255,220,170,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  spotPool = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  return spotPool;
+}
+
 const MINI_SLOTS: [number, number, number][] = [
   [-5.4, -2.2, Math.PI / 2],
   [-5.4, -1.05, Math.PI / 2],
@@ -102,16 +143,24 @@ export class GameRoom {
       cab.position.y = 0.12;
       cab.scale.setScalar(FEATURED_SCALE);
       this.group.add(cab);
-      // Spotlight cone (cheap: one transparent cone, no real shadows)
-      const cone = new THREE.Mesh(
-        new THREE.ConeGeometry(0.85, 2.6, 24, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.09, depthWrite: false, side: THREE.DoubleSide })
-      );
-      cone.position.set(posX, 2.35, FEATURED_Z + 0.35);
-      cone.userData.noFade = true;
+      // Spotlight: a ceiling can, a soft beam that gets brighter toward the floor, and a
+      // pool of light on the stage in front of the cabinet (all unlit meshes, no real lights).
+      const can = new THREE.Mesh(SPOT_CAN_GEO, SPOT_CAN_MAT);
+      can.position.set(posX, SPOT_TOP.y, SPOT_TOP.z);
+      can.quaternion.copy(SPOT_TILT);
+      const beam = new THREE.Mesh(SPOT_BEAM_GEO, SPOT_BEAM_MAT);
+      beam.position.set(posX, (SPOT_TOP.y + SPOT_FOOT.y) / 2, (SPOT_TOP.z + SPOT_FOOT.z) / 2);
+      beam.quaternion.copy(SPOT_TILT);
+      beam.userData.noFade = true;
+      const pool = new THREE.Mesh(SPOT_POOL_GEO, spotPoolMat());
+      pool.rotation.x = -Math.PI / 2;
+      pool.scale.set(1, 1.25, 1);
+      pool.position.set(posX, 0.127, SPOT_FOOT.z);
+      pool.userData.noFade = true;
+      this.group.add(can, beam, pool);
       const star = makeSign('FEATURED', { emoji: '⭐', width: 0.75, bg: '#FFE9A3' });
       star.position.set(posX, 2.86, FEATURED_Z + 0.42);
-      this.group.add(cone, star);
+      this.group.add(star);
       collisionSystem.addBox(posX - 0.75, posX + 0.75, FEATURED_Z - 0.6, FEATURED_Z + 0.75);
     });
 
@@ -385,7 +434,16 @@ export class GameRoom {
     });
 
     BEAN_BAGS.forEach(([x, z, yaw], i) =>
-      registerSeat({ id: `seat_bean_${i}`, label: 'Flop onto the bean bag 🫘', position: new THREE.Vector3(x, 0, z), yaw, height: 0.3, radius: 1.1 })
+      registerSeat({
+        id: `seat_bean_${i}`,
+        label: 'Flop onto the bean bag 🫘',
+        // hips on the dent at the top of the bag, slightly forward of centre
+        position: new THREE.Vector3(x + Math.sin(yaw) * 0.08, 0, z + Math.cos(yaw) * 0.08),
+        yaw,
+        height: 0.47,
+        standAt: new THREE.Vector3(x + Math.sin(yaw) * 0.85, 0, z + Math.cos(yaw) * 0.85),
+        radius: 1.2
+      })
     );
 
     // Doorway back to Bedroom

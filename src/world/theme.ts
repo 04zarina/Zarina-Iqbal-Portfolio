@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { store, ThemeMode } from '../core/store';
 import { eventBus } from '../core/events';
 
+const WARM_ROOM = new THREE.Color(0xFFE2C2);
+
 export class ThemeManager {
   public currentTheme: ThemeMode;
   public themeProgress = 0; // 0 = day, 1 = dusk
@@ -84,13 +86,14 @@ export class ThemeManager {
     }
 
     if (this.ambientLight) {
-      this.ambientLight.color.copy(this.dayAmbient).lerp(this.duskAmbient, p);
-      this.ambientLight.intensity = THREE.MathUtils.lerp(1.2, THREE.MathUtils.lerp(0.38, 0.8, this.interior), p);
+      // At night the room lights (interior) swap the cool moonlit ambient for a warm indoor fill
+      this.ambientLight.color.copy(this.dayAmbient).lerp(this.duskAmbient, p).lerp(WARM_ROOM, p * this.interior * 0.75);
+      this.ambientLight.intensity = THREE.MathUtils.lerp(1.2, THREE.MathUtils.lerp(0.32, 1.15, this.interior), p);
     }
 
     if (this.dirLight) {
-      this.dirLight.color.copy(this.dayLightColor).lerp(this.duskLightColor, p);
-      this.dirLight.intensity = THREE.MathUtils.lerp(1.4, THREE.MathUtils.lerp(0.4, 0.85, this.interior), p);
+      this.dirLight.color.copy(this.dayLightColor).lerp(this.duskLightColor, p).lerp(WARM_ROOM, p * this.interior * 0.5);
+      this.dirLight.intensity = THREE.MathUtils.lerp(1.4, THREE.MathUtils.lerp(0.35, 1.1, this.interior), p);
     }
 
     eventBus.emit('theme:updated', { progress: p, mode: this.currentTheme });

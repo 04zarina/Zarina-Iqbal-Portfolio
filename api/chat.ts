@@ -42,6 +42,24 @@ const LANG_RULE: Record<string, string> = {
 
 const URDU_RE = /[\u0600-\u06FF]/;
 
+// Urdu words -> English search terms, used alongside (or instead of) machine translation
+const URDU_TERMS: [RegExp, string][] = [
+  [/ریزیوم|ریزیومے|سی وی|ریزومے/, 'resume cv download'],
+  [/گیم|کھیل/, 'games game projects'],
+  [/پروجیکٹ|پراجیکٹ|منصوب/, 'projects'],
+  [/مہارت|ہنر|اسکل/, 'skills'],
+  [/تعلیم|یونیورسٹی|پڑھائی|ڈگری/, 'education university ned'],
+  [/تجربہ|نوکری|انٹرن/, 'experience internship work'],
+  [/رابط|ای میل|ای ـمیل/, 'contact email'],
+  [/ایوارڈ|انعام|کامیابی/, 'achievements awards'],
+  [/سرٹیفکیٹ|سند/, 'certificates'],
+  [/پس منظر|کون ہے|کون ہیں|بارے/, 'about background zarina'],
+  [/زوزو/, 'zuzu companion']
+];
+function urduKeywords(text: string): string {
+  return URDU_TERMS.filter(([re]) => re.test(text)).map(([, en]) => en).join(' ');
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -68,13 +86,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // The index is English, so an Urdu question is translated for retrieval first
   let query = message;
-  if (apiKey && URDU_RE.test(message)) {
-    try {
-      const en = await askGemini(apiKey, message, 'Translate the user text to English. Output only the translation.');
-      if (en) query = en;
-    } catch {
-      /* fall back to the original text */
+  if (URDU_RE.test(message)) {
+    if (apiKey) {
+      try {
+        const en = await askGemini(apiKey, message, 'Translate the user text to plain English (no accents, write "resume" not "résumé"). Output only the translation.');
+        if (en) query = en;
+      } catch {
+        /* fall back to the keyword map below */
+      }
     }
+    // Keyword map so common Urdu questions still find sources if translation is unavailable
+    query += ' ' + urduKeywords(message);
   }
 
   const matches = retrieve(index, query, 5);
@@ -113,7 +135,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const context = matches.map((m, i) => `[${i + 1}] ${m.chunk.title}\n${m.chunk.text}`).join('\n\n');
 
   try {
-    const answer = await askGemini(apiKey, `Sources:\n${context}\n\nVisitor question: ${message}`, SYSTEM + LANG_RULE[lang]);
+    const question = query !== message ? `${message}\n(English: ${query.trim()})` : message;
+    const finalRule = lang === 'ur' ? '\n\nAnswer in Urdu script (اردو), not English.' : '';
+    let answer = await askGemini(apiKey, `Sources:\n${context}\n\nVisitor question: ${question}${finalRule}`, SYSTEM + LANG_RULE[lang]);
+    // Some models still answer in English: translate it so the Urdu toggle is honoured
+    if (answer && lang === 'ur' && !URDU_RE.test(answer)) {
+      try {
+        const ur = await askGemini(apiKey, answer, 'Translate this to simple everyday Urdu in Urdu script. Keep names, game titles, tools and [n] citations exactly as they are. Output only the translation.');
+        if (ur) answer = ur;
+      } catch {
+        /* keep the English answer */
+      }
+    }
     if (!answer) {
       return res.status(200).json({
         answer: `I can only help with questions about Zarina's work. For anything else, email ${CONTACT}.`,
