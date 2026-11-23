@@ -85,6 +85,7 @@ def copy_reversed(src, name):
             kp = nf.keyframe_points[i]
             kp.co = (f, fc.evaluate(f0 + f1 - f))
             kp.interpolation = "LINEAR"
+        nf.update()
     return dst
 
 
@@ -111,14 +112,13 @@ def make_idle(src, name, length=90):
         amp = 0.0
         if fc.data_path.endswith("rotation_quaternion") and bone in breathe and breathe[bone][0] == fc.array_index:
             amp = breathe[bone][1] / 2  # quaternion component ~ half angle
-        if fc.data_path.endswith("location") and bone == "mixamorig:Hips" and fc.array_index == 1:
-            amp = -0.4  # hips dip a hair (centimetre units)
         keys = [0, length // 4, length // 2, 3 * length // 4, length]
         nf.keyframe_points.add(len(keys))
         for i, k in enumerate(keys):
             s = math.sin(2 * math.pi * k / length)
             nf.keyframe_points[i].co = (1 + k, v0 + amp * s)
             nf.keyframe_points[i].interpolation = "BEZIER"
+        nf.update()  # recompute auto handles; without this they sit at (0, 0) and the curve dives to zero
     return dst
 
 
@@ -135,6 +135,19 @@ for clip in ["Idle", "Walk", "Wave", "Sitting", "LyingDown", "WakeUp", "Petting"
         strip.action_slot = act.slots[0]
     track.mute = False
 arm.animation_data.action = None
+
+# Matte, non-metallic skin/cloth (an unset metallic factor exports as fully metallic = very dark)
+for mat in bpy.data.materials:
+    if not mat.use_nodes:
+        continue
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf:
+        for name, val in (("Metallic", 0.0), ("Roughness", 0.85), ("Specular IOR Level", 0.5)):
+            inp = bsdf.inputs.get(name)
+            if inp is not None:
+                for link in list(inp.links):
+                    mat.node_tree.links.remove(link)
+                inp.default_value = val
 
 # 1024 px base colour; exported as WebP below
 for img in bpy.data.images:

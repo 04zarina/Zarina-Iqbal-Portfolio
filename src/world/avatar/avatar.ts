@@ -88,7 +88,18 @@ export class Avatar {
       model.scale.setScalar(s);
       model.updateMatrixWorld(true);
       model.position.y = -new THREE.Box3().setFromObject(model).min.y;
-      model.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).frustumCulled = false) : null));
+      model.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.frustumCulled = false;
+        // Matte skin and cloth: a metallic material renders almost black without an env map
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        if (mat && 'metalness' in mat) {
+          mat.metalness = 0;
+          mat.roughness = Math.max(mat.roughness, 0.8);
+          mat.needsUpdate = true;
+        }
+      });
       this.modelContainer.add(model);
       this.mixamo = new MixamoAvatar(model, rigged.clips);
       this.mixamo.setSpeed('wave', 1.3);
@@ -247,13 +258,21 @@ export class Avatar {
   private lastBedPos: THREE.Vector3 | null = null;
 
   /**
-   * Rigged avatar: she lies ACROSS the bed (head to the wall, feet toward the room), because the
-   * Mixamo LyingDown clip starts sitting on the mattress edge, facing out, and lies back from there.
-   * The group stands on the clip's floor, so her back lands on top of the blanket (~0.65 m).
+   * Rigged avatar in bed. p = 0: lying along the bed, head on the pillow (-Z). p = 1: sitting on
+   * the side edge of the mattress facing the room (+X), legs over the side. In between (while
+   * the WakeUp / LyingDown clip sits her up) she swivels on her bottom from one to the other, so
+   * her legs drop over the edge instead of through the mattress. The group stands on the clip's
+   * floor 0.27 m up, which rests her back on top of the blanket (~0.65 m).
    */
-  private placeOnBedEdge(bedPos: THREE.Vector3): void {
-    this.position.set(bedPos.x + 0.62, 0.27, bedPos.z - 0.35);
-    this.rotationY = Math.PI / 2;
+  private placeInBed(bedPos: THREE.Vector3, p: number): void {
+    // Hips position (relative to the clip origin, along her facing) through the WakeUp clip
+    const hipsZ = p < 0.4 ? -0.27 : p < 0.6 ? THREE.MathUtils.lerp(-0.27, -0.23, (p - 0.4) / 0.2) : p < 0.8 ? THREE.MathUtils.lerp(-0.23, -0.02, (p - 0.6) / 0.2) : -0.01;
+    const k = THREE.MathUtils.smoothstep(p, 0.42, 0.78);
+    const yaw = k * (Math.PI / 2);
+    const hipsX = THREE.MathUtils.lerp(bedPos.x, bedPos.x + 0.62, k);
+    const hipsWZ = THREE.MathUtils.lerp(bedPos.z - 0.55, bedPos.z - 0.35, k);
+    this.position.set(hipsX - Math.sin(yaw) * hipsZ, 0.27, hipsWZ - Math.cos(yaw) * hipsZ);
+    this.rotationY = yaw;
     this.rootNode.position.set(0, 0, 0);
     this.rootNode.rotation.set(0, 0, 0);
     this.rootNode.scale.set(1, 1, 1);
@@ -267,7 +286,7 @@ export class Avatar {
     this.isMoving = false;
     this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
-      this.placeOnBedEdge(bedPos);
+      this.placeInBed(bedPos, 0);
       this.mixamo.play('sleep', 0, true, true); // already lying down
       return;
     }
@@ -293,8 +312,8 @@ export class Avatar {
     this.gesture = null;
     this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
-      // Sit on the edge and lie back (LyingDown clip, held on its last frame)
-      this.placeOnBedEdge(bedPos);
+      // Sit on the edge, lie back and swivel onto the pillow (LyingDown clip, held on its last frame)
+      this.placeInBed(bedPos, 1);
       this.mixamo.play('sleep', 0.3, true);
       onComplete?.();
       return;
@@ -324,10 +343,10 @@ export class Avatar {
     const yaw = this.stepOutYaw();
     this.bedEdge.set(outPos.x - Math.sin(yaw) * 0.72, 0, outPos.z - Math.cos(yaw) * 0.72);
     this.onWakeUpDone = onComplete || null;
+    this.lastBedPos = bedPos.clone();
     if (this.mixamo) {
       // WakeUp clip (LyingDown reversed): sit up on the edge, then hop down and walk out
-      this.placeOnBedEdge(bedPos);
-      this.wakeHopFrom.copy(this.position);
+      this.placeInBed(bedPos, 0);
       this.mixamo.play('sleep', 0, true, true);
       this.mixamo.play('wake', 0.15, true);
       this.wakeUpDuration = this.mixamo.duration('wake');
@@ -645,6 +664,10 @@ export class Avatar {
     if (this.isWakingUp && this.mixamo) {
       this.wakeUpTimer += delta;
       const hopT = this.wakeUpTimer - this.wakeUpDuration;
+      if (hopT < 0 && this.lastBedPos) {
+        this.placeInBed(this.lastBedPos, this.mixamo.progress('wake'));
+        this.wakeHopFrom.copy(this.position);
+      }
       if (hopT >= 0) {
         const k = THREE.MathUtils.smoothstep(Math.min(1, hopT / this.wakeHopTime), 0, 1);
         const landing = this.wakeHopFrom.clone().add(new THREE.Vector3(Math.sin(this.rotationY) * 0.45, 0, Math.cos(this.rotationY) * 0.45));
@@ -752,6 +775,11 @@ export class Avatar {
           this.onWakeUpDone = null;
         }
       }
+      return;
+    }
+
+    if (this.isSleeping && this.mixamo) {
+      if (this.lastBedPos) this.placeInBed(this.lastBedPos, 1 - this.mixamo.progress('sleep'));
       return;
     }
 

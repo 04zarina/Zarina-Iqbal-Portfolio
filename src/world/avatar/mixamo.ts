@@ -52,6 +52,13 @@ export class MixamoAvatar {
     return a ? a.getClip().duration / Math.max(0.01, Math.abs(a.timeScale)) : 0;
   }
 
+  /** How far through the clip it is, 0..1 (1 when missing). */
+  progress(clip: AvatarClip): number {
+    const a = this.actions.get(clip);
+    if (!a) return 1;
+    return THREE.MathUtils.clamp(a.time / a.getClip().duration, 0, 1);
+  }
+
   get playing(): AvatarClip | null {
     return this.current;
   }
