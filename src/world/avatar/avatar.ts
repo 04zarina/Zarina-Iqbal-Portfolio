@@ -329,7 +329,7 @@ export class Avatar {
       // Walk up to the side of the bed, sit on the edge, lie back and swivel onto the pillow
       // (LyingDown clip, held on its last frame)
       this.isSleeping = false;
-      const stand = new THREE.Vector3(bedPos.x + 1.1, 0, bedPos.z - 0.55);
+      const stand = new THREE.Vector3(bedPos.x + 1.75, 0, bedPos.z - 0.55); // just outside the bed collider (x -2.1, radius 0.4)
       const lie = () => {
         this.isSleeping = true;
         this.isWakingUp = false;
@@ -581,7 +581,12 @@ export class Avatar {
   }
 
   /** Walk on her own to a point (used by the intro). Input should be locked meanwhile. */
+  private walkPrevDist = -1;
+  private walkStall = 0;
+
   walkTo(target: THREE.Vector3, speed = 1.6, onDone?: () => void): void {
+    this.walkPrevDist = -1;
+    this.walkStall = 0;
     this.walkTarget = target.clone().setY(0);
     this.walkScriptSpeed = speed;
     this.onWalkDone = onDone || null;
@@ -723,7 +728,13 @@ export class Avatar {
     if (this.walkTarget && !this.isSleeping && !this.isSitting) {
       const toTarget = this.walkTarget.clone().sub(this.position).setY(0);
       const dist = toTarget.length();
-      if (dist > 0.05) {
+      // Furniture collision can stop her just short of the target: if she has made no headway
+      // for half a second while close, count it as arrived instead of walking on the spot forever
+      if (this.walkPrevDist >= 0 && this.walkPrevDist - dist < this.walkScriptSpeed * delta * 0.25) this.walkStall += delta;
+      else this.walkStall = 0;
+      this.walkPrevDist = dist;
+      const stuck = this.walkStall > 0.5 && dist < 1.2;
+      if (dist > 0.05 && !stuck) {
         const step = Math.min(dist, this.walkScriptSpeed * delta);
         this.position.addScaledVector(toTarget.normalize(), step);
         this.turnToward(Math.atan2(toTarget.x, toTarget.z), delta, 10);
@@ -732,6 +743,8 @@ export class Avatar {
         this.groundSpeed = this.walkScriptSpeed;
       } else {
         this.walkTarget = null;
+        this.walkPrevDist = -1;
+        this.walkStall = 0;
         this.isMoving = false;
         this.groundSpeed = 0;
         const done = this.onWalkDone;
@@ -871,7 +884,7 @@ export class Avatar {
         const tw = this.bedTween;
         if (tw) {
           tw.t += delta;
-          const k = THREE.MathUtils.smoothstep(Math.min(1, tw.t / 0.45), 0, 1);
+          const k = THREE.MathUtils.smoothstep(Math.min(1, tw.t / 0.9), 0, 1);
           this.position.lerpVectors(tw.from, this.position, k);
           let d = this.rotationY - tw.yaw;
           while (d > Math.PI) d -= Math.PI * 2;

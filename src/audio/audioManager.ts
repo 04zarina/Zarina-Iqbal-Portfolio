@@ -195,7 +195,7 @@ export class AudioManager {
     seq.forEach((f, i) => this.tone(f, 0.22, { type: 'triangle', vol: 0.12, at: i * 0.12 }));
   }
   /** Zuzu purring while being petted. */
-  /** Zuzu being petted: a happy chirp, two soft rumbly purr breaths and a little trill. */
+  /** Zuzu being petted: a soft chirp and two gentle, rumbly purr breaths. */
   playPurr(): void {
     if (this.isMuted || !this.ctx) return;
     const ctx = this.ctx;
@@ -218,12 +218,12 @@ export class AudioManager {
         lfoDepth.connect(am.gain);
         const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
-        lp.frequency.value = 650;
-        lp.Q.value = 2;
+        lp.frequency.value = 380;
+        lp.Q.value = 0.7;
         const env = ctx.createGain();
         env.gain.setValueAtTime(0.0001, t0);
-        env.gain.linearRampToValueAtTime(v * 0.09, t0 + dur * 0.3);
-        env.gain.linearRampToValueAtTime(v * 0.07, t0 + dur * 0.7);
+        env.gain.linearRampToValueAtTime(v * 0.045, t0 + dur * 0.35);
+        env.gain.linearRampToValueAtTime(v * 0.035, t0 + dur * 0.7);
         env.gain.linearRampToValueAtTime(0.0001, t0 + dur);
         osc.connect(am);
         am.connect(lp);
@@ -235,13 +235,10 @@ export class AudioManager {
         lfo.stop(t0 + dur + 0.05);
       } catch {}
     };
-    // "Mrrp?" up-chirp, purr in, purr out, then a tiny "prrt!" trill
-    this.tone(820, 0.12, { type: 'triangle', vol: 0.07, to: 1250 });
-    this.tone(1250, 0.1, { type: 'sine', vol: 0.05, to: 1500, at: 0.1 });
-    breath(0.22, 0.65, 120);
-    breath(0.95, 0.75, 105);
-    this.tone(1400, 0.06, { type: 'sine', vol: 0.045, to: 1700, at: 1.75 });
-    this.tone(1600, 0.07, { type: 'sine', vol: 0.04, to: 1300, at: 1.83 });
+    // A soft little "mrrp", then two gentle purr breaths
+    this.tone(700, 0.16, { type: 'sine', vol: 0.03, to: 950, attack: 0.04 });
+    breath(0.2, 0.8, 95);
+    breath(1.05, 0.9, 85);
   }
   /** Zuzu's little "mrrp" when speaking. */
   playMrrp(): void {
