@@ -15,6 +15,9 @@ export class HUD {
   private actionZone: HTMLElement;
 
   private promptTarget3D: THREE.Vector3 | null = null;
+  private promptId = '';
+  /** Zuzu's speech bubble is showing: hide Zuzu's own prompt so only one bubble sits over it. */
+  private zuzuTalking = false;
   private joystickActive = false;
   private joystickTouchId: number | null = null;
   private joystickCenter = { x: 0, y: 0 };
@@ -48,24 +51,52 @@ export class HUD {
       }
       btn.onclick = () => {
         audioManager.playPop();
+        roomBar.classList.remove('open');
+        roomToggle.setAttribute('aria-expanded', 'false');
         eventBus.emit('room:travel', r.id);
       };
       roomBar.appendChild(btn);
       this.roomButtons.set(r.id, btn);
     });
 
-    topLeft.appendChild(roomBar);
+    // Phones: one compact "where am I" chip that opens the room list (instead of five pills)
+    const roomToggle = document.createElement('button');
+    roomToggle.className = 'hud-room-toggle';
+    roomToggle.setAttribute('aria-haspopup', 'true');
+    roomToggle.setAttribute('aria-expanded', 'false');
+    roomToggle.setAttribute('aria-label', 'Rooms');
+    const setToggleLabel = (id: RoomId) => {
+      const r = rooms.find((x) => x.id === id);
+      roomToggle.innerHTML = `${r ? r.label : '🏠 Rooms'} <span aria-hidden="true">▾</span>`;
+    };
+    setToggleLabel(store.get().currentRoom);
+    eventBus.on('room:entered', (id: RoomId) => setToggleLabel(id));
+    roomToggle.onclick = (e) => {
+      e.stopPropagation();
+      audioManager.playPop();
+      const open = !roomBar.classList.contains('open');
+      roomBar.classList.toggle('open', open);
+      roomToggle.setAttribute('aria-expanded', String(open));
+    };
+    document.addEventListener('pointerdown', (e) => {
+      if (roomBar.classList.contains('open') && !roomBar.contains(e.target as Node) && !roomToggle.contains(e.target as Node)) {
+        roomBar.classList.remove('open');
+        roomToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    topLeft.append(roomToggle, roomBar);
     this.container.appendChild(topLeft);
 
     // 2. Top Right Control Buttons
     const topRight = document.createElement('div');
     topRight.className = 'hud-top-right';
 
-    // Ask Mochi / Need Help Button (Always visible on screen!)
-    const askMochiBtn = document.createElement('button');
-    askMochiBtn.className = 'sticker-btn accent-butter hud-ask-mochi-btn';
-    askMochiBtn.innerHTML = '🐾 Need Help? Ask Mochi!';
-    askMochiBtn.onclick = () => {
+    // Ask Zuzu / Need Help Button (Always visible on screen!)
+    const askZuzuBtn = document.createElement('button');
+    askZuzuBtn.className = 'sticker-btn accent-butter hud-ask-zuzu-btn';
+    askZuzuBtn.innerHTML = '🐾 <span class="hud-ask-label">Need Help? Ask Zuzu!</span>';
+    askZuzuBtn.onclick = () => {
       audioManager.playPop();
       eventBus.emit('companion:summon');
     };
@@ -80,18 +111,6 @@ export class HUD {
       store.set('activeOverlay', 'journal');
       eventBus.emit('overlay:open', 'journal');
     };
-
-    // First / third person view
-    const camBtn = document.createElement('button');
-    camBtn.className = 'hud-icon-btn hud-cam-btn';
-    const camLabel = () => (store.get().cameraMode === 'first' ? '👁️' : '🎥');
-    camBtn.title = 'Switch first / third person view (V)';
-    camBtn.innerHTML = camLabel();
-    camBtn.onclick = () => {
-      audioManager.playClick();
-      eventBus.emit('camera:toggleMode');
-    };
-    eventBus.on('state:cameraMode', () => (camBtn.innerHTML = camLabel()));
 
     const menuBtn = document.createElement('button');
     menuBtn.className = 'hud-icon-btn hud-burger';
@@ -121,9 +140,9 @@ export class HUD {
       }
     });
 
-    [journalBtn, camBtn, menuBtn].forEach((b) => b.setAttribute('aria-label', b.title));
-    askMochiBtn.setAttribute('aria-label', 'Ask Mochi, the chat guide');
-    topRight.append(askMochiBtn, journalBtn, camBtn, menuBtn, menu);
+    [journalBtn, menuBtn].forEach((b) => b.setAttribute('aria-label', b.title));
+    askZuzuBtn.setAttribute('aria-label', 'Ask Zuzu, the chat guide');
+    topRight.append(askZuzuBtn, journalBtn, menuBtn, menu);
     this.container.appendChild(topRight);
 
     // 3. Prompt Bubble (Projected 3D Sticker)
@@ -146,7 +165,8 @@ export class HUD {
     this.actionZone.className = 'action-btn-zone';
     const actionBtn = document.createElement('button');
     actionBtn.className = 'action-big-btn';
-    actionBtn.innerHTML = 'ACT 🌟';
+    actionBtn.innerHTML = '<span aria-hidden="true">✋</span><small>USE</small>';
+    actionBtn.setAttribute('aria-label', 'Use / interact');
     actionBtn.onclick = () => {
       interactionSystem.triggerCurrent();
     };
@@ -185,11 +205,7 @@ export class HUD {
           <button data-val="walk" title="Room buttons make her walk there herself">🚶 Auto walk</button>
           <button data-val="instant" title="Room buttons jump straight to the room">⚡ Instant</button>
         </div>
-        <div class="hud-seg" data-seg="camera">
-          <button data-val="third">🎥 3rd person</button>
-          <button data-val="first">👁️ 1st person</button>
-        </div>
-        <p class="hud-menu-hint">Click the floor to walk there. WASD / arrows to move, Shift to run, drag to look, V to switch view.</p>
+        <p class="hud-menu-hint">Click the floor to walk there. WASD / arrows to move, Shift to run, drag to look around, F to see her face.</p>
       </div>
       <div class="hud-menu-section">
         <div class="hud-menu-title">Graphics</div>
@@ -225,9 +241,7 @@ export class HUD {
         store.set('activeOverlay', 'menu');
         eventBus.emit('overlay:open', 'menu');
       } else if (seg === 'travel') store.set('travelMode', btn.dataset.val as 'walk' | 'instant');
-      else if (seg === 'camera') {
-        if (store.get().cameraMode !== btn.dataset.val) eventBus.emit('camera:toggleMode');
-      } else if (seg === 'quality') qualityManager.setTier(btn.dataset.val as 'high' | 'medium' | 'low');
+      else if (seg === 'quality') qualityManager.setTier(btn.dataset.val as 'high' | 'medium' | 'low');
       setTimeout(() => this.refreshMenu(menu), 30);
     });
     menu.querySelectorAll<HTMLInputElement>('input[data-vol]').forEach((input) => {
@@ -253,7 +267,6 @@ export class HUD {
     const mark = (seg: string, val: string) =>
       menu.querySelectorAll<HTMLButtonElement>(`[data-seg="${seg}"] button`).forEach((b) => b.classList.toggle('on', b.dataset.val === val));
     mark('travel', s.travelMode);
-    mark('camera', s.cameraMode);
     mark('quality', qualityManager.config.tier);
   }
 
@@ -272,13 +285,17 @@ export class HUD {
 
     eventBus.on('interaction:available', (data: { id: string; label: string; keyHint: string; position: THREE.Vector3 }) => {
       this.promptTarget3D = data.position;
+      this.promptId = data.id;
       this.promptBubble.innerHTML = `<span class="prompt-key">${data.keyHint}</span> <span>${data.label}</span>`;
       this.promptBubble.style.display = 'flex';
       audioManager.playPop();
     });
 
+    eventBus.on('zuzu:bubble', (on: boolean) => (this.zuzuTalking = on));
+
     eventBus.on('interaction:clear', () => {
       this.promptTarget3D = null;
+      this.promptId = '';
       this.promptBubble.style.display = 'none';
     });
   }
@@ -350,7 +367,10 @@ export class HUD {
   }
 
   update(camera: THREE.Camera): void {
-    if (this.promptTarget3D && this.promptBubble.style.display !== 'none') {
+    if (this.promptTarget3D) {
+      const hide = this.promptId === 'companion' && this.zuzuTalking;
+      this.promptBubble.style.display = hide ? 'none' : 'flex';
+      if (hide) return;
       const pos = this.promptTarget3D.clone();
       pos.y += 0.8; // Float slightly above interactable anchor
       pos.project(camera);

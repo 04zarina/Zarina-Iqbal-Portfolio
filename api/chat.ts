@@ -28,12 +28,19 @@ function rateLimited(ip: string): boolean {
   return rec.count > 12;
 }
 
-const SYSTEM = `You are Mochi, the friendly red-panda guide inside Zarina Iqbal Buriro's 3D portfolio.
+const SYSTEM = `You are Zuzu, the friendly red-panda guide inside Zarina Iqbal Buriro's 3D portfolio.
 Answer visitors' questions about Zarina using ONLY the numbered sources in the user message.
 Rules:
 - Cite every fact with the source number in square brackets, like [1] or [2][3].
 - If the sources don't contain the answer, say you don't have that in your notes and suggest emailing ${CONTACT}. Never guess or invent details.
 - Refer to Zarina by name (not he/she). Keep answers short: 2 to 4 sentences, warm and plain. No markdown headings or lists.`;
+
+const LANG_RULE: Record<string, string> = {
+  en: '',
+  ur: '\n- Reply in Urdu (Urdu script, simple everyday Urdu). Keep names, game titles, tools and the [n] citations in English letters.'
+};
+
+const URDU_RE = /[\u0600-\u06FF]/;
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
@@ -45,9 +52,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(400).json({ error: 'Message is required' });
   }
 
+  const lang = req.body?.lang === 'ur' ? 'ur' : 'en';
+
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0].trim();
   if (rateLimited(ip)) {
-    return res.status(429).json({ error: 'Mochi needs a short breather. Try again in a minute!' });
+    return res.status(429).json({ error: 'Zuzu needs a short breather. Try again in a minute!' });
   }
 
   const index = loadIndex();
@@ -55,10 +64,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return res.status(500).json({ error: 'Vector index not built. Run npm run ingest.' });
   }
 
-  const matches = retrieve(index, message, 5);
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  // The index is English, so an Urdu question is translated for retrieval first
+  let query = message;
+  if (apiKey && URDU_RE.test(message)) {
+    try {
+      const en = await askGemini(apiKey, message, 'Translate the user text to English. Output only the translation.');
+      if (en) query = en;
+    } catch {
+      /* fall back to the original text */
+    }
+  }
+
+  const matches = retrieve(index, query, 5);
   if (matches.length === 0) {
     return res.status(200).json({
-      answer: `Mew! I don't have that in my notes about Zarina. You can email ${CONTACT} or drop a letter in the mailbox on the Dev Realm island!`,
+      answer:
+        lang === 'ur'
+          ? `معاف کیجیے، یہ بات میرے نوٹس میں نہیں ہے۔ آپ ${CONTACT} پر ای میل کر سکتے ہیں یا Dev Realm کے میل باکس میں خط ڈال سکتے ہیں!`
+          : `Mew! I don't have that in my notes about Zarina. You can email ${CONTACT} or drop a letter in the mailbox on the Dev Realm island!`,
       sources: [{ id: 'mailbox', title: 'Dev Realm Mailbox', targetId: 'DOOR_devRealm' }],
       grounded: false
     });
@@ -73,7 +98,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     excerpt: m.chunk.text.slice(0, 220)
   }));
 
-  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     // No LLM configured: answer extractively from the best match so the bot still works.
     const best = matches[0].chunk;
@@ -89,7 +113,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const context = matches.map((m, i) => `[${i + 1}] ${m.chunk.title}\n${m.chunk.text}`).join('\n\n');
 
   try {
-    const answer = await askGemini(apiKey, `Sources:\n${context}\n\nVisitor question: ${message}`);
+    const answer = await askGemini(apiKey, `Sources:\n${context}\n\nVisitor question: ${message}`, SYSTEM + LANG_RULE[lang]);
     if (!answer) {
       return res.status(200).json({
         answer: `I can only help with questions about Zarina's work. For anything else, email ${CONTACT}.`,
@@ -131,14 +155,14 @@ const GEMINI_MODELS = (process.env.GEMINI_MODEL || 'gemini-3.8-flash,gemini-flas
   .map((m) => m.trim())
   .filter(Boolean);
 
-export async function askGemini(apiKey: string, prompt: string): Promise<string> {
+export async function askGemini(apiKey: string, prompt: string, system = SYSTEM): Promise<string> {
   let lastError = '';
   for (const model of GEMINI_MODELS) {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
       })

@@ -11,20 +11,20 @@
   - **Arcade Room:** 5 big cabinets for the featured games plus 9 mini cabinets for the side projects, all with animated screens.
   - **Greenhouse Balcony:** Skill garden in five raised beds. Pick up the watering can and water a bed: each plant grows and pops a "+ skill" label.
   - **Study Hub:** Cork board with the certificate scans (click to view full size, Google AI Essentials has a verify link), sticky notes for each section, a big More Projects board and the resume on the desk.
-  - **Dev Realm:** Floating sky island through the wardrobe portal, with fireflies, the mailbox, and **Bug Bash**, a 30-second mini game.
+  - **Dev Realm:** Floating sky island through the wardrobe portal, with fireflies, the mailbox, and **Snack Rain**, a 40-second mini game where you play catch with Zuzu, plus a starry sky dome, crystals and a flower meadow.
   - Themed, labelled doors that swing open as you approach, rugs, seats (sofas, armchairs, chairs, the bed, a log) and night-mode lighting in every room.
 - **Interactive Avatar (Module 2):**
   - Wakes up in bed, sits up, stretches, walks to the camera and waves on start.
   - The static T-pose GLB is animated with a small vertex-shader rig (`src/world/avatar/rig.ts`): arms rest at her sides, arms and legs swing while walking, she sits on chairs and waves (H or 👋).
-  - Orbit camera: drag to look around, scroll to zoom, F to see her face, Q/R to rotate. V (or 🎥) switches to first person. Furniture between the camera and her fades out.
+  - Orbit camera: drag to look around, scroll to zoom, F to see her face, Q/R to rotate. The camera follows behind her like a third-person game. Furniture between the camera and her fades out.
   - Click the floor to walk there (grid A* path-finding around furniture, `src/world/nav.ts`). In Auto walk mode the room buttons make her walk to the right door herself.
-  - Click her to make her react, click Mochi to pet him. Sit on any sofa or chair with E.
+  - Click her to make her react, click Zuzu to pet him. Sit on any sofa or chair with E.
   - Desktop keyboard controls (WASD, Arrows, Shift, Space, E) + Mobile virtual touch joystick and action button.
   - Mouse interaction: click sticky notes, project cards, plants, photos, the resume and the tape.
 - **Promo Video Showcase (Module 3):**
   - Pick up the cassette tape in the bedroom and insert it into the vintage TV to watch the promo video reel.
 - **RAG-Powered AI Chatbot (Module 4):**
-  - **Mochi**, the companion red panda, appears when you press "Ask Mochi" and answers questions about Zarina using retrieval over the portfolio content.
+  - **Zuzu**, the companion red panda, appears when you press "Ask Zuzu" and answers questions about Zarina using retrieval over the portfolio content.
   - Pipeline: `npm run ingest` chunks `content/` (projects, skills, education, experience, achievements, profile and FAQ by heading) into a TF-IDF vector index (`server-data/index.json`). `/api/chat` retrieves the top 5 chunks (cosine similarity blended with BM25), sends them as numbered sources to Google Gemini, and returns the answer with `[n]` citations and source chips.
   - Guardrails: answers only from the sources, says so when it doesn't know, per-IP rate limit, 500-character question limit. Answers come from Google Gemini. Without `GEMINI_API_KEY` it answers by quoting the best source.
 - **Mailbox Contact System (Module 5):**
@@ -106,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser!
 │  ├─ education.json             # Degrees and certifications
 │  ├─ experience.json            # Internship & work history
 │  ├─ achievements.json          # Trophies for the shelf & journal
-│  └─ faq.md                     # Knowledge base for Mochi
+│  └─ faq.md                     # Knowledge base for Zuzu
 ├─ scripts/
 │  ├─ ingest.ts                  # Vector index generator
 │  └─ validateContent.ts         # Zod content schema validator

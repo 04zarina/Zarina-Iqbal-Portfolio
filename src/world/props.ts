@@ -100,14 +100,16 @@ export function makeDoor(style: DoorStyle, title: string, subtitle?: string): Do
   step.position.set(0, 0.02, 0.2);
   group.add(jL, jR, lintel, step);
 
-  // Light from the room beyond (seen when the door opens)
-  const glow = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ color: look.glow }));
-  glow.position.set(0, H / 2, -0.02);
-  group.add(glow);
+  // A painted peek into the room beyond, seen when the door swings open. It sits just in
+  // front of the wall surface (walls are solid), so it is never hidden by the wall.
+  const peek = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: peekTexture(style) }));
+  peek.position.set(0, H / 2, 0.004);
+  peek.userData.noFade = true;
+  group.add(peek);
 
   // Door panel on a hinge at the left jamb
   const hinge = new THREE.Group();
-  hinge.position.set(-W / 2, 0, 0.04);
+  hinge.position.set(-W / 2, 0, 0.045);
   const panelTex = canvasTexture(256, 500, (ctx) => {
     const col = '#' + new THREE.Color(look.panel).getHexString();
     ctx.fillStyle = col;
@@ -163,10 +165,17 @@ export function makeDoor(style: DoorStyle, title: string, subtitle?: string): Do
   hinge.add(panel, knob);
   group.add(hinge);
 
-  // Title sign on the lintel
-  const sign = makeSign(title, { subtitle, width: 1.25, bg: '#FFF6EC' });
-  sign.position.set(0, H + 0.52, 0.2);
+  // Title sign mounted flush on the lintel (no gap above the door)
+  const signW = 1.3;
+  const sign = makeSign(title, style === 'arcade' ? { subtitle, width: signW, bg: '#281D35', fg: '#FFE9A3' } : { subtitle, width: signW, bg: '#FFF6EC' });
+  const signH = (signW * (subtitle ? 220 : 170)) / 640;
+  const signY = H + 0.24 + signH / 2 - 0.05;
+  sign.position.set(0, signY, 0.19);
   group.add(sign);
+  // Wooden backing plate so the sign reads as one piece with the frame
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(signW + 0.06, signH - 0.02, 0.04), frameMat);
+  plate.position.set(0, signY - 0.005, 0.15);
+  group.add(plate);
 
   // Style decorations
   if (style === 'garden') {
@@ -182,13 +191,28 @@ export function makeDoor(style: DoorStyle, title: string, subtitle?: string): Do
       group.add(m);
     }
   } else if (style === 'arcade') {
-    const neon = new THREE.Mesh(
-      new THREE.TorusGeometry(0.6, 0.025, 6, 32, Math.PI),
-      new THREE.MeshBasicMaterial({ color: 0xff7ac8 })
-    );
-    neon.position.set(0, H + 0.14, 0.2);
-    neon.name = 'neon';
-    group.add(neon);
+    // Neon tube frame hugging the sign, plus marquee bulbs along the lintel
+    const neonMat = new THREE.MeshBasicMaterial({ color: 0xff7ac8 });
+    const tw = signW - 0.06;
+    const th = signH - 0.1;
+    const tubes: [number, number, number, number][] = [
+      [0, signY + th / 2, tw, 0.025],
+      [0, signY - th / 2, tw, 0.025],
+      [-tw / 2, signY, 0.025, th],
+      [tw / 2, signY, 0.025, th]
+    ];
+    tubes.forEach(([x, y, w, h]) => {
+      const tube = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.025), neonMat);
+      tube.position.set(x, y, 0.2);
+      tube.name = 'neon';
+      group.add(tube);
+    });
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a3 });
+    for (let i = 0; i < 7; i++) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), bulbMat);
+      b.position.set(-W / 2 - 0.05 + (i / 6) * (W + 0.1), H + 0.14, 0.19);
+      group.add(b);
+    }
   } else if (style === 'study') {
     const lampMat = new THREE.MeshBasicMaterial({ color: 0xffe2a8 });
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), lampMat);
@@ -211,10 +235,155 @@ export function makeDoor(style: DoorStyle, title: string, subtitle?: string): Do
       const target = near || forceOpen > 0 ? 1 : 0;
       openAmt += (target - openAmt) * (1 - Math.exp(-delta * 6));
       hinge.rotation.y = -openAmt * 1.25;
-      const neon = group.getObjectByName('neon') as THREE.Mesh | undefined;
+      const neon = group.getObjectByName('neon') as THREE.Mesh | undefined; // tubes share one material
       if (neon) (neon.material as THREE.MeshBasicMaterial).color.setHSL(0.88 + Math.sin(performance.now() * 0.002) * 0.04, 1, 0.6 + themeManager.themeProgress * 0.1);
     }
   };
+}
+
+/**
+ * A one-point-perspective painting of the room behind a door (walls, floor and a few
+ * signature props), so an open door shows the next room instead of a flat colour.
+ * Cached per style; one 256x512 canvas each.
+ */
+const peekCache = new Map<DoorStyle, THREE.CanvasTexture>();
+function peekTexture(style: DoorStyle): THREE.CanvasTexture {
+  const cached = peekCache.get(style);
+  if (cached) return cached;
+  const P: Record<DoorStyle, { wall: string; side: string; floor: string; floor2: string; ceil: string }> = {
+    arcade: { wall: '#3B2A56', side: '#2E2142', floor: '#FFC9B0', floor2: '#FFF6EC', ceil: '#241933' },
+    garden: { wall: '#CFE9FF', side: '#B8DDF7', floor: '#D8C3A5', floor2: '#C9B08E', ceil: '#E8F6FF' },
+    study: { wall: '#FFE2C4', side: '#F2CBA5', floor: '#C99A6B', floor2: '#B98A5B', ceil: '#F7D9B8' },
+    home: { wall: '#FFC9B0', side: '#F2B39B', floor: '#EED6BA', floor2: '#E2C6A6', ceil: '#F7BFA6' },
+    realm: { wall: '#B9A8FF', side: '#A48FF0', floor: '#BDEBD3', floor2: '#A8DDC0', ceil: '#D9C8FF' }
+  };
+  const c = P[style];
+  const tex = canvasTexture(256, 512, (ctx) => {
+    const L = 52, R = 204, T = 150, B = 372; // back wall rectangle
+    const quad = (pts: number[][], fill: string) => {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      pts.slice(1).forEach((p) => ctx.lineTo(p[0], p[1]));
+      ctx.closePath();
+      ctx.fill();
+    };
+    quad([[0, 0], [256, 0], [R, T], [L, T]], c.ceil);
+    quad([[0, 0], [L, T], [L, B], [0, 512]], c.side);
+    quad([[256, 0], [R, T], [R, B], [256, 512]], c.side);
+    quad([[L, T], [R, T], [R, B], [L, B]], c.wall);
+    // Floor with receding stripes / tiles
+    quad([[0, 512], [256, 512], [R, B], [L, B]], c.floor);
+    ctx.strokeStyle = c.floor2;
+    ctx.lineWidth = 3;
+    for (let i = 1; i < 8; i++) {
+      const t = Math.pow(i / 8, 1.6);
+      const y = B + (512 - B) * t;
+      const xl = L - L * t;
+      const xr = R + (256 - R) * t;
+      ctx.beginPath();
+      ctx.moveTo(xl, y);
+      ctx.lineTo(xr, y);
+      ctx.stroke();
+    }
+    for (let i = 0; i <= 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(L + ((R - L) * i) / 6, B);
+      ctx.lineTo((256 * i) / 6, 512);
+      ctx.stroke();
+    }
+    const glow = (x: number, y: number, r: number, col: string) => {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, col);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    if (style === 'arcade') {
+      ctx.fillStyle = '#FF7AC8';
+      ctx.fillRect(L, T + 10, R - L, 5);
+      [70, 110, 150].forEach((x, i) => {
+        ctx.fillStyle = ['#FFE9A3', '#BDE0FF', '#BDEBD3'][i];
+        ctx.fillRect(x, 262, 34, 110);
+        ctx.fillStyle = '#1D1328';
+        ctx.fillRect(x + 5, 272, 24, 28);
+        glow(x + 17, 286, 30, 'rgba(255,122,200,0.55)');
+      });
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#FFB3E1';
+      ctx.fillText('★ PLAY ★', 128, 215);
+    } else if (style === 'garden') {
+      ctx.strokeStyle = '#FFFDF8';
+      ctx.lineWidth = 5;
+      for (let x = L; x <= R; x += 38) {
+        ctx.beginPath();
+        ctx.moveTo(x, T);
+        ctx.lineTo(x, B);
+        ctx.stroke();
+      }
+      [[70, 340], [128, 330], [186, 340]].forEach(([x, y]) => {
+        ctx.fillStyle = '#A97A5A';
+        ctx.fillRect(x - 26, y, 52, 26);
+        ctx.fillStyle = '#76B885';
+        for (let k = 0; k < 4; k++) {
+          ctx.beginPath();
+          ctx.ellipse(x - 15 + k * 10, y - 12, 9, 18, (k - 1.5) * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#FFB3C7';
+        ctx.beginPath();
+        ctx.arc(x, y - 24, 6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      glow(128, 160, 90, 'rgba(255,255,220,0.6)');
+    } else if (style === 'study') {
+      [[58, 200], [150, 200]].forEach(([x, y]) => {
+        ctx.fillStyle = '#8A5A4A';
+        ctx.fillRect(x, y, 48, 172);
+        for (let shelf = 0; shelf < 4; shelf++) {
+          for (let b = 0; b < 5; b++) {
+            ctx.fillStyle = ['#FFB3C7', '#BDE0FF', '#FFE9A3', '#BDEBD3', '#D9C8FF'][(b + shelf) % 5];
+            ctx.fillRect(x + 4 + b * 8.5, y + 8 + shelf * 42, 7, 32);
+          }
+        }
+      });
+      glow(128, 250, 50, 'rgba(255,226,168,0.8)');
+      ctx.fillStyle = '#FFE2A8';
+      ctx.beginPath();
+      ctx.arc(128, 250, 10, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (style === 'home') {
+      ctx.fillStyle = '#BDE0FF';
+      ctx.fillRect(90, 190, 76, 60);
+      ctx.strokeStyle = '#8A5A4A';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(90, 190, 76, 60);
+      ctx.beginPath();
+      ctx.moveTo(128, 190);
+      ctx.lineTo(128, 250);
+      ctx.stroke();
+      ctx.fillStyle = '#8A5A4A';
+      ctx.fillRect(62, 318, 90, 54);
+      ctx.fillStyle = '#5FA39A';
+      ctx.fillRect(66, 306, 82, 24);
+      ctx.fillStyle = '#FFF6EC';
+      ctx.fillRect(70, 298, 26, 12);
+      ['#FFD27A', '#FFA8C8', '#A8E6FF', '#C8FFB0'].forEach((col, i) => {
+        for (let k = i; k < 12; k += 4) glow(L + 8 + k * 12.5, T + 14 + Math.sin(k * 0.6) * 4, 9, col);
+      });
+    } else {
+      glow(128, 260, 80, 'rgba(255,255,255,0.7)');
+    }
+    // Soft vignette so it reads as "further away"
+    const v = ctx.createRadialGradient(128, 280, 60, 128, 280, 300);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(40,24,30,0.35)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, 256, 512);
+  });
+  peekCache.set(style, tex);
+  return tex;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -472,6 +641,8 @@ export class NightLights {
     this.lights.forEach((l) => (l.light.intensity = THREE.MathUtils.lerp(l.day, l.night, p)));
     this.glows.forEach((g) => g.mat.color.copy(g.day).lerp(g.night, p));
     const t = performance.now() * 0.003;
-    this.halos.forEach((h, i) => ((h.material as THREE.SpriteMaterial).opacity = p * (0.55 + Math.sin(t + i * 0.7) * 0.15)));
+    this.halos.forEach((h, i) => {
+      if (!h.userData.manual) (h.material as THREE.SpriteMaterial).opacity = p * (0.55 + Math.sin(t + i * 0.7) * 0.15);
+    });
   }
 }

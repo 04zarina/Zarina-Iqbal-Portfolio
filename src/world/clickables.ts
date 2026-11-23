@@ -95,7 +95,7 @@ class ClickSystem {
     if (this.hovered?.object === object) this.hideTooltip();
   }
 
-  /** Called on room change. Persistent objects (like Mochi) stay registered. */
+  /** Called on room change. Persistent objects (like Zuzu) stay registered. */
   clear(): void {
     this.items = this.items.filter((i) => i.persistent);
     this.hideTooltip();

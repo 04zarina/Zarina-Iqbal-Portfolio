@@ -24,7 +24,6 @@ export interface AppState {
   completedQuests: string[];
   /** 'walk': room buttons make her walk there herself. 'instant': jump straight to the room. */
   travelMode: 'walk' | 'instant';
-  cameraMode: 'third' | 'first';
 }
 
 function readPref(key: string): string | null {
@@ -52,8 +51,7 @@ const DEFAULT_STATE: AppState = {
   isWakingUp: true,
   isSleeping: true,
   completedQuests: ['start_journey'],
-  travelMode: (readPref('travel_mode') as 'walk' | 'instant') || 'walk',
-  cameraMode: 'third'
+  travelMode: (readPref('travel_mode') as 'walk' | 'instant') || 'walk'
 };
 
 class Store {

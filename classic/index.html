@@ -33,6 +33,23 @@
       align-items: center;
       flex-wrap: wrap;
     }
+    .hero-avatar {
+      width: 132px; height: 150px; flex: none;
+      border-radius: 28px;
+      background: radial-gradient(circle at 50% 38%, var(--butter), var(--blush) 70%);
+      border: 3px solid var(--cocoa);
+      display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+    }
+    .hero-avatar-sprite {
+      width: 109px; height: 160px;
+      background: url('/images/avatar-wave.webp') 0 0 / 2180px 160px no-repeat;
+      animation: hero-wave 2s steps(20) infinite;
+      margin-bottom: -10px;
+    }
+    @keyframes hero-wave { to { background-position: -2180px 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-avatar-sprite { animation: none; background-position: -654px 0; }
+    }
     .section-card {
       background: var(--surface-color);
       border: 2.5px solid var(--cocoa);
@@ -70,9 +87,7 @@
 
     <!-- Hero Card -->
     <div class="hero-card">
-      <div style="width:96px; height:96px; border-radius:50%; background:var(--blush); border:3px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:3rem;">
-        🐾
-      </div>
+      <div class="hero-avatar" role="img" aria-label="Zarina's avatar waving hello"><div class="hero-avatar-sprite"></div></div>
       <div style="flex:1;">
         <h1 style="font-family:var(--font-display); font-size:2.2rem; color:var(--ink); margin-bottom:4px;">Zarina Iqbal Buriro</h1>
         <p style="font-size:1.1rem; font-weight:700; color:var(--text-muted); margin-bottom:12px;">

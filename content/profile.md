@@ -6,7 +6,7 @@ tagline: "I build gameplay systems, UI and interactions in Unreal Engine 5, Unit
 availability: "Open to game development, game programming and interactive 3D roles and internships."
 currently: "Interning at Aerox ERP on web and 3D interactions, final year at NED University."
 email: "zarinaiqbal04@gmail.com"
-companionName: "Mochi"
+companionName: "Zuzu"
 location: "Karachi, Pakistan"
 resume: "/resume/Zarina_Iqbal_Resume.pdf"
 socials:

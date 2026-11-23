@@ -8,12 +8,16 @@ import { audioManager } from '../../audio/audioManager';
 
 /** Showreel tape: stands on the desk between the lamp and the front edge, big enough to spot. */
 const TAPE_POS = new THREE.Vector3(1.5, 0.76, -2.98);
+/** Desk lamp state survives leaving and re-entering the bedroom. Off when she first wakes up. */
+let lampOn = false;
+const MIRROR_X = -0.8;
 import { collisionSystem } from '../collision';
 import { interactionSystem } from '../interaction';
 import { themeManager } from '../theme';
 import { store } from '../../core/store';
 import { eventBus } from '../../core/events';
 import { sparkleSystem } from '../fx/sparkles';
+import { jellyController } from '../fx/jelly';
 import { assetLoader } from '../../core/loaders';
 import { Avatar } from '../avatar/avatar';
 import { DECOR, placeDecor, recenter } from '../decor';
@@ -25,7 +29,7 @@ export class BedroomRoom {
   /** Face the back wall (mirror, desk, TV) when entering. */
   public spawnRotationY = Math.PI;
   public bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
-  public outPos = new THREE.Vector3(-1.8, 0, -1.8);
+  public outPos = new THREE.Vector3(-1.95, 0, -2.2);
 
   private avatar: Avatar | null = null;
   private tapeMesh: THREE.Object3D | null = null;
@@ -40,6 +44,8 @@ export class BedroomRoom {
   private tapePad: THREE.Mesh | null = null;
   private windowMat: THREE.MeshBasicMaterial | null = null;
   private moon: THREE.Mesh | null = null;
+  private lampBulb: THREE.Mesh | null = null;
+  private lampHalo: THREE.Sprite | null = null;
 
   /** Where to stand when arriving from another room, and where to walk to leave for it. */
   public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
@@ -103,13 +109,11 @@ export class BedroomRoom {
     this.group.add(rightWall);
 
     // Front Wall segments with door cutouts
-    const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4, 0.2), wallMat);
-    frontWallLeft.position.set(-3.4, 2, 3.9);
-    const frontWallMid = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4, 0.2), wallMat);
-    frontWallMid.position.set(0, 2, 3.9);
-    const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(1.8, 4, 0.2), wallMat);
-    frontWallRight.position.set(4.1, 2, 3.9);
-    this.group.add(frontWallLeft, frontWallMid, frontWallRight);
+    // Solid front wall: the doors paint a view of the next room, so no holes (and no gaps
+    // above the doors) are needed
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 0.2), wallMat);
+    frontWall.position.set(0, 2, 3.9);
+    this.group.add(frontWall);
 
     // Baseboards
     const baseBack = new THREE.Mesh(new THREE.BoxGeometry(10, 0.15, 0.05), baseboardMat);
@@ -130,9 +134,17 @@ export class BedroomRoom {
     collisionSystem.addBox(-4.8, -3.7, 2.8, 3.8);
 
     // 4. Point light for bedroom lamp
-    this.lampLight = new THREE.PointLight(0xFFD08A, 1.4, 7);
-    this.lampLight.position.set(1.4, 1.35, -3.0);
+    this.lampLight = new THREE.PointLight(0xFFC27A, 1.4, 9, 1.4);
+    this.lampLight.position.set(1.4, 1.25, -3.0);
     this.group.add(this.lampLight);
+    // Glowing bulb + halo inside the shade, only lit when the lamp is on
+    this.lampBulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true }));
+    this.lampBulb.position.set(1.4, 1.12, -3.25);
+    this.lampHalo = this.night.halo(0xffd08a, 1.4);
+    this.lampHalo.position.set(1.4, 1.15, -3.2);
+    this.lampHalo.userData.manual = true;
+    this.group.add(this.lampBulb, this.lampHalo);
+    themeManager.setInteriorLight(lampOn ? 1 : 0, true);
 
     // 5. Doors to the other rooms, each themed and labelled with where it leads
     const arcadeDoor = makeDoor('arcade', 'ARCADE', 'Featured games');
@@ -193,7 +205,8 @@ export class BedroomRoom {
       { url: DECOR.clock, position: [0.1, 0, -3.72] },
       { url: DECOR.floorLamp, position: [4.35, 0, -3.35], scale: 1.1 },
       { url: DECOR.picturePyramid, position: [1.8, 1.95, -3.8], scale: 1.1 },
-      { url: DECOR.pictureFlowers, position: [-4.8, 1.75, -0.2], rotY: Math.PI / 2 },
+      // Clear of the window (z -1.75..-0.25) and the arcade door (z 1.1..2.5)
+      { url: DECOR.pictureFlowers, position: [-4.8, 1.8, 0.55], rotY: Math.PI / 2 },
       { url: DECOR.armchairRed, position: [4.05, 0, 2.95], rotY: -Math.PI * 0.75 },
       { url: DECOR.plantPalm, position: [-4.25, 0, 3.3], scale: 0.62 },
       { url: DECOR.bookStack, position: [-2.0, 2.19, -3.66] },
@@ -281,7 +294,7 @@ export class BedroomRoom {
     const mirrorGltf = await assetLoader.loadGLTF('mirror');
     if (mirrorGltf) {
       const mirror = recenter(mirrorGltf, true);
-      mirror.position.set(-1.4, 1.2, -3.76);
+      mirror.position.set(MIRROR_X, 1.2, -3.76);
       mirror.scale.setScalar(0.9);
       this.styleMirror(mirror);
       this.group.add(mirror);
@@ -423,9 +436,9 @@ export class BedroomRoom {
   private buildFallbackMirror(): void {
     const mirrorFrame = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 32), new THREE.MeshLambertMaterial({ color: 0xFFE9A3 }));
     mirrorFrame.rotation.x = Math.PI / 2;
-    mirrorFrame.position.set(-1.4, 1.15, -3.8);
+    mirrorFrame.position.set(MIRROR_X, 1.15, -3.8);
     const mirrorGlass = new THREE.Mesh(new THREE.CircleGeometry(0.48, 32), new THREE.MeshBasicMaterial({ color: 0xBDE0FF }));
-    mirrorGlass.position.set(-1.4, 1.15, -3.76);
+    mirrorGlass.position.set(MIRROR_X, 1.15, -3.76);
     this.group.add(mirrorFrame, mirrorGlass);
   }
 
@@ -445,46 +458,152 @@ export class BedroomRoom {
     }
   }
 
-  /** Framed GameCon photos on the right wall; click one (or press E nearby) for the story. */
+  /**
+   * Community wall on the right wall: a framed pin board with polaroid photos (captioned),
+   * washi tape, a bunting garland and a header sign. Click a photo (or press E nearby) for the story.
+   */
   private buildCommunityWall(): void {
     const loader = new THREE.TextureLoader();
-    const frames: { z: number; w: number; h: number }[] = [
-      { z: 1.0, w: 0.66, h: 0.5 }, // GameCon'25 (landscape)
-      { z: 0.15, w: 0.45, h: 0.6 }, // GameCon'26 (portrait)
-      { z: 1.95, w: 0.7, h: 0.33 } // Light Up The House on stage (wide)
+    const wall = new THREE.Group();
+    wall.position.set(4.79, 0, 1.05);
+    wall.rotation.y = -Math.PI / 2; // local +Z faces into the room, local +X runs toward -Z (world)
+    this.group.add(wall);
+
+    // Board: soft lavender felt with a scalloped, two-tone painted border
+    const BW = 2.7;
+    const BH = 1.45;
+    const boardTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 550;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = '#F3E9FF';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = 'rgba(156,134,217,0.08)';
+      for (let i = 0; i < 500; i++) ctx.fillRect((i * 131) % 1024, (i * 71) % 550, 3, 3);
+      // Scalloped border
+      ctx.fillStyle = '#FFB3C7';
+      for (let x = 0; x <= 1024; x += 48) {
+        ctx.beginPath();
+        ctx.arc(x, 0, 24, 0, Math.PI * 2);
+        ctx.arc(x, 550, 24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (let y = 0; y <= 550; y += 48) {
+        ctx.beginPath();
+        ctx.arc(0, y, 24, 0, Math.PI * 2);
+        ctx.arc(1024, y, 24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = '#9C86D9';
+      ctx.setLineDash([18, 12]);
+      ctx.lineWidth = 6;
+      ctx.strokeRect(40, 40, 944, 470);
+      ctx.setLineDash([]);
+      // Little hearts and stars doodled in the corners
+      ctx.font = '40px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      [['💜', 80, 80], ['⭐', 944, 80], ['🎮', 80, 470], ['✨', 944, 470]].forEach(([t, x, y]) => ctx.fillText(t as string, x as number, y as number));
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    })();
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.14, BH + 0.14, 0.05), new THREE.MeshLambertMaterial({ color: 0x8a5a4a }));
+    frame.position.set(0, 1.85, 0.01);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), new THREE.MeshLambertMaterial({ map: boardTex }));
+    board.position.set(0, 1.85, 0.04);
+    wall.add(frame, board);
+
+    // Header sign over the board
+    const sign = makeSign('Community & Events', { emoji: '🎤', subtitle: "GameCon'25 · GameCon'26 · talks", width: 1.5, bg: '#FFF6EC' });
+    sign.position.set(0, 2.84, 0.06);
+    wall.add(sign);
+
+    // Polaroids: white card, photo, handwritten-style caption, a strip of washi tape on top
+    const slots: { x: number; y: number; w: number; h: number; rot: number }[] = [
+      { x: -0.82, y: 1.86, w: 0.6, h: 0.45, rot: 0.04 },
+      { x: 0.02, y: 1.9, w: 0.42, h: 0.56, rot: -0.03 },
+      { x: 0.85, y: 1.84, w: 0.66, h: 0.32, rot: 0.05 }
     ];
-    const frameMat = new THREE.MeshLambertMaterial({ color: 0xffb3c7 });
+    const tapeColors = [0xffe9a3, 0xbdebd3, 0xbde0ff];
     profile.community.forEach((photo, i) => {
-      const f = frames[i];
+      const f = slots[i];
       if (!f) return;
       const g = new THREE.Group();
-      g.position.set(4.77, 1.75, f.z);
-      g.rotation.y = -Math.PI / 2;
-      const border = new THREE.Mesh(new THREE.BoxGeometry(f.w + 0.08, f.h + 0.08, 0.04), frameMat);
+      g.position.set(f.x, f.y, 0.06);
+      g.rotation.z = f.rot;
+      const capH = 0.14;
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(f.w + 0.08, f.h + 0.08 + capH), new THREE.MeshLambertMaterial({ color: 0xfffdf8 }));
+      card.position.y = -capH / 2;
+      const shadow = new THREE.Mesh(new THREE.PlaneGeometry(f.w + 0.08, f.h + 0.08 + capH), new THREE.MeshBasicMaterial({ color: 0x5a3a32, transparent: true, opacity: 0.18 }));
+      shadow.position.set(0.025, -capH / 2 - 0.025, -0.004);
       const tex = loader.load(photo.src);
       tex.colorSpace = THREE.SRGBColorSpace;
       const pic = new THREE.Mesh(new THREE.PlaneGeometry(f.w, f.h), new THREE.MeshBasicMaterial({ map: tex }));
-      pic.position.z = 0.025;
-      g.add(border, pic);
-      this.group.add(g);
+      pic.position.z = 0.002;
+      const caption = new THREE.Mesh(
+        new THREE.PlaneGeometry(f.w, capH * 0.8),
+        new THREE.MeshBasicMaterial({ map: this.makeCaptionTexture(photo.title), transparent: true })
+      );
+      caption.position.set(0, -f.h / 2 - capH / 2 - 0.01, 0.003);
+      const tape = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.2, 0.06),
+        new THREE.MeshBasicMaterial({ color: tapeColors[i % 3], transparent: true, opacity: 0.85 })
+      );
+      tape.position.set(0, f.h / 2 + 0.04, 0.005);
+      tape.rotation.z = -f.rot * 3;
+      g.add(shadow, card, pic, caption, tape);
+      wall.add(g);
+      jellyController.register(g);
       clickSystem.register(g, `📸 ${photo.title}`, () => eventBus.emit('open:community', i));
     });
-    const sign = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.9, 0.2),
-      new THREE.MeshBasicMaterial({ map: this.makeSignTexture('🎤 Community'), transparent: true })
-    );
-    sign.position.set(4.78, 2.38, 1.0);
-    sign.rotation.y = -Math.PI / 2;
-    this.group.add(sign);
+
+    // Bunting garland across the top of the board
+    const flagColors = [0xffb3c7, 0xffe9a3, 0xbdebd3, 0xbde0ff, 0xd9c8ff];
+    const flagGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-0.07, 0, 0), new THREE.Vector3(0.07, 0, 0), new THREE.Vector3(0, -0.13, 0)]);
+    for (let i = 0; i < 13; i++) {
+      const t = i / 12;
+      const x = -BW / 2 + 0.1 + t * (BW - 0.2);
+      const y = 2.52 - Math.sin(t * Math.PI) * 0.1;
+      const flag = new THREE.Mesh(flagGeo, new THREE.MeshBasicMaterial({ color: flagColors[i % flagColors.length], side: THREE.DoubleSide }));
+      flag.position.set(x, y, 0.07);
+      wall.add(flag);
+    }
+    const string = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.006, 4, 40, Math.PI), new THREE.MeshBasicMaterial({ color: 0x8a5a4a }));
+    string.scale.set(BW / 2 / 1.0 - 0.05, 0.12, 1);
+    string.rotation.z = Math.PI;
+    string.position.set(0, 2.52, 0.065);
+    wall.add(string);
 
     interactionSystem.register({
       id: 'community_wall',
       label: 'See GameCon photos 🎤',
       keyHint: 'E',
       radius: 1.6,
-      position: new THREE.Vector3(4.3, 0.5, 1.0),
+      position: new THREE.Vector3(4.3, 0.5, 1.05),
       onInteract: () => eventBus.emit('open:community', 0)
     });
+  }
+
+  private makeCaptionTexture(text: string): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 96;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#5A3A32';
+    let size = 46;
+    ctx.font = `600 ${size}px "Baloo 2", Fredoka, sans-serif`;
+    while (ctx.measureText(text).width > 490 && size > 22) {
+      size -= 2;
+      ctx.font = `600 ${size}px "Baloo 2", Fredoka, sans-serif`;
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 256, 50);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
   }
 
   private makeSignTexture(text: string): THREE.CanvasTexture {
@@ -529,15 +648,11 @@ export class BedroomRoom {
     // 2. Lamp (Day/Dusk Toggle)
     interactionSystem.register({
       id: 'lamp',
-      label: 'Switch Lamp',
+      label: lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡',
       keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(1.4, 1.0, -3.0),
-      onInteract: () => {
-        themeManager.toggleTheme();
-        sparkleSystem.burst(new THREE.Vector3(1.4, 1.4, -3.1), 12);
-        eventBus.emit('toast:show', `Switched to ${store.get().theme === 'dusk' ? 'Dusk 🌙' : 'Day ☀️'} mode!`);
-      }
+      onInteract: () => this.toggleLamp()
     });
 
     // 3. Tape Pickup: front-left corner of the desk, ahead of the TV and lamp so it wins when you walk up
@@ -613,7 +728,7 @@ export class BedroomRoom {
       label: 'Look in Mirror (About Zarina)',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(-1.4, 1.2, -3.1),
+      position: new THREE.Vector3(MIRROR_X, 1.2, -3.1),
       onInteract: () => {
         store.set('activeOverlay', 'about');
         eventBus.emit('overlay:open', 'about');
@@ -626,7 +741,7 @@ export class BedroomRoom {
       label: 'See Achievements & Certificates 🏆',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(-1.4, 1.6, -2.9),
+      position: new THREE.Vector3(-1.95, 1.6, -2.9),
       onInteract: () => eventBus.emit('open:journal', 'collectibles')
     });
 
@@ -673,10 +788,35 @@ export class BedroomRoom {
     });
   }
 
+  /** Desk lamp: lights up the bedroom at night (the ☰ menu still switches day / night). */
+  private toggleLamp(): void {
+    lampOn = !lampOn;
+    themeManager.setInteriorLight(lampOn ? 1 : 0);
+    audioManager.playClick();
+    sparkleSystem.burst(new THREE.Vector3(1.4, 1.3, -3.1), 12);
+    const item = (interactionSystem as any).interactables?.get('lamp');
+    if (item) {
+      item.label = lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡';
+      if (interactionSystem.currentActive?.id === 'lamp') eventBus.emit('interaction:available', { id: 'lamp', label: item.label, keyHint: 'E', position: item.position });
+    }
+    if (lampOn) store.completeQuest('lamp_on');
+    eventBus.emit('toast:show', lampOn ? 'Lamp on! Cozy 💡 (☰ menu → Day mode for daylight)' : 'Lamp off 🌙');
+  }
+
   private setupSeats(): void {
     registerSeat({ id: 'seat_armchair', label: 'Sit in the armchair 🛋️', position: new THREE.Vector3(3.95, 0, 2.85), yaw: -Math.PI * 0.75, height: 0.4 });
     registerSeat({ id: 'seat_deskchair', label: 'Sit on the desk chair 🪑', position: new THREE.Vector3(2.75, 0, -2.05), yaw: -0.5, height: 0.45, radius: 1.1 });
-    registerSeat({ id: 'seat_bed', label: 'Sit on the bed 🛏️', position: new THREE.Vector3(-2.35, 0, -0.9), yaw: Math.PI / 2, height: 0.5, radius: 1.0, priority: -0.2 });
+    // On the side of the mattress (top ~0.68 m), facing the room, feet dangling over the edge
+    registerSeat({
+      id: 'seat_bed',
+      label: 'Sit on the bed 🛏️',
+      position: new THREE.Vector3(-2.66, 0, -1.95),
+      yaw: Math.PI / 2,
+      height: 0.615,
+      radius: 1.1,
+      priority: -0.2,
+      standAt: new THREE.Vector3(-1.95, 0, -1.95)
+    });
   }
 
   private setupEvents(): void {
@@ -727,7 +867,11 @@ export class BedroomRoom {
     });
 
     if (this.lampLight) {
-      this.lampLight.intensity = THREE.MathUtils.lerp(0.8, 2.2, themeManager.themeProgress);
+      // Lamp on: warm pool of light (brighter at night). Off: nothing.
+      const on = themeManager.interiorLight * (lampOn ? 1 : 0);
+      this.lampLight.intensity = on * THREE.MathUtils.lerp(1.0, 3.2, themeManager.themeProgress);
+      if (this.lampBulb) (this.lampBulb.material as THREE.MeshBasicMaterial).opacity = 0.25 + on * 0.75;
+      if (this.lampHalo) (this.lampHalo.material as THREE.SpriteMaterial).opacity = on * (0.45 + themeManager.themeProgress * 0.35);
     }
 
     const av = refs.avatar?.position ?? null;
@@ -750,6 +894,8 @@ export class BedroomRoom {
   }
 
   dispose(): void {
+    // Other rooms have their own lights; only the bedroom has the lamp switch
+    themeManager.setInteriorLight(1, true);
     interactionSystem.clear();
     this.fairyLights = [];
     this.portal = null;

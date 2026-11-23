@@ -55,7 +55,7 @@
   pointer-events: auto;
 }
 
-.hud-ask-mochi-btn {
+.hud-ask-zuzu-btn {
   padding: 8px 18px;
   font-size: 0.88rem;
   font-family: var(--font-display);
@@ -864,18 +864,18 @@
 .hud-menu-hint { font-size: .76rem; color: var(--text-muted); margin: 4px 2px 0; line-height: 1.35; }
 .hud-menu-links { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Click-to-walk marker is drawn in 3D; Mochi's speech bubble is HTML */
-.mochi-bubble { position: fixed; left: 0; top: 0; z-index: 60; max-width: 260px; padding: 10px 14px; background: #FFFDF8; border: 2px solid var(--cocoa); border-radius: 18px; box-shadow: 0 4px 0 var(--cocoa); font: 600 .86rem/1.35 var(--font-body, Nunito, sans-serif); color: var(--ink); pointer-events: none; transform: translate(-50%, calc(-100% - 14px)); opacity: 0; transition: opacity .2s ease; }
-.mochi-bubble.show { opacity: 1; }
-.mochi-bubble::after { content: ''; position: absolute; left: 50%; bottom: -11px; width: 18px; height: 18px; background: #FFFDF8; border-right: 2px solid var(--cocoa); border-bottom: 2px solid var(--cocoa); transform: translateX(-50%) rotate(45deg); }
-.mochi-bubble .typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--cocoa); animation: mochiDot 1s infinite ease-in-out; }
-.mochi-bubble .typing span:nth-child(2) { animation-delay: .15s; } .mochi-bubble .typing span:nth-child(3) { animation-delay: .3s; }
-@keyframes mochiDot { 0%, 100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-4px); opacity: 1; } }
+/* Click-to-walk marker is drawn in 3D; Zuzu's speech bubble is HTML */
+.zuzu-bubble { position: fixed; left: 0; top: 0; z-index: 60; max-width: 260px; padding: 10px 14px; background: #FFFDF8; border: 2px solid var(--cocoa); border-radius: 18px; box-shadow: 0 4px 0 var(--cocoa); font: 600 .86rem/1.35 var(--font-body, Nunito, sans-serif); color: var(--ink); pointer-events: none; transform: translate(-50%, calc(-100% - 14px)); opacity: 0; transition: opacity .2s ease; }
+.zuzu-bubble.show { opacity: 1; }
+.zuzu-bubble::after { content: ''; position: absolute; left: 50%; bottom: -11px; width: 18px; height: 18px; background: #FFFDF8; border-right: 2px solid var(--cocoa); border-bottom: 2px solid var(--cocoa); transform: translateX(-50%) rotate(45deg); }
+.zuzu-bubble .typing span { display: inline-block; width: 6px; height: 6px; margin: 0 2px; border-radius: 50%; background: var(--cocoa); animation: zuzuDot 1s infinite ease-in-out; }
+.zuzu-bubble .typing span:nth-child(2) { animation-delay: .15s; } .zuzu-bubble .typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes zuzuDot { 0%, 100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-4px); opacity: 1; } }
 .float-pop { position: fixed; z-index: 61; pointer-events: none; font: 800 1rem var(--font-display, Fredoka, sans-serif); color: #fff; background: #59B87A; border: 2px solid var(--cocoa); border-radius: 999px; padding: 4px 12px; box-shadow: 0 3px 0 var(--cocoa); transform: translate(-50%, -50%); animation: floatPop 1.6s ease-out forwards; white-space: nowrap; }
 .float-pop.pink { background: #E58FA8; } .float-pop.gold { background: #E8B53E; }
 @keyframes floatPop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -60%) scale(1.08); } 100% { opacity: 0; transform: translate(-50%, -260%) scale(1); } }
 
-/* ---------- Round 3: Bug Bash mini game ---------- */
+/* ---------- Mini game (Snack Rain) ---------- */
 .game-hud { position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 55; display: none; gap: 8px; align-items: center; pointer-events: auto; }
 .game-hud.show { display: flex; }
 .game-pill { font: 800 1rem var(--font-display, Fredoka, sans-serif); background: #281D35; color: #FFE9A3; border: 2px solid #FFE9A3; border-radius: 999px; padding: 6px 14px; box-shadow: 0 3px 0 #120b1a; }
@@ -925,3 +925,58 @@
 .splash-foot a { color: inherit; }
 @media (max-height: 640px) { .splash-chibi { width: 110px; height: 120px; } .splash-name { font-size: 1.7rem; } }
 @media (prefers-reduced-motion: reduce) { .splash-bg, .splash-bg span, .splash-chibi, .splash-pad, .splash-start { animation: none; } }
+
+/* ---------- Round 4: polish ---------- */
+
+/* The play button is centred with a transform; keep that transform on hover/press so it doesn't jump */
+.project-play-overlay:hover { transform: translate(-50%, calc(-50% - 2px)); }
+.project-play-overlay:active { transform: translate(-50%, calc(-50% + 2px)); }
+.project-play-overlay { transition: box-shadow var(--transition-fast), filter var(--transition-fast); will-change: transform; }
+
+/* Zuzu chat: language switch, voice input, read-aloud */
+.chat-lang { display: inline-flex; border: 1.5px solid var(--cocoa); border-radius: 999px; overflow: hidden; background: var(--cream); }
+.chat-lang button { border: 0; background: transparent; font: 800 .74rem var(--font-body, Nunito, sans-serif); color: var(--ink); padding: 4px 8px; cursor: pointer; }
+.chat-lang button + button { border-left: 1.5px solid var(--cocoa); }
+.chat-lang button.on { background: var(--butter); }
+.chat-icon-btn { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 50%; border: 1.5px solid var(--cocoa); background: var(--cream); cursor: pointer; font-size: .95rem; display: inline-flex; align-items: center; justify-content: center; }
+.chat-icon-btn[aria-pressed="true"] { background: var(--mint); }
+.chat-icon-btn.listening { background: #FFB3C7; animation: micPulse 1s ease-in-out infinite alternate; }
+@keyframes micPulse { from { box-shadow: 0 0 0 0 rgba(229,143,168,.6); } to { box-shadow: 0 0 0 8px rgba(229,143,168,0); } }
+.chat-bubble[dir="rtl"], .starter-chip[dir="rtl"] { font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', var(--font-body, Nunito, sans-serif); line-height: 1.9; }
+
+/* Pet hearts float on their own (no second bubble over Zuzu) */
+.float-pop.heart { background: none; border: 0; box-shadow: none; font-size: 1.5rem; padding: 0; }
+
+/* Rooms chip (phones only) */
+.hud-room-toggle { display: none; }
+
+/* ---------- Phones and small tablets: fewer, bigger, tidier controls ---------- */
+@media (max-width: 700px) {
+  .hud-top-left { top: max(10px, env(safe-area-inset-top)); left: 10px; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .hud-top-right { top: max(10px, env(safe-area-inset-top)); right: 10px; gap: 6px; }
+  .hud-room-toggle {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--cream); border: 2px solid var(--cocoa); border-radius: 999px;
+    padding: 7px 14px; font: 700 .9rem var(--font-display); color: var(--ink); box-shadow: var(--shadow-sticker); cursor: pointer;
+  }
+  .hud-room-bar { display: none; flex-direction: column; align-items: stretch; gap: 6px; background: var(--cream); border: 2px solid var(--cocoa); border-radius: 18px; padding: 8px; box-shadow: 0 6px 0 var(--cocoa), 0 14px 30px rgba(60,30,40,.25); }
+  .hud-room-bar.open { display: flex; animation: menuPop .18s ease-out; }
+  .hud-room-bar .hud-room-btn { font-size: .95rem; padding: 10px 14px; text-align: left; box-shadow: none; }
+  .hud-ask-label { display: none; }
+  .hud-ask-zuzu-btn { width: 44px; height: 44px; padding: 0; justify-content: center; font-size: 1.25rem; animation: none; }
+  .hud-icon-btn { width: 44px; height: 44px; }
+  .hud-menu { position: fixed; top: auto; bottom: 0; right: 0; left: 0; width: 100%; max-height: 72vh; border-radius: 22px 22px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(60,30,40,.3); }
+  .prompt-bubble { font-size: .8rem; padding: 6px 12px; max-width: 70vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .joystick-zone { width: 112px; height: 112px; left: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); background: rgba(255,246,236,.55); border-style: solid; border-color: rgba(90,58,50,.5); }
+  .action-btn-zone { right: 20px; bottom: calc(26px + env(safe-area-inset-bottom)); }
+  .zuzu-bubble { max-width: 200px; font-size: .8rem; }
+  .chat-window { left: 8px; right: 8px; bottom: 8px; width: auto; height: min(72vh, 560px); }
+  .chat-input-row input { font-size: 16px; } /* no iOS zoom-on-focus */
+  .game-hud { top: 64px; }
+  .toast-container { bottom: auto; top: calc(66px + env(safe-area-inset-top)); width: calc(100% - 24px); align-items: center; }
+  .toast { font-size: .8rem; padding: 8px 14px; border-radius: 16px; text-align: center; }
+  .modal-card { width: calc(100% - 20px); max-height: 86vh; padding: 18px 16px; }
+}
+/* Touch devices: the big round action button */
+.action-btn-zone .action-big-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+.action-btn-zone .action-big-btn span { font-size: 1.5rem; }
+.action-btn-zone .action-big-btn small { font-size: .62rem; letter-spacing: .08em; margin-top: 2px; }

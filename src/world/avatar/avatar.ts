@@ -36,7 +36,7 @@ export class Avatar {
   private pose: Required<RigPose> = { armDownL: 1.3, armDownR: 1.3, armSwingL: 0, armSwingR: 0, legL: 0, legR: 0, elbowL: 0.15, elbowR: 0.15 };
   private waveTimer = -1;
   private readonly waveDuration = 2.0;
-  /** Short one-off body gestures (reach toward an object, pet Mochi, cheer, think). */
+  /** Short one-off body gestures (reach toward an object, pet Zuzu, cheer, think). */
   private gesture: { kind: 'reach' | 'pet' | 'cheer' | 'think'; t: number; dur: number } | null = null;
   private mixamo: MixamoAvatar | null = null;
   /** Head-height point used by the first-person camera. */
@@ -55,7 +55,9 @@ export class Avatar {
 
   // Waking up sequence state
   private wakeUpTimer = 0;
-  private wakeUpDuration = 2.6;
+  private wakeUpDuration = 3.8;
+  /** Where her hips end up on the side of the bed before she hops off (x/z), from wakeUp(). */
+  private bedEdge = new THREE.Vector3();
   private bedOrigin = new THREE.Vector3();
   private wakeUpTarget = new THREE.Vector3();
   private onWakeUpDone: (() => void) | null = null;
@@ -276,6 +278,9 @@ export class Avatar {
     this.bedOrigin.y = 0.52;
     this.wakeUpTarget.copy(outPos);
     this.wakeUpTarget.y = 0;
+    // Sit on the mattress edge facing the way she gets out, hips ~0.7 m short of where she'll stand
+    const yaw = this.stepOutYaw();
+    this.bedEdge.set(outPos.x - Math.sin(yaw) * 0.72, 0, outPos.z - Math.cos(yaw) * 0.72);
     this.onWakeUpDone = onComplete || null;
   }
 
@@ -343,7 +348,7 @@ export class Avatar {
     return this.waveTimer >= 0;
   }
 
-  /** One-off gesture. 'reach' for touching objects, 'pet' for Mochi, 'cheer' for wins, 'think' for reading. */
+  /** One-off gesture. 'reach' for touching objects, 'pet' for Zuzu, 'cheer' for wins, 'think' for reading. */
   doGesture(kind: 'reach' | 'pet' | 'cheer' | 'think', dur?: number): void {
     if (this.isSleeping || this.isWakingUp) return;
     if (this.isSitting && kind !== 'think' && kind !== 'reach') return;
@@ -566,33 +571,52 @@ export class Avatar {
       this.wakeUpTimer += delta;
       const p = Math.min(this.wakeUpTimer / this.wakeUpDuration, 1.0);
 
-      if (p < 0.35) {
-        // Phase 1: Sit up in bed, pivoting at the hips so the legs stay flat on the mattress
-        const sitProgress = THREE.MathUtils.smoothstep(p / 0.35, 0, 1);
+      // Hips stay ON the mattress the whole time (top of the blanket is ~0.68 m), so she
+      // never sinks into the bed: sit up, stretch, swivel to the edge, then hop down beside it.
+      const hipsY = this.bedOrigin.y + 0.22;
+      const seatY = hipsY - 0.125; // sitOnChair convention: hips = position.y + 0.125
+      const yawOut = this.stepOutYaw();
+      if (p < 0.24) {
+        // Phase 1: sit up, pivoting at the hips so the legs stay flat on top of the blanket
+        const sitProgress = THREE.MathUtils.smoothstep(p / 0.24, 0, 1);
         const theta = THREE.MathUtils.lerp(-Math.PI / 2, 0, sitProgress);
+        this.position.copy(this.bedOrigin);
+        this.rotationY = 0;
         this.setSitUpPose(theta);
-        this.wakeRig = { legs: -theta, arms: 1.3 };
-      } else if (p < 0.65) {
-        // Phase 2: Yawn and stretch both arms up
-        const yawnP = (p - 0.35) / 0.3;
+        // Legs stay flat on the bed while the torso rises: 0 lying down, 90° once upright
+        this.wakeRig = { legs: theta + Math.PI / 2, arms: 1.3 };
+      } else if (p < 0.44) {
+        // Phase 2: yawn and stretch both arms up
+        const yawnP = (p - 0.24) / 0.2;
         const stretch = Math.sin(yawnP * Math.PI);
+        this.position.copy(this.bedOrigin);
         this.setSitUpPose(0);
         this.rootNode.scale.set(1.0 - stretch * 0.04, 1.0 + stretch * 0.06, 1.0 - stretch * 0.04);
         this.rootNode.rotation.z = Math.sin(yawnP * Math.PI * 2) * 0.06;
         this.wakeRig = { legs: Math.PI / 2, arms: THREE.MathUtils.lerp(1.3, -1.25, stretch) };
-      } else {
-        // Phase 3: Swing the legs down, stand, and step out of bed
-        const stepP = (p - 0.65) / 0.35;
-        const standP = THREE.MathUtils.smoothstep(stepP / 0.45, 0, 1);
+      } else if (p < 0.7) {
+        // Phase 3: swivel on her bottom toward the side of the bed, legs swinging over the edge
+        const k = THREE.MathUtils.smoothstep((p - 0.44) / 0.26, 0, 1);
+        const hipStart = new THREE.Vector3(this.bedOrigin.x, seatY, this.bedOrigin.z - 0.525);
+        this.position.lerpVectors(hipStart, new THREE.Vector3(this.bedEdge.x, seatY, this.bedEdge.z), k);
+        this.rotationY = THREE.MathUtils.lerp(0, yawOut, k);
         this.rootNode.scale.set(1, 1, 1);
         this.rootNode.rotation.set(0, 0, 0);
-        this.rootNode.position.set(0, THREE.MathUtils.lerp(-0.3, 0, standP), THREE.MathUtils.lerp(-0.52, 0, standP));
-        this.wakeRig = { legs: (Math.PI / 2) * (1 - standP), arms: 1.3 };
-        this.position.lerpVectors(this.bedOrigin, this.wakeUpTarget, stepP);
-        // Turn toward the side of the bed she steps out of
-        this.rotationY = THREE.MathUtils.lerp(0, this.stepOutYaw(), Math.min(1, stepP * 1.6));
-        this.position.y = THREE.MathUtils.lerp(0.52, 0, THREE.MathUtils.smoothstep(stepP, 0.35, 1));
-        this.shadow.visible = stepP > 0.5;
+        this.rootNode.position.set(0, -0.4, 0);
+        this.wakeRig = { legs: THREE.MathUtils.lerp(Math.PI / 2, 1.15, k), arms: 1.3 };
+      } else {
+        // Phase 4: slide forward off the edge, feet to the floor, stand up and take a step
+        const k = (p - 0.7) / 0.3;
+        const standP = THREE.MathUtils.smoothstep(k / 0.6, 0, 1);
+        const stepP = THREE.MathUtils.smoothstep(k, 0, 1);
+        this.rotationY = yawOut;
+        this.rootNode.scale.set(1, 1, 1);
+        this.rootNode.rotation.set(0, 0, 0);
+        this.position.lerpVectors(new THREE.Vector3(this.bedEdge.x, seatY, this.bedEdge.z), this.wakeUpTarget, stepP);
+        this.position.y = THREE.MathUtils.lerp(seatY, 0, standP);
+        this.rootNode.position.set(0, THREE.MathUtils.lerp(-0.4, 0, standP), 0);
+        this.wakeRig = { legs: 1.15 * (1 - standP), arms: 1.3 };
+        this.shadow.visible = standP > 0.6;
       }
 
       if (p >= 1.0) {
@@ -601,7 +625,7 @@ export class Avatar {
         this.wakeRig = null;
         this.rootNode.position.set(0, 0, 0);
         this.position.copy(this.wakeUpTarget);
-        this.rotationY = this.stepOutYaw();
+        this.rotationY = yawOut;
         this.rootNode.rotation.set(0, 0, 0);
         this.rootNode.scale.set(1, 1, 1);
         this.shadow.visible = true;
@@ -685,7 +709,7 @@ export class Avatar {
       const breath = Math.sin(this.idleTime * 2.2) * 0.02;
       this.rootNode.scale.set(1 + breath * 0.5, 1 + breath, 1 + breath * 0.5);
       if (!this.isHopping) {
-        // Crouch a little while petting Mochi
+        // Crouch a little while petting Zuzu
         const g = this.gesture;
         const crouch = g && g.kind === 'pet' ? Math.min(1, Math.min(g.t, g.dur - g.t) * 4) * 0.12 : 0;
         this.rootNode.position.y = -crouch;

@@ -4,42 +4,88 @@ import { audioManager } from '../audio/audioManager';
 import projectsData from '../../content/projects.json';
 import { profile } from '../content/profile';
 
+type Lang = 'en' | 'ur';
+
+/** UI text in English and Urdu (Zuzu's chat can switch language). */
+const T: Record<Lang, { title: string; hello: string; placeholder: string; send: string; thinking: string; starters: string[]; sources: string; mic: string; speak: string }> = {
+  en: {
+    title: 'Zuzu AI (Companion)',
+    hello: "Purr! I'm Zuzu, Zarina's companion. Ask me anything about Zarina's games, skills, studies or experience! 🐾",
+    placeholder: 'Ask Zuzu a question...',
+    send: 'Send',
+    thinking: 'Zuzu is thinking... 🐾',
+    starters: ['What games has Zarina made?', "What are Zarina's main skills?", "Tell me about Zarina's background!", 'Can I download the resume?'],
+    sources: 'Sources:',
+    mic: 'Ask by voice',
+    speak: 'Read answers aloud'
+  },
+  ur: {
+    title: 'زوزو اے آئی (ساتھی)',
+    hello: 'میاؤں! میں زوزو ہوں، زرینہ کی ساتھی۔ زرینہ کے گیمز، اسکلز، تعلیم یا تجربے کے بارے میں کچھ بھی پوچھیں! 🐾',
+    placeholder: 'زوزو سے سوال پوچھیں...',
+    send: 'بھیجیں',
+    thinking: 'زوزو سوچ رہی ہے... 🐾',
+    starters: ['زرینہ نے کون سے گیمز بنائے ہیں؟', 'زرینہ کی اہم اسکلز کیا ہیں؟', 'زرینہ کے پس منظر کے بارے میں بتائیں', 'کیا میں ریزیومے ڈاؤن لوڈ کر سکتا ہوں؟'],
+    sources: 'حوالے:',
+    mic: 'آواز سے پوچھیں',
+    speak: 'جواب سنائیں'
+  }
+};
+
+function readLang(): Lang {
+  try {
+    return localStorage.getItem('zuzu_lang') === 'ur' ? 'ur' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
+type SpeechRec = { lang: string; interimResults: boolean; maxAlternatives: number; start(): void; stop(): void; onresult: ((e: any) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
+
 export class ChatPanel {
   private element: HTMLElement;
   private messageList: HTMLElement;
   private inputField: HTMLInputElement;
   private sendBtn: HTMLButtonElement;
-
-  private starters = [
-    'What games has Zarina made?',
-    'What are Zarina\'s main skills?',
-    'Tell me about Zarina\'s background!',
-    'Can I download the resume?'
-  ];
+  private lang: Lang = readLang();
+  private speakAnswers = false;
+  private recognition: SpeechRec | null = null;
+  private listening = false;
 
   constructor() {
     this.element = document.createElement('div');
     this.element.className = 'chat-window';
+    this.element.setAttribute('role', 'dialog');
+    this.element.setAttribute('aria-label', 'Chat with Zuzu');
+
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const canSpeak = 'speechSynthesis' in window;
 
     this.element.innerHTML = `
       <div class="chat-header">
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
           <span>🐾</span>
-          <span>Mochi AI (Companion)</span>
+          <span id="chat-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
         </div>
-        <button class="modal-close-btn" id="chat-close-btn" style="position:static; width:30px; height:30px; font-size:0.9rem;">✕</button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <div class="chat-lang" role="group" aria-label="Chat language">
+            <button type="button" data-lang="en" lang="en">EN</button>
+            <button type="button" data-lang="ur" lang="ur">اردو</button>
+          </div>
+          ${canSpeak ? '<button type="button" class="chat-icon-btn" id="chat-speak-btn" aria-pressed="false">🔈</button>' : ''}
+          <button class="modal-close-btn" id="chat-close-btn" aria-label="Close chat" style="position:static; width:30px; height:30px; font-size:0.9rem;">✕</button>
+        </div>
       </div>
 
-      <div class="chat-messages" id="chat-messages">
-        <div class="chat-bubble bot">
-          Purr! I'm Mochi, Zarina's companion. Ask me anything about Zarina's games, skills, studies or experience! 🐾
-        </div>
+      <div class="chat-messages" id="chat-messages" aria-live="polite">
+        <div class="chat-bubble bot" id="chat-hello"></div>
         <div class="chat-starters" id="chat-starters"></div>
       </div>
 
       <div class="chat-input-row">
-        <input type="text" id="chat-input" placeholder="Ask Mochi a question..." maxlength="200" />
-        <button class="sticker-btn accent-butter" id="chat-send-btn" style="padding:6px 16px; font-size:0.9rem;">Send</button>
+        ${SR ? '<button type="button" class="chat-icon-btn" id="chat-mic-btn">🎤</button>' : ''}
+        <input type="text" id="chat-input" maxlength="200" />
+        <button class="sticker-btn accent-butter" id="chat-send-btn" style="padding:6px 16px; font-size:0.9rem;"></button>
       </div>
     `;
 
@@ -48,17 +94,105 @@ export class ChatPanel {
     this.inputField = this.element.querySelector('#chat-input')!;
     this.sendBtn = this.element.querySelector('#chat-send-btn')!;
 
-    this.renderStarters();
+    if (SR) {
+      this.recognition = new SR() as SpeechRec;
+      this.recognition.interimResults = false;
+      this.recognition.maxAlternatives = 1;
+      this.recognition.onresult = (e: any) => {
+        const said = e.results?.[0]?.[0]?.transcript as string | undefined;
+        if (said) {
+          this.inputField.value = said;
+          this.sendMessage();
+        }
+      };
+      this.recognition.onend = () => this.setListening(false);
+      this.recognition.onerror = () => this.setListening(false);
+    }
+
+    this.applyLang();
     this.initEvents();
+  }
+
+  /** Switch every label, the greeting and the starter questions to the chosen language. */
+  private applyLang(): void {
+    const t = T[this.lang];
+    const rtl = this.lang === 'ur';
+    this.element.querySelector('#chat-title')!.textContent = t.title;
+    const hello = this.element.querySelector('#chat-hello') as HTMLElement;
+    hello.textContent = t.hello;
+    hello.dir = rtl ? 'rtl' : 'ltr';
+    this.inputField.placeholder = t.placeholder;
+    this.inputField.dir = rtl ? 'rtl' : 'ltr';
+    this.inputField.lang = this.lang;
+    this.sendBtn.textContent = t.send;
+    const mic = this.element.querySelector('#chat-mic-btn') as HTMLButtonElement | null;
+    if (mic) mic.title = mic.ariaLabel = t.mic;
+    const speak = this.element.querySelector('#chat-speak-btn') as HTMLButtonElement | null;
+    if (speak) speak.title = speak.ariaLabel = t.speak;
+    this.element.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => {
+      const on = b.dataset.lang === this.lang;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    this.renderStarters();
+  }
+
+  private setLang(lang: Lang): void {
+    if (lang === this.lang) return;
+    this.lang = lang;
+    try {
+      localStorage.setItem('zuzu_lang', lang);
+    } catch {
+      /* private mode */
+    }
+    audioManager.playPop();
+    this.applyLang();
+    eventBus.emit('zuzu:say', lang === 'ur' ? 'اب میں اردو میں بات کروں گی! 🐾' : "Okay, back to English! 🐾");
+  }
+
+  private setListening(on: boolean): void {
+    this.listening = on;
+    const mic = this.element.querySelector('#chat-mic-btn');
+    mic?.classList.toggle('listening', on);
+  }
+
+  private toggleMic(): void {
+    if (!this.recognition) return;
+    if (this.listening) {
+      this.recognition.stop();
+      return;
+    }
+    this.recognition.lang = this.lang === 'ur' ? 'ur-PK' : 'en-US';
+    try {
+      this.recognition.start();
+      this.setListening(true);
+    } catch {
+      this.setListening(false);
+    }
+  }
+
+  /** Read Zuzu's answer aloud (Web Speech API), in the chat's language when a voice exists. */
+  private speak(text: string): void {
+    if (!this.speakAnswers || !('speechSynthesis' in window)) return;
+    const clean = text.replace(/\[\d+\]/g, '').replace(/[\u{1F300}-\u{1FAFF}]/gu, '');
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = this.lang === 'ur' ? 'ur-PK' : 'en-US';
+    const voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(this.lang));
+    if (voice) u.voice = voice;
+    u.rate = 1.02;
+    u.pitch = 1.25;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
   }
 
   private renderStarters(): void {
     const startersContainer = this.element.querySelector('#chat-starters')!;
     startersContainer.innerHTML = '';
-    this.starters.forEach((q) => {
+    T[this.lang].starters.forEach((q) => {
       const chip = document.createElement('button');
       chip.className = 'starter-chip';
       chip.innerText = q;
+      chip.dir = this.lang === 'ur' ? 'rtl' : 'ltr';
       chip.onclick = () => {
         this.inputField.value = q;
         this.sendMessage();
@@ -69,6 +203,15 @@ export class ChatPanel {
 
   private initEvents(): void {
     this.element.querySelector('#chat-close-btn')?.addEventListener('click', () => this.close());
+    this.element.querySelectorAll<HTMLButtonElement>('[data-lang]').forEach((b) => b.addEventListener('click', () => this.setLang(b.dataset.lang as Lang)));
+    this.element.querySelector('#chat-mic-btn')?.addEventListener('click', () => this.toggleMic());
+    const speakBtn = this.element.querySelector('#chat-speak-btn') as HTMLButtonElement | null;
+    speakBtn?.addEventListener('click', () => {
+      this.speakAnswers = !this.speakAnswers;
+      speakBtn.textContent = this.speakAnswers ? '🔊' : '🔈';
+      speakBtn.setAttribute('aria-pressed', String(this.speakAnswers));
+      if (!this.speakAnswers) speechSynthesis.cancel();
+    });
     this.sendBtn.addEventListener('click', () => this.sendMessage());
     this.inputField.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.sendMessage();
@@ -103,17 +246,17 @@ export class ChatPanel {
     // Typing / thinking bubble
     const thinkingBubble = document.createElement('div');
     thinkingBubble.className = 'chat-bubble bot';
-    thinkingBubble.innerText = 'Mochi is thinking... 🐾';
+    thinkingBubble.innerText = T[this.lang].thinking;
     this.messageList.appendChild(thinkingBubble);
     this.scrollToBottom();
-    eventBus.emit('mochi:typing');
+    eventBus.emit('zuzu:typing');
 
     try {
       // 1. Try serverless backend endpoint POST /api/chat
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, lang: this.lang })
       });
 
       if (response.ok) {
@@ -189,14 +332,18 @@ export class ChatPanel {
     // The model sometimes adds light markdown; show plain text
     if (role === 'bot') text = text.replace(/\*\*?([^*]+)\*\*?/g, '$1');
     bubble.innerText = text;
-    if (role === 'bot') eventBus.emit('mochi:say', text);
+    if (/[\u0600-\u06FF]/.test(text)) bubble.dir = 'rtl';
+    if (role === 'bot') {
+      eventBus.emit('zuzu:say', text);
+      this.speak(text);
+    }
 
     if (sources && sources.length > 0) {
       const srcWrap = document.createElement('div');
       srcWrap.style.cssText = 'margin-top:8px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;';
       const label = document.createElement('span');
       label.style.cssText = 'font-size:0.7rem; font-weight:700; opacity:0.7;';
-      label.innerText = 'Sources:';
+      label.innerText = T[this.lang].sources;
       srcWrap.appendChild(label);
       sources.forEach((s) => {
         const chip = document.createElement('button');

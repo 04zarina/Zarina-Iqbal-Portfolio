@@ -63,7 +63,7 @@ export class RenderLoop {
 
     let delta = this.clock.getDelta();
     // Clamp delta to prevent huge jumps on tab switch / lag spikes
-    delta = Math.min(delta, 0.05);
+    delta = Math.min(delta, import.meta.env.DEV ? ((window as unknown as { __maxDt?: number }).__maxDt ?? 0.05) : 0.05);
     const elapsed = this.clock.getElapsedTime();
 
     qualityManager.recordFrame(delta);

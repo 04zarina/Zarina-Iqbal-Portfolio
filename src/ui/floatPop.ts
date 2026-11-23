@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { refs } from '../world/refs';
 
 /** Pops a short floating label (e.g. "+ Unity", "+10", "💖") at a 3D point. */
-export function floatPop(text: string, world: THREE.Vector3, tone: 'green' | 'pink' | 'gold' = 'green'): void {
+export function floatPop(text: string, world: THREE.Vector3, tone: 'green' | 'pink' | 'gold' | 'heart' = 'green'): void {
   const cam = refs.camera;
   if (!cam) return;
   const p = world.clone().project(cam);

@@ -19,7 +19,7 @@ const CAN_HOME = new THREE.Vector3(1.75, 0, -2.75);
 
 export class GreenhouseRoom {
   public group: THREE.Group = new THREE.Group();
-  public spawnPoint = new THREE.Vector3(0, 0, -2.8);
+  public spawnPoint = new THREE.Vector3(0, 0, -1.8);
   private plants: THREE.Group[] = [];
   private beds: { group: string; label: string; center: THREE.Vector3 }[] = [];
   private bedPlants = new Map<string, { plant: THREE.Group; skill: Skill }[]>();
@@ -32,7 +32,7 @@ export class GreenhouseRoom {
   private pouring: { t: number; bed: string } | null = null;
   private drops: THREE.Points | null = null;
   public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
-    bedroom: { pos: new THREE.Vector3(0, 0, -2.9), yaw: 0 }
+    bedroom: { pos: new THREE.Vector3(0, 0, -1.8), yaw: 0 }
   };
   public exits: Partial<Record<RoomId, THREE.Vector3>> = { bedroom: new THREE.Vector3(0, 0, -3.25) };
 
@@ -67,7 +67,7 @@ export class GreenhouseRoom {
     this.group.add(backWall, leftWall, rightWall);
 
     // Chunky window frame mullions
-    for (let x = -4; x <= 4; x += 2) {
+    for (const x of [-4, -2.6, 2.6, 4]) {
       const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.12, 4, 0.15), frameMat);
       mullion.position.set(x, 2, 3.95);
       this.group.add(mullion);
@@ -81,7 +81,8 @@ export class GreenhouseRoom {
     path.position.set(0, 0.012, -0.6);
     this.group.add(path);
     const welcome = this.createLabel('🌿 Skill Garden · click a plant', 0.95, '#FFF6EC', 34);
-    welcome.position.set(0, 2.55, 3.9);
+    // In front of the glass wall's mullions (they used to cut through the sign)
+    welcome.position.set(0, 2.75, 3.72);
     welcome.rotation.y = Math.PI;
     welcome.scale.setScalar(2.2);
     this.group.add(welcome);

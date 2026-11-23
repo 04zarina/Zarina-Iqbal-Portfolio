@@ -4,10 +4,11 @@ import { interactionSystem } from '../interaction';
 import { eventBus } from '../../core/events';
 import { store } from '../../core/store';
 import { sparkleSystem } from '../fx/sparkles';
+import { themeManager } from '../theme';
 import { assetLoader } from '../../core/loaders';
 import { DECOR, placeDecor } from '../decor';
 import { makePortal, makeSign, makeRug, makeFireflies, NightLights, Portal, Fireflies } from '../props';
-import { BugBash } from '../games/bugBash';
+import { SnackRain } from '../games/snackRain';
 import { registerSeat } from '../seats';
 import { clickSystem } from '../clickables';
 import { audioManager } from '../../audio/audioManager';
@@ -21,7 +22,10 @@ export class DevRealmRoom {
   private portal: Portal | null = null;
   private fireflies: Fireflies | null = null;
   private night = new NightLights();
-  private game: BugBash;
+  private game: SnackRain;
+  private miniIslands: THREE.Group[] = [];
+  private glyphs: THREE.Sprite[] = [];
+  private crystals: THREE.Mesh[] = [];
   private gameButton: THREE.Mesh | null = null;
   public entries: Partial<Record<RoomId, { pos: THREE.Vector3; yaw: number }>> = {
     bedroom: { pos: new THREE.Vector3(0, 0, 2.4), yaw: Math.PI }
@@ -29,7 +33,7 @@ export class DevRealmRoom {
   public exits: Partial<Record<RoomId, THREE.Vector3>> = { bedroom: new THREE.Vector3(0, 0, 2.75) };
 
   constructor() {
-    this.game = new BugBash(this.group);
+    this.game = new SnackRain(this.group);
     this.buildRealm();
     this.loadGLBModels();
     this.setupInteractions();
@@ -132,8 +136,148 @@ export class DevRealmRoom {
     this.group.add(log);
     collisionSystem.addBox(-3.6, -2.4, -1.7, -0.9);
 
-    // 10. Bug Bash mini game: a big arcade button on a pedestal
+    // 10. Snack Rain mini game (played with Zuzu): a big button on a pedestal
     this.buildGameStation();
+
+    // 11. Extra magic: sky dome, flower meadow, crystals, floating islets and code glyphs
+    this.buildSkyDome();
+    this.buildMeadow();
+    this.buildCrystals();
+    this.buildMiniIslands();
+    this.buildGlyphs();
+  }
+
+  /** Big gradient sky sphere (pastel day, deep violet with stars at night). One draw call. */
+  private buildSkyDome(): void {
+    const uniforms = { uNight: { value: 0 } };
+    const mat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+      uniforms,
+      vertexShader: /* glsl */ `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: /* glsl */ `
+        uniform float uNight; varying vec3 vDir;
+        float hash(vec3 p){ return fract(sin(dot(p, vec3(12.9898,78.233,45.164))) * 43758.5453); }
+        void main(){
+          float h = clamp(vDir.y * 0.5 + 0.5, 0.0, 1.0);
+          vec3 dayTop = vec3(0.62, 0.78, 1.0), dayBot = vec3(1.0, 0.86, 0.9);
+          vec3 nightTop = vec3(0.08, 0.05, 0.2), nightBot = vec3(0.36, 0.22, 0.45);
+          vec3 col = mix(mix(dayBot, dayTop, h), mix(nightBot, nightTop, h), uNight);
+          vec3 cell = floor(vDir * 180.0);
+          float star = step(0.996, hash(cell)) * smoothstep(0.45, 0.7, h);
+          col += star * uNight * vec3(1.0, 0.95, 0.8);
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), mat);
+    dome.userData.noFade = true;
+    dome.renderOrder = -10;
+    dome.onBeforeRender = () => (uniforms.uNight.value = themeManager.themeProgress);
+    this.group.add(dome);
+  }
+
+  /** Little flowers scattered over the grass: one InstancedMesh, no per-flower draw calls. */
+  private buildMeadow(): void {
+    const count = 140;
+    const geo = new THREE.SphereGeometry(0.06, 6, 4);
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const flowers = new THREE.InstancedMesh(geo, mat, count);
+    const palette = [0xffb3c7, 0xffe9a3, 0xd9c8ff, 0xfff6ec, 0xbde0ff].map((c) => new THREE.Color(c));
+    const m = new THREE.Matrix4();
+    let n = 0;
+    for (let i = 0; i < count * 3 && n < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 1.2 + Math.sqrt(Math.random()) * 4.2;
+      const x = Math.cos(a) * d;
+      const z = Math.sin(a) * d;
+      if (Math.abs(x) < 1.0 && Math.abs(z) < 1.8) continue; // keep the bridge clear
+      if (Math.hypot(x - 1.8, z - 1.9) < 0.8 || Math.hypot(x + 2.2, z - 1.5) < 0.8 || Math.hypot(x, z - 3.6) < 1.2) continue;
+      const sc = 0.7 + Math.random() * 0.6;
+      m.compose(new THREE.Vector3(x, 0.04, z), new THREE.Quaternion(), new THREE.Vector3(sc, sc * 0.6, sc));
+      flowers.setMatrixAt(n, m);
+      flowers.setColorAt(n, palette[n % palette.length]);
+      n++;
+    }
+    flowers.count = n;
+    flowers.instanceMatrix.needsUpdate = true;
+    if (flowers.instanceColor) flowers.instanceColor.needsUpdate = true;
+    flowers.userData.noFade = true;
+    this.group.add(flowers);
+  }
+
+  /** Glowing crystal clusters near the island edge (brighter at night). */
+  private buildCrystals(): void {
+    const spots: [number, number, number][] = [
+      [-4.3, -0.9, 0xb18cff],
+      [4.2, 0.6, 0x7ad7ff],
+      [-1.2, -4.2, 0xffb3e1],
+      [3.6, -3.0, 0xb18cff]
+    ];
+    spots.forEach(([x, z, color]) => {
+      const mat = new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.35, transparent: true, opacity: 0.9 });
+      for (let k = 0; k < 3; k++) {
+        const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.18 + k * 0.05, 0), mat);
+        c.scale.set(0.6, 1.8, 0.6);
+        c.position.set(x + (k - 1) * 0.22, 0.28 + k * 0.05, z + ((k * 7) % 3) * 0.1);
+        c.rotation.z = (k - 1) * 0.35;
+        this.group.add(c);
+        this.crystals.push(c);
+      }
+      const light = new THREE.PointLight(color, 0, 2.5);
+      light.position.set(x, 0.7, z);
+      this.group.add(this.night.addLight(light, 0, 0.9));
+      collisionSystem.addBox(x - 0.4, x + 0.4, z - 0.3, z + 0.4);
+    });
+  }
+
+  /** Two tiny floating islets with a tree each, bobbing beside the main island. */
+  private buildMiniIslands(): void {
+    const grass = new THREE.MeshLambertMaterial({ color: 0xbdebd3 });
+    const earth = new THREE.MeshLambertMaterial({ color: 0xd8b294 });
+    [[-7.2, 1.6, -2.5, 0.9], [6.8, 2.3, -3.6, 0.7]].forEach(([x, y, z, s]) => {
+      const g = new THREE.Group();
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.0, 0.25, 16), grass);
+      const under = new THREE.Mesh(new THREE.ConeGeometry(1.0, 1.4, 16), earth);
+      under.rotation.x = Math.PI;
+      under.position.y = -0.82;
+      const tree = this.createLayeredTree(0x82c29b);
+      tree.scale.setScalar(0.55);
+      tree.position.y = 0.12;
+      g.add(top, under, tree);
+      g.position.set(x, y, z);
+      g.scale.setScalar(s);
+      g.userData.baseY = y;
+      this.group.add(g);
+      this.miniIslands.push(g);
+    });
+  }
+
+  /** Floating code glyphs drifting around the island: this is a dev's dream world after all. */
+  private buildGlyphs(): void {
+    const glyphs = ['</>', '{ }', '( )', '#', '=>', '★'];
+    glyphs.forEach((text, i) => {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d')!;
+      ctx.font = 'bold 64px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#b18cff';
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = ['#FFE9A3', '#BDE0FF', '#FFB3E1', '#BDEBD3'][i % 4];
+      ctx.fillText(text, 64, 64);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+      sprite.scale.setScalar(0.7);
+      sprite.userData.angle = (i / glyphs.length) * Math.PI * 2;
+      sprite.userData.r = 5.6 + (i % 2) * 0.8;
+      sprite.userData.h = 2.2 + (i % 3) * 0.6;
+      this.group.add(sprite);
+      this.glyphs.push(sprite);
+    });
   }
 
   private addLampPost(x: number, z: number): void {
@@ -163,12 +307,22 @@ export class DevRealmRoom {
       new THREE.MeshLambertMaterial({ color: 0xff5577, emissive: 0xff2255, emissiveIntensity: 0.4 })
     );
     this.gameButton.position.y = 0.86;
-    const sign = makeSign('BUG BASH', { emoji: '🐞', subtitle: 'Mini game · 30 s', width: 1.2, bg: '#281D35', fg: '#FFE9A3' });
+    const sign = makeSign('SNACK RAIN', { emoji: '🍪', subtitle: 'Play with Zuzu · 40 s', width: 1.25, bg: '#281D35', fg: '#FFE9A3' });
     sign.position.set(0, 1.6, 0);
     g.add(pedestal, rim, this.gameButton, sign);
     this.group.add(g);
     collisionSystem.addBox(-2.6, -1.8, 1.1, 1.9);
-    clickSystem.register(g, '🐞 Play Bug Bash', () => this.startGame());
+    // A plate of cookies on top so it reads as "snacks"
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.03, 20), new THREE.MeshLambertMaterial({ color: 0xfff6ec }));
+    plate.position.set(0.0, 0.95, 0);
+    const cookieMat = new THREE.MeshLambertMaterial({ color: 0xd9a066 });
+    for (let i = 0; i < 3; i++) {
+      const ck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.025, 12), cookieMat);
+      ck.position.set(Math.cos(i * 2.1) * 0.07, 0.98 + i * 0.012, Math.sin(i * 2.1) * 0.07);
+      g.add(ck);
+    }
+    g.add(plate);
+    clickSystem.register(g, '🍪 Play Snack Rain with Zuzu', () => this.startGame());
   }
 
   private startGame(): void {
@@ -266,8 +420,8 @@ export class DevRealmRoom {
     });
 
     interactionSystem.register({
-      id: 'bug_bash',
-      label: 'Play Bug Bash 🐞 (mini game)',
+      id: 'snack_rain',
+      label: 'Play Snack Rain with Zuzu 🍪',
       keyHint: 'E',
       radius: 1.6,
       position: new THREE.Vector3(-2.2, 0.6, 1.5),
@@ -299,6 +453,18 @@ export class DevRealmRoom {
     this.game.update(delta);
     if (this.gameButton) this.gameButton.position.y = 0.86 + (this.game.running ? -0.04 : Math.sin(t * 4) * 0.015);
 
+    // Bobbing islets, drifting glyphs, shimmering crystals
+    this.miniIslands.forEach((g, i) => {
+      g.position.y = g.userData.baseY + Math.sin(t * 0.7 + i * 2) * 0.18;
+      g.rotation.y += delta * 0.05;
+    });
+    this.glyphs.forEach((sp) => {
+      const a = sp.userData.angle + t * 0.08;
+      sp.position.set(Math.cos(a) * sp.userData.r, sp.userData.h + Math.sin(t + sp.userData.angle * 3) * 0.25, Math.sin(a) * sp.userData.r);
+    });
+    const glowK = 0.35 + themeManager.themeProgress * 0.5 + Math.sin(t * 2) * 0.1;
+    this.crystals.forEach((c) => ((c.material as THREE.MeshLambertMaterial).emissiveIntensity = glowK));
+
     // Orbit clouds gently
     this.clouds.forEach((cloud, i) => {
       cloud.position.y += Math.sin(t * 0.8 + i) * 0.002;
@@ -316,6 +482,9 @@ export class DevRealmRoom {
     this.portal = null;
     this.clouds = [];
     this.floatingStars = [];
+    this.miniIslands = [];
+    this.glyphs = [];
+    this.crystals = [];
     this.group.clear();
   }
 }

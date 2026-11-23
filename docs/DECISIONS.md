@@ -12,7 +12,7 @@
 
 ### Decision 3: Grounded Local RAG Fallback + Serverless API
 - **Context:** The RAG chatbot must answer questions accurately without inventing facts, both when deployed to Vercel and during local Vite development without requiring paid API keys.
-- **Decision:** `scripts/ingest.ts` builds the vector index in `server-data/index.json`. `api/chat.ts` handles the serverless endpoint with cosine similarity. The client (`src/ui/chat.ts`) also includes a local grounded retrieval engine mirroring the vector index so reviewers can chat with Mochi out of the box in `npm run dev`.
+- **Decision:** `scripts/ingest.ts` builds the vector index in `server-data/index.json`. `api/chat.ts` handles the serverless endpoint with cosine similarity. The client (`src/ui/chat.ts`) also includes a local grounded retrieval engine mirroring the vector index so reviewers can chat with Zuzu out of the box in `npm run dev`.
 
 ### Decision 4: Multi-tier Quality Manager & Mobile Battery Conservation
 - **Context:** WebGL on mobile devices can drain batteries if unconstrained.

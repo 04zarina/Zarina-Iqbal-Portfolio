@@ -17,17 +17,34 @@ const projectsData = allProjects.filter((p) => p.featured).slice(0, 5);
 const sideProjects = allProjects.filter((p) => !p.featured).slice(0, 9);
 type ProjectEntry = (typeof allProjects)[number];
 
-/** Mini cabinet slots: [x, z, rotY]. Left wall faces +X, right wall faces -X (door gap at z = 0). */
+/** Bean bags in the lounge: [x, z, yaw (0 = facing +Z), colour]. They face the featured row. */
+const BEAN_BAGS: [number, number, number, number][] = [
+  [-2.3, 2.55, Math.PI - 0.35, 0xffb3c7],
+  [-0.85, 2.85, Math.PI - 0.1, 0xbde0ff],
+  [0.85, 2.85, Math.PI + 0.1, 0xffe9a3],
+  [2.3, 2.55, Math.PI + 0.35, 0xbdebd3]
+];
+
+/** Featured cabinets: one big row along the back wall, evenly spaced, on a lit stage. */
+const FEATURED_SCALE = 1.12;
+const FEATURED_SPACING = 2.2;
+const FEATURED_Z = -3.05;
+const featuredX = (i: number) => (i - (Math.min(5, projectsData.length) - 1) / 2) * FEATURED_SPACING;
+
+/**
+ * Mini cabinet slots: [x, z, rotY], evenly spaced 1.15 m apart with clear gaps between them.
+ * Left wall faces +X; right wall faces -X and leaves the door (z = 0) free.
+ */
 const MINI_SLOTS: [number, number, number][] = [
-  [-5.45, -2.3, Math.PI / 2],
-  [-5.45, -1.35, Math.PI / 2],
-  [-5.45, -0.4, Math.PI / 2],
-  [-5.45, 0.55, Math.PI / 2],
-  [-5.45, 1.5, Math.PI / 2],
-  [5.45, -2.5, -Math.PI / 2],
-  [5.45, -1.55, -Math.PI / 2],
-  [5.45, 1.4, -Math.PI / 2],
-  [5.45, 2.3, -Math.PI / 2]
+  [-5.4, -2.2, Math.PI / 2],
+  [-5.4, -1.05, Math.PI / 2],
+  [-5.4, 0.1, Math.PI / 2],
+  [-5.4, 1.25, Math.PI / 2],
+  [-5.4, 2.4, Math.PI / 2],
+  [5.4, -2.3, -Math.PI / 2],
+  [5.4, -1.2, -Math.PI / 2],
+  [5.4, 1.3, -Math.PI / 2],
+  [5.4, 2.45, -Math.PI / 2]
 ];
 
 export class GameRoom {
@@ -71,16 +88,31 @@ export class GameRoom {
     rightWall.position.set(6, 2, 0);
     this.group.add(backWall, leftWall, rightWall);
 
-    // 3. Arcade Cabinets (Row of 5 along back wall)
-    const cabinetSpacing = 2.1;
-    const startX = -4.2;
-
+    // 3. Featured arcade cabinets: the stars of the room. Bigger, on a glowing stage, each
+    //    with a spotlight cone and a star badge.
+    const stage = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.12, 1.5), new THREE.MeshLambertMaterial({ color: 0x3a2a4e }));
+    stage.position.set(0, 0.06, FEATURED_Z + 0.05);
+    const stageEdge = this.night.bulb(0xffe27a, 0.03);
+    stageEdge.scale.set(183, 1, 1);
+    stageEdge.position.set(0, 0.125, FEATURED_Z + 0.8);
+    this.group.add(stage, stageEdge);
     projectsData.forEach((project, index) => {
-      const posX = startX + index * cabinetSpacing;
-      const posZ = -3.1;
-      const cab = this.createArcadeCabinet(project, posX, posZ, index);
+      const posX = featuredX(index);
+      const cab = this.createArcadeCabinet(project, posX, FEATURED_Z, index);
+      cab.position.y = 0.12;
+      cab.scale.setScalar(FEATURED_SCALE);
       this.group.add(cab);
-      collisionSystem.addBox(posX - 0.7, posX + 0.7, posZ - 0.6, posZ + 0.6);
+      // Spotlight cone (cheap: one transparent cone, no real shadows)
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.85, 2.6, 24, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.09, depthWrite: false, side: THREE.DoubleSide })
+      );
+      cone.position.set(posX, 2.35, FEATURED_Z + 0.35);
+      cone.userData.noFade = true;
+      const star = makeSign('FEATURED', { emoji: '⭐', width: 0.75, bg: '#FFE9A3' });
+      star.position.set(posX, 2.86, FEATURED_Z + 0.42);
+      this.group.add(cone, star);
+      collisionSystem.addBox(posX - 0.75, posX + 0.75, FEATURED_Z - 0.6, FEATURED_Z + 0.75);
     });
 
     // 4. Door back to the Bedroom (right wall)
@@ -99,9 +131,9 @@ export class GameRoom {
       const cab = this.createArcadeCabinet(project, 0, 0, 10 + i);
       cab.position.set(x, 0, z);
       cab.rotation.y = rot;
-      cab.scale.setScalar(0.68);
+      cab.scale.setScalar(0.7);
       this.group.add(cab);
-      collisionSystem.addBox(x - 0.35, x + 0.35, z - 0.42, z + 0.42);
+      collisionSystem.addBox(x - 0.36, x + 0.36, z - 0.4, z + 0.4);
       clickSystem.register(cab, `🕹️ ${project.title}`, () => this.openProject(project.id));
       const front = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot));
       interactionSystem.register({
@@ -114,10 +146,10 @@ export class GameRoom {
       });
     });
     const sideSignL = makeSign('MORE GAMES', { emoji: '👾', subtitle: 'Side projects', width: 1.3, bg: '#281D35', fg: '#FFE9A3' });
-    sideSignL.position.set(-5.88, 2.55, -0.4);
+    sideSignL.position.set(-5.88, 2.75, 0.4);
     sideSignL.rotation.y = Math.PI / 2;
-    const backSign = makeSign('FEATURED GAMES', { emoji: '🕹️', width: 2.2, bg: '#281D35', fg: '#FFB3E1' });
-    backSign.position.set(0, 3.15, -3.88);
+    const backSign = makeSign('FEATURED GAMES', { emoji: '🕹️', width: 2.6, bg: '#281D35', fg: '#FFB3E1' });
+    backSign.position.set(0, 3.35, -3.88);
     this.group.add(sideSignL, backSign);
 
     // Rugs
@@ -137,29 +169,45 @@ export class GameRoom {
     stripL.position.set(-5.88, 3.6, 0);
     this.group.add(strip, stripL);
     projectsData.forEach((_, index) => {
-      const glow = new THREE.PointLight(neonColors[index % 3], 0, 3.2);
-      glow.position.set(-4.2 + index * 2.1, 1.6, -2.2);
-      this.group.add(this.night.addLight(glow, 0.15, 1.3));
+      const glow = new THREE.PointLight(neonColors[index % 3], 0, 3.4);
+      glow.position.set(featuredX(index), 1.8, -2.1);
+      this.group.add(this.night.addLight(glow, 0.25, 1.4));
     });
 
-    // Cozy arcade lounge: couch facing the cabinets, two armchairs, coffee table with a gamepad
+    // Chill lounge: bean bags round a low table, facing the featured cabinets
     placeDecor(this.group, [
-      { url: DECOR.couchBlue, position: [0, 0, 2.75], rotY: Math.PI, scale: 1.1 },
-      { url: DECOR.armchairBlue, position: [-2.7, 0, 2.3], rotY: 2.84 },
-      { url: DECOR.armchairRed, position: [2.7, 0, 2.3], rotY: -2.84 },
-      { url: DECOR.coffeeTable, position: [0, 0.353, 1.55] },
-      { url: DECOR.gamepad, position: [0.05, 0.42, 1.55], rotY: 0.3, scale: 1.4 },
-      { url: DECOR.plantPalm, position: [-5.3, 0, 3.3], scale: 0.62 },
-      { url: DECOR.plantPalm, position: [5.3, 0, 3.3], scale: 0.62 },
-      { url: DECOR.pictureFlowers, position: [-5.9, 1.9, 0], rotY: Math.PI / 2 },
-      { url: DECOR.picturePyramid, position: [-5.9, 1.9, 1.4], rotY: Math.PI / 2 }
+      { url: DECOR.coffeeTable, position: [0, 0.353, 1.7] },
+      { url: DECOR.gamepad, position: [0.05, 0.42, 1.7], rotY: 0.3, scale: 1.4 }
     ]);
-    collisionSystem.addBox(-1.3, 1.3, 2.25, 3.2);
-    collisionSystem.addBox(-0.45, 0.45, 1.15, 1.95);
-    collisionSystem.addBox(-3.2, -2.2, 1.8, 2.8);
-    collisionSystem.addBox(2.2, 3.2, 1.8, 2.8);
-    collisionSystem.addBox(-5.8, -4.8, 2.9, 3.8);
-    collisionSystem.addBox(4.8, 5.8, 2.9, 3.8);
+    BEAN_BAGS.forEach(([x, z, yaw, color]) => {
+      const bag = this.createBeanBag(color);
+      bag.position.set(x, 0, z);
+      bag.rotation.y = yaw;
+      this.group.add(bag);
+      collisionSystem.addBox(x - 0.38, x + 0.38, z - 0.38, z + 0.38);
+    });
+    collisionSystem.addBox(-0.45, 0.45, 1.3, 2.1);
+  }
+
+  /** Squashy bean bag: a slumped body with a raised back and a seam ring. Faces +Z. */
+  private createBeanBag(color: number): THREE.Group {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({ color });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14), mat);
+    body.scale.set(1, 0.55, 1);
+    body.position.y = 0.24;
+    const back = new THREE.Mesh(new THREE.SphereGeometry(0.36, 18, 12), mat);
+    back.scale.set(1.05, 0.95, 0.6);
+    back.position.set(0, 0.46, -0.24);
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.018, 6, 28), new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(0.8) }));
+    seam.rotation.x = Math.PI / 2;
+    seam.position.y = 0.27;
+    seam.scale.set(1, 1, 1);
+    const dent = new THREE.Mesh(new THREE.CircleGeometry(0.22, 18), new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(0.88) }));
+    dent.rotation.x = -Math.PI / 2;
+    dent.position.set(0, 0.485, 0.05);
+    g.add(body, back, seam, dent);
+    return g;
   }
 
   private createCheckerFloor(): THREE.MeshLambertMaterial {
@@ -318,31 +366,27 @@ export class GameRoom {
   }
 
   private setupInteractions(): void {
-    const cabinetSpacing = 2.1;
-    const startX = -4.2;
-
     projectsData.forEach((project, index) => {
-      const posX = startX + index * cabinetSpacing;
-      const posZ = -3.1;
+      const posX = featuredX(index);
+      const posZ = FEATURED_Z;
 
       interactionSystem.register({
         id: `cabinet_${index + 1}`,
         label: `Play ${project.title} 🪙`,
         keyHint: 'E',
         radius: 1.8,
-        position: new THREE.Vector3(posX, 1.2, posZ + 0.8),
+        position: new THREE.Vector3(posX, 1.3, posZ + 0.9),
         focusPose: {
-          position: new THREE.Vector3(posX, 1.5, posZ + 1.6),
-          lookAt: new THREE.Vector3(posX, 1.45, posZ)
+          position: new THREE.Vector3(posX, 1.75, posZ + 1.9),
+          lookAt: new THREE.Vector3(posX, 1.7, posZ)
         },
         onInteract: () => this.openProject(project.id)
       });
     });
 
-    registerSeat({ id: 'seat_couch_l', label: 'Sit on the couch 🛋️', position: new THREE.Vector3(-0.5, 0, 2.55), yaw: Math.PI, height: 0.42 });
-    registerSeat({ id: 'seat_couch_r', label: 'Sit on the couch 🛋️', position: new THREE.Vector3(0.5, 0, 2.55), yaw: Math.PI, height: 0.42 });
-    registerSeat({ id: 'seat_arm_l', label: 'Sit in the armchair 🛋️', position: new THREE.Vector3(-2.7, 0, 2.2), yaw: 2.84, height: 0.42 });
-    registerSeat({ id: 'seat_arm_r', label: 'Sit in the armchair 🛋️', position: new THREE.Vector3(2.7, 0, 2.2), yaw: -2.84, height: 0.42 });
+    BEAN_BAGS.forEach(([x, z, yaw], i) =>
+      registerSeat({ id: `seat_bean_${i}`, label: 'Flop onto the bean bag 🫘', position: new THREE.Vector3(x, 0, z), yaw, height: 0.3, radius: 1.1 })
+    );
 
     // Doorway back to Bedroom
     interactionSystem.register({
