@@ -38,6 +38,10 @@ import { collisionSystem } from './world/collision';
 import { audioManager } from './audio/audioManager';
 
 async function bootstrap() {
+  // She wakes up at night, so the first thing to do is switch on the bedroom lamp
+  store.set('theme', 'dusk');
+  themeManager.themeProgress = 1;
+
   // 1. Three.js Scene & Lights
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(themeManager.dayBg, 12, 38);
@@ -68,7 +72,7 @@ async function bootstrap() {
   const loading = new LoadingScreen(() => {
     // Intro: she wakes up, sits up, stretches, steps out of bed, walks toward the camera and waves.
     const bedPos = new THREE.Vector3(-3.4, 0.52, -1.9);
-    const outPos = new THREE.Vector3(-1.75, 0, -1.65);
+    const outPos = new THREE.Vector3(-1.95, 0, -2.2);
     const greetPos = new THREE.Vector3(-1.1, 0, 0.75);
     const greetCam = new THREE.Vector3(-0.6, 1.45, 3.1);
     const finish = () => {
@@ -76,7 +80,9 @@ async function bootstrap() {
       store.set('inputLocked', false);
       store.set('isWakingUp', false);
       store.set('isSleeping', false);
-      toastManager.show('Ready to explore! WASD or click the floor to walk, drag to look, V for first person. Need help? Ask Mochi! 🐾');
+      toastManager.show(matchMedia('(pointer: coarse)').matches
+        ? "It's still night 🌙 Walk to the desk lamp and tap USE to switch it on. Use the stick to walk, drag to look around."
+        : "It's still night 🌙 Walk to the desk lamp and press E to switch it on. WASD or click the floor to walk, drag to look around.");
     };
 
     followCamera.setCinematic({ position: new THREE.Vector3(-1.0, 1.9, 1.4), lookAt: new THREE.Vector3(-2.9, 0.7, -1.9) });
@@ -102,10 +108,11 @@ async function bootstrap() {
 
   // 6. Companion Cat (Loads Sketchfab Red Panda from public/models/companion)
   const companion = new Companion();
+  refs.companion = companion;
   scene.add(companion.group);
   loading.setProgress(75);
 
-  // Mochi stays hidden until "Ask Mochi" is pressed (the Companion listens for companion:summon)
+  // Zuzu stays hidden until "Ask Zuzu" is pressed (the Companion listens for companion:summon)
   eventBus.on('avatar:wave', () => avatar.wave());
 
   // 7. FX Systems
@@ -194,8 +201,7 @@ async function bootstrap() {
     if (id.startsWith('DOOR_')) audioManager.playDoor();
   });
 
-  // First person hides her body; furniture fades when it blocks the third-person view
-  followCamera.onModeChange = (mode) => avatar.setBodyVisible(mode === 'third');
+  // Furniture fades when it blocks the view of her
   eventBus.on('room:entered', () => followCamera.setOccluderRoot(sceneManager.currentRoom?.group ?? null));
   followCamera.setOccluderRoot(sceneManager.currentRoom?.group ?? null);
 
@@ -218,7 +224,6 @@ async function bootstrap() {
 
     // 2. Companion Following
     companion.update(delta, avatar.position, avatar.rotationY);
-    followCamera.eyeHeight = avatar.isSleeping ? 0.45 : avatar.isSitting ? 0.62 : 1.02;
     if (markerLife > 0) {
       markerLife = Math.max(0, markerLife - delta * 1.2);
       (marker.material as THREE.MeshBasicMaterial).opacity = markerLife * 0.8;

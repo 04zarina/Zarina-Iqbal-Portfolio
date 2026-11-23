@@ -47,13 +47,7 @@ export class AboutOverlay {
 
         <p style="font-size:0.85rem; margin-bottom:14px;">🌿 My skills live in the <strong>Greenhouse</strong>, and my projects in the <strong>Arcade</strong> and the 🗂️ library.</p>
 
-        <h3 style="font-family:var(--font-display); margin-bottom:8px;">🎤 Leadership & Community</h3>
-        <p style="font-size:0.88rem; line-height:1.5; margin-bottom:10px;">${profile.leadership}</p>
-        <div style="display:flex; gap:8px; overflow-x:auto;">
-          ${profile.community
-            .map((c, i) => `<button type="button" class="about-photo" data-photo="${i}" title="${c.title}" style="flex:0 0 auto; padding:0; border:2px solid var(--cocoa); border-radius:10px; overflow:hidden; background:none; cursor:pointer;"><img src="${c.src}" alt="${c.title}" loading="lazy" style="height:92px; display:block;" /></button>`)
-            .join('')}
-        </div>
+        <p style="font-size:0.85rem;">🎤 GameCon photos and talks are on the <strong>Community wall</strong> to the right of the bed.</p>
       </div>
     `;
 
@@ -63,12 +57,6 @@ export class AboutOverlay {
 
   private initEvents(): void {
     this.overlay.querySelector('#about-close-btn')?.addEventListener('click', () => this.close());
-    this.overlay.querySelectorAll<HTMLButtonElement>('[data-photo]').forEach((b) =>
-      b.addEventListener('click', () => {
-        this.close();
-        eventBus.emit('open:community', Number(b.dataset.photo));
-      })
-    );
     this.overlay.addEventListener('click', (e) => {
       if (e.target === this.overlay) this.close();
     });

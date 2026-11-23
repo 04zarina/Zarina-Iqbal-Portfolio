@@ -68,13 +68,18 @@ export class ProjectCardOverlay {
       : '';
 
     const links = project.links ?? {};
+    // The header button plays project.video in the card. If that's the trailer, call it a trailer;
+    // and don't repeat a link button for the same video at the bottom of the card.
+    const isTrailer = Boolean(videoId && links.trailer && youtubeId(links.trailer) === videoId);
+    const playLabel = isTrailer ? '▶ Play trailer' : '▶ Watch video';
+    const sameAsHeader = (href?: string) => Boolean(videoId && href && youtubeId(href) === videoId);
     const linkBtn = (href: string | undefined, label: string, accent: string) =>
-      href ? `<a href="${href}" target="_blank" rel="noreferrer" class="sticker-btn ${accent}" style="flex:1 1 40%; justify-content:center;">${label}</a>` : '';
+      href && !sameAsHeader(href) ? `<a href="${href}" target="_blank" rel="noreferrer" class="sticker-btn ${accent}" style="flex:1 1 40%; justify-content:center;">${label}</a>` : '';
 
     this.element.innerHTML = `
       <div class="project-video-wrap" id="project-media">
         ${images[0] ? `<img id="project-main-img" src="${images[0].src}" alt="${images[0].alt}" />` : ''}
-        ${videoId ? `<button class="sticker-btn accent-butter project-play-overlay" id="project-play-btn">▶ Watch video</button>` : ''}
+        ${videoId ? `<button class="sticker-btn accent-butter project-play-overlay" id="project-play-btn">${playLabel}</button>` : ''}
         <button class="modal-close-btn" id="project-close-btn">✕</button>
       </div>
 
@@ -143,7 +148,7 @@ export class ProjectCardOverlay {
       media.querySelector('#project-play-btn')?.remove();
       const iframe = document.createElement('iframe');
       iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
-      iframe.title = `${project.title} video`;
+      iframe.title = `${project.title} ${isTrailer ? 'trailer' : 'video'}`;
       iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
       iframe.allowFullscreen = true;
       media.prepend(iframe);

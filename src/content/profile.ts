@@ -1,5 +1,5 @@
 // Single source for profile details shown in the UI.
-// Keep in sync with content/profile.md (which feeds the Mochi chat index).
+// Keep in sync with content/profile.md (which feeds the Zuzu chat index).
 export const profile = {
   name: 'Zarina Iqbal Buriro',
   shortName: 'Zarina',

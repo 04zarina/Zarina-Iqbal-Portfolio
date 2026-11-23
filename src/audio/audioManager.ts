@@ -194,7 +194,7 @@ export class AudioManager {
     const seq = win ? [523, 659, 784, 1047, 1319] : [392, 330, 262];
     seq.forEach((f, i) => this.tone(f, 0.22, { type: 'triangle', vol: 0.12, at: i * 0.12 }));
   }
-  /** Mochi purring while being petted. */
+  /** Zuzu purring while being petted. */
   playPurr(): void {
     if (this.isMuted || !this.ctx) return;
     try {
@@ -225,7 +225,7 @@ export class AudioManager {
     } catch {}
     this.tone(1200, 0.2, { type: 'sine', vol: 0.05, to: 1700, at: 0.1 });
   }
-  /** Mochi's little "mrrp" when speaking. */
+  /** Zuzu's little "mrrp" when speaking. */
   playMrrp(): void {
     this.tone(700, 0.14, { type: 'triangle', vol: 0.08, to: 1100 });
     this.tone(1000, 0.12, { type: 'triangle', vol: 0.06, to: 800, at: 0.12 });

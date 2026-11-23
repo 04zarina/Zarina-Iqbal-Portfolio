@@ -10,6 +10,7 @@ export class JournalOverlay {
 
   private quests = [
     { id: 'start_journey', title: 'Welcome to the Studio', desc: 'Step into the cozy bedroom.' },
+    { id: 'lamp_on', title: 'Let There Be Light', desc: 'Switch on the desk lamp after waking up.' },
     { id: 'pickup_tape', title: 'Find the Reel', desc: 'Pick up Zarina\'s showreel cassette tape.' },
     { id: 'watch_reel', title: 'Watch the TV', desc: 'Insert the cassette tape to play the video.' },
     { id: 'play_game', title: 'Arcade Player', desc: 'Insert a coin into any arcade cabinet.' },
@@ -17,8 +18,8 @@ export class JournalOverlay {
     { id: 'explore_rooms', title: 'Studio Explorer', desc: 'Discover all 4 connected rooms.' },
     { id: 'get_resume', title: 'Hire Me?', desc: 'Grab the resume from the desk in the Study Nook.' },
     { id: 'send_letter', title: 'Pen Pal', desc: 'Drop a message into the mailbox on the Dev Realm island.' },
-    { id: 'bug_bash', title: 'Bug Basher', desc: 'Play a round of Bug Bash on the Dev Realm island.' },
-    { id: 'pet_mochi', title: 'Best Friends', desc: 'Give Mochi a pet.' }
+    { id: 'play_fetch', title: 'Fetch Buddies', desc: 'Play fetch with Zuzu on the Dev Realm island.' },
+    { id: 'pet_zuzu', title: 'Best Friends', desc: 'Give Zuzu a pet.' }
   ];
 
   constructor() {

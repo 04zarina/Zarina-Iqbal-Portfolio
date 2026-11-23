@@ -90,10 +90,9 @@ export class StudyRoom {
     rightWall.position.set(4.9, 2, 0);
 
     // Front Wall with doorway back to bedroom
-    const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4, 0.2), wallMat);
-    frontWallLeft.position.set(-2.8, 2, -3.9);
-    const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4, 0.2), wallMat);
-    frontWallRight.position.set(2.8, 2, -3.9);
+    const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(10, 4, 0.2), wallMat);
+    frontWallLeft.position.set(0, 2, -3.95);
+    const frontWallRight = new THREE.Object3D(); // single solid wall now (door paints the room beyond)
 
     this.group.add(backWall, leftWall, rightWall, frontWallLeft, frontWallRight);
 
@@ -101,12 +100,25 @@ export class StudyRoom {
     const corkGroup = new THREE.Group();
     corkGroup.position.set(0, 2.1, 3.78);
 
-    const corkFrame = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.2, 0.08), woodMat);
-    const corkMat = new THREE.MeshLambertMaterial({ color: 0xD2A679 });
-    const corkFace = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.0), corkMat);
+    const corkFrame = new THREE.Mesh(new THREE.BoxGeometry(4.3, 2.3, 0.08), woodMat);
+    const corkMat = new THREE.MeshLambertMaterial({ map: corkBoardTexture(1024, 512, 'My Journey') });
+    const corkFace = new THREE.Mesh(new THREE.PlaneGeometry(4.1, 2.1), corkMat);
     corkFace.rotation.y = Math.PI;
     corkFace.position.z = -0.05;
     corkGroup.add(corkFrame, corkFace);
+    // Painted trim: a mint inner moulding and butter corner blocks
+    const trimMat = new THREE.MeshLambertMaterial({ color: 0xbdebd3 });
+    const cornerMat = new THREE.MeshLambertMaterial({ color: 0xffe9a3 });
+    ([[0, 1.12, 4.3, 0.06], [0, -1.12, 4.3, 0.06], [2.12, 0, 0.06, 2.3], [-2.12, 0, 0.06, 2.3]] as const).forEach(([x, y, w, h]) => {
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), trimMat);
+      strip.position.set(x, y, -0.05);
+      corkGroup.add(strip);
+    });
+    [[-2.12, 1.12], [2.12, 1.12], [-2.12, -1.12], [2.12, -1.12]].forEach(([x, y]) => {
+      const block = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.05), cornerMat);
+      block.position.set(x, y, -0.06);
+      corkGroup.add(block);
+    });
 
     // Pinned sticky notes on corkboard with readable labels.
     // The board faces -Z, so +X here reads as the left side for the viewer.
@@ -353,6 +365,7 @@ export class StudyRoom {
       ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = 'rgba(0,0,0,0.06)';
       for (let i = 0; i < 400; i++) ctx.fillRect((i * 97) % W, (i * 53) % H, 4, 4);
+      drawBoardBorder(ctx, W, H);
       ctx.fillStyle = '#FFF6EC';
       ctx.beginPath();
       ctx.roundRect(W / 2 - 520, 26, 1040, 108, 30);
@@ -592,4 +605,71 @@ export class StudyRoom {
     this.doors = [];
     this.group.clear();
   }
+}
+
+/** Ribbon border for cork boards: a striped band, a stitched inner line and corner rosettes. */
+function drawBoardBorder(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const band = Math.round(Math.min(w, h) * 0.035);
+  const cols = ['#FFB3C7', '#FFF6EC', '#BDEBD3', '#FFF6EC', '#BDE0FF', '#FFF6EC', '#FFE9A3', '#FFF6EC'];
+  const step = band * 1.2;
+  let k = 0;
+  for (let x = 0; x < w; x += step, k++) {
+    ctx.fillStyle = cols[k % cols.length];
+    ctx.fillRect(x, 0, step, band);
+    ctx.fillRect(x, h - band, step, band);
+  }
+  k = 0;
+  for (let y = 0; y < h; y += step, k++) {
+    ctx.fillStyle = cols[k % cols.length];
+    ctx.fillRect(0, y, band, step);
+    ctx.fillRect(w - band, y, band, step);
+  }
+  ctx.strokeStyle = '#8A5A4A';
+  ctx.lineWidth = Math.max(2, band * 0.12);
+  ctx.setLineDash([band * 0.5, band * 0.35]);
+  ctx.strokeRect(band * 1.5, band * 1.5, w - band * 3, h - band * 3);
+  ctx.setLineDash([]);
+  [[band, band], [w - band, band], [band, h - band], [w - band, h - band]].forEach(([x, y], i) => {
+    ctx.fillStyle = ['#E58FA8', '#76B885', '#3A7BD5', '#E8B53E'][i];
+    ctx.beginPath();
+    ctx.arc(x, y, band * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFF6EC';
+    ctx.beginPath();
+    ctx.arc(x, y, band * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+/** Cork texture (speckled) with the ribbon border and a small banner title at the top. */
+function corkBoardTexture(w: number, h: number, title: string): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#D2A679';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1400; i++) {
+    ctx.fillStyle = i % 3 ? 'rgba(120,80,40,0.12)' : 'rgba(255,240,210,0.15)';
+    ctx.fillRect((i * 131) % w, (i * 71) % h, 3, 2);
+  }
+  drawBoardBorder(ctx, w, h);
+  // Banner title
+  ctx.save();
+  ctx.fillStyle = '#FFF6EC';
+  ctx.strokeStyle = '#8A5A4A';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(w / 2 - 130, 26, 260, 46, 22);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#5A3A32';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`📌 ${title}`, w / 2, 50);
+  ctx.restore();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }

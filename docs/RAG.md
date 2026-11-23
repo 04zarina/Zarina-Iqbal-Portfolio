@@ -1,6 +1,6 @@
 # RAG Pipeline Architecture & Explanation
 
-This document details the Retrieval-Augmented Generation (RAG) system powering **Mochi**, the friendly companion AI in Alex Morgan's interactive 3D portfolio.
+This document details the Retrieval-Augmented Generation (RAG) system powering **Zuzu**, the friendly companion AI in Alex Morgan's interactive 3D portfolio.
 
 ---
 

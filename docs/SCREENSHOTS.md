@@ -20,8 +20,8 @@ When preparing your final report, capture the following screenshots from the liv
   - Large pinned corkboard timeline, wooden desk with laptop, and bookshelf.
 - [ ] **9. Dev Realm Floating Island:**
   - Island reached through the wardrobe portal with layered earth, wavy trees, floating clouds, and stars.
-- [ ] **10. Mochi AI Chatbot with Citations (Module 4):**
-  - Chat panel showing visitor question, Mochi's grounded response, and clickable citation chips.
+- [ ] **10. Zuzu AI Chatbot with Citations (Module 4):**
+  - Chat panel showing visitor question, Zuzu's grounded response, and clickable citation chips.
 - [ ] **11. Mailbox Contact Form (Module 5):**
   - Mailbox letter modal with filled inputs and sent confirmation toast.
 - [ ] **12. Explorer's Journal:**

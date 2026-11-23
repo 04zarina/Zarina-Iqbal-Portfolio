@@ -29,7 +29,8 @@ const STOP = new Set(
 
 /** Lowercase word tokens with a light plural/suffix strip so "projects" matches "project". */
 export function tokenize(text: string): string[] {
-  const words = text.toLowerCase().match(/[a-z0-9+#]+/g) || [];
+  // NFKD + strip accents so "résumé" (common in translations) matches "resume"
+  const words = text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().match(/[a-z0-9+#]+/g) || [];
   const out: string[] = [];
   for (let w of words) {
     if (w.length < 2 || STOP.has(w)) continue;
@@ -84,8 +85,16 @@ export function termCounts(tokens: string[]): Record<string, number> {
  * Hybrid retrieval: TF-IDF cosine similarity (the vector index) blended with
  * BM25 keyword scoring, which keeps long project write-ups from being drowned out.
  */
+/** Visitors say things the notes word differently; add the notes' own words to the query. */
+const QUERY_SYNONYMS: [RegExp, string][] = [
+  [/extra.?curricular|activit|clubs?\b|societ|volunteer|hobb|outside (of )?(work|study|class)/i, 'leadership community events host hosting speaking'],
+  [/communit|leader|event|organi[sz]|host/i, 'leadership community events GameCon host'],
+  [/contact|reach|hire|hiring/i, 'email contact'],
+  [/cgpa|gpa|grade/i, 'education university CGPA']
+];
 export function retrieve(index: VectorIndex, query: string, k = 5, minScore = 0.08) {
-  const qTokens = tokenize(query);
+  const extra = QUERY_SYNONYMS.filter(([re]) => re.test(query)).map(([, add]) => add).join(' ');
+  const qTokens = tokenize(extra ? `${query} ${extra}` : query);
   const q = toSparseVector(qTokens, index.idf);
   const k1 = 1.2;
   const b = 0.4;
