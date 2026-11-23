@@ -5,7 +5,7 @@ const ContactSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email().max(254),
   subject: z.string().min(3).max(120),
-  message: z.string().min(10).max(2000),
+  message: z.string().trim().min(1).max(2000),
   website: z.string().optional(),
   ts: z.number()
 });
@@ -36,12 +36,12 @@ describe('Contact Form Validation & Spam Traps', () => {
     expect(res.success).toBe(false);
   });
 
-  it('rejects short messages below 10 characters', () => {
+  it('rejects an empty message', () => {
     const invalid = {
       name: 'Robin',
       email: 'robin@example.com',
       subject: 'Hello',
-      message: 'Too short',
+      message: '   ',
       ts: Date.now()
     };
     const res = ContactSchema.safeParse(invalid);
@@ -118,6 +118,87 @@ describe('/api/contact handler', () => {
     await handler({ method: 'POST', body: { ...goodBody(), website: 'spam.biz' }, headers: { 'x-forwarded-for': '4.4.4.4' } }, res);
     expect(out.code).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('/api/contact error reporting', () => {
+  it('accepts a very short message like "hi"', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '' }));
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: { ...goodBody(), message: 'hi' }, headers: { 'x-forwarded-for': '8.8.8.8' } }, res);
+    expect(out.code).toBe(200);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.BREVO_API_KEY;
+    delete process.env.CONTACT_FROM_EMAIL;
+  });
+
+  it('names the bad field so the form can point at it', async () => {
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: { ...goodBody(), email: 'nope' }, headers: { 'x-forwarded-for': '5.5.5.5' } }, res);
+    expect(out.code).toBe(400);
+    expect(out.body.code).toBe('invalid');
+    expect(out.body.fields.email).toMatch(/email/i);
+  });
+
+  it('does not count invalid attempts against the hourly limit', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '' }));
+    for (let i = 0; i < 6; i++) {
+      const { res } = mockRes();
+      await handler({ method: 'POST', body: { ...goodBody(), message: '' }, headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
+    }
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
+    expect(out.code).toBe(200);
+  });
+
+  it('flags a Brevo IP block / bad key as provider_auth', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => '{"code":"unauthorized","message":"We have detected you are using an unrecognised IP address"}' })
+    );
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '7.7.7.7' } }, res);
+    expect(out.code).toBe(502);
+    expect(out.body.code).toBe('provider_auth');
+    expect(JSON.stringify(out.body)).not.toContain('test-key');
+  });
+
+  it('health check reports a missing key', async () => {
+    const { res, out } = mockRes();
+    await handler({ method: 'GET', headers: {} }, res);
+    expect(out.body.status).toBe('not_configured');
+  });
+
+  it('health check spots an IP block', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => 'unrecognised IP address' }));
+    const { res, out } = mockRes();
+    await handler({ method: 'GET', headers: {} }, res);
+    expect(out.body.status).toBe('ip_blocked');
+  });
+
+  it('health check spots an unverified sender, and passes when verified', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    process.env.CONTACT_FROM_EMAIL = 'hello@example.com';
+    const make = (email: string) =>
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ senders: [{ email, active: true }] }) });
+    vi.stubGlobal('fetch', make('other@example.com'));
+    let r = mockRes();
+    await handler({ method: 'GET', headers: {} }, r.res);
+    expect(r.out.body.status).toBe('sender_not_verified');
+    vi.stubGlobal('fetch', make('Hello@Example.com'));
+    r = mockRes();
+    await handler({ method: 'GET', headers: {} }, r.res);
+    expect(r.out.body.status).toBe('ok');
   });
 });
 
