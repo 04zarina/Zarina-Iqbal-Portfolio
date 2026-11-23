@@ -46,7 +46,7 @@ export class ContactFormOverlay {
 
           <div>
             <label style="font-family:var(--font-display); font-weight:700; font-size:0.85rem; display:block; margin-bottom:4px;">Message</label>
-            <textarea name="message" required minlength="10" maxlength="2000" rows="4" placeholder="Write your letter here..."
+            <textarea name="message" required maxlength="2000" rows="4" placeholder="Write your letter here..."
               style="width:100%; padding:10px 14px; border-radius:14px; border:2px solid var(--cocoa); font-family:var(--font-body); background:var(--surface-color); resize:vertical;"></textarea>
           </div>
 

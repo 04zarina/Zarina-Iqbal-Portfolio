@@ -5,7 +5,7 @@ const ContactSchema = z.object({
   name: z.string().min(2).max(80),
   email: z.string().email().max(254),
   subject: z.string().min(3).max(120),
-  message: z.string().min(10).max(2000),
+  message: z.string().trim().min(1).max(2000),
   website: z.string().optional(),
   ts: z.number()
 });
@@ -36,12 +36,12 @@ describe('Contact Form Validation & Spam Traps', () => {
     expect(res.success).toBe(false);
   });
 
-  it('rejects short messages below 10 characters', () => {
+  it('rejects an empty message', () => {
     const invalid = {
       name: 'Robin',
       email: 'robin@example.com',
       subject: 'Hello',
-      message: 'Too short',
+      message: '   ',
       ts: Date.now()
     };
     const res = ContactSchema.safeParse(invalid);
@@ -122,6 +122,14 @@ describe('/api/contact handler', () => {
 });
 
 describe('/api/contact error reporting', () => {
+  it('accepts a very short message like "hi"', async () => {
+    process.env.BREVO_API_KEY = 'test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '' }));
+    const { res, out } = mockRes();
+    await handler({ method: 'POST', body: { ...goodBody(), message: 'hi' }, headers: { 'x-forwarded-for': '8.8.8.8' } }, res);
+    expect(out.code).toBe(200);
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.BREVO_API_KEY;
@@ -141,7 +149,7 @@ describe('/api/contact error reporting', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => '' }));
     for (let i = 0; i < 6; i++) {
       const { res } = mockRes();
-      await handler({ method: 'POST', body: { ...goodBody(), message: 'short' }, headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
+      await handler({ method: 'POST', body: { ...goodBody(), message: '' }, headers: { 'x-forwarded-for': '6.6.6.6' } }, res);
     }
     const { res, out } = mockRes();
     await handler({ method: 'POST', body: goodBody(), headers: { 'x-forwarded-for': '6.6.6.6' } }, res);

@@ -18,7 +18,7 @@ const ContactSchema = z.object({
   name: z.string().trim().min(2, 'Please enter your name (at least 2 letters).').max(80, 'Your name is a bit long (80 characters max).'),
   email: z.string().trim().email('That email address doesn\'t look right.').max(254),
   subject: z.string().trim().min(3, 'Please add a short subject (at least 3 characters).').max(120, 'The subject is too long (120 characters max).'),
-  message: z.string().trim().min(10, 'Your message is a little short (at least 10 characters).').max(2000, 'Your message is too long (2000 characters max).'),
+  message: z.string().trim().min(1, 'Please write a message.').max(2000, 'Your message is too long (2000 characters max).'),
   website: z.string().optional(), // Honeypot
   ts: z.coerce.number() // Time trap
 });
