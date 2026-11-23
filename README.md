@@ -153,16 +153,29 @@ All 3D models can be swapped without code changes via `src/assets/manifest.ts`:
 
 ---
 
-## 🦴 Rigging the avatar in Mixamo (optional)
+## 🦴 Rigged avatar (Mixamo)
 
-The avatar works today with the built-in GPU rig. A real skeleton gives nicer animation; Mixamo needs an Adobe sign-in, so these steps are done by hand:
+Zarina is a Mixamo-rigged GLB with real skeletal clips: `public/models/avatar/avatar_rigged.glb` (~0.8 MB, meshopt geometry, 1024 px WebP texture). If it ever fails to load, the old static mesh (`avatar_new.glb`) and the GPU rig take over.
 
-1. In Blender: File > Import > glTF, pick `public/models/avatar/avatar_new.glb` (or the full-quality original from git history). File > Export > FBX (Path mode: Copy, Embed textures on).
-2. Go to mixamo.com, sign in, Upload Character, choose the FBX. Place the markers (chin, wrists, elbows, knees, groin) and let it auto-rig.
-3. Download these animations (FBX, 30 fps). The first one **With Skin**, the rest **Without Skin**: Idle, Walking, Running, Waving, Sitting Idle, Sleeping (or Laying Idle), Getting Up (stand up), Petting / Kneeling, Cheering, Button Pushing.
-4. Back in Blender, import the skinned FBX, then import each other FBX and push its action onto the same armature (NLA editor), naming each action after its clip (`Idle`, `Walk`, `Run`, `Wave`, `Sit`, `Sleep`, `Wake`, `Pet`, `Cheer`, `Reach`).
-5. Export one GLB with all actions to `public/models/avatar/avatar_rigged.glb` (enable Animation, and Compression if you like).
-6. Set `RIGGED_AVATAR_URL = '/models/avatar/avatar_rigged.glb'` in `src/world/avatar/mixamo.ts`. Clips are matched by name, so close names like "Waving" also work.
+| Clip | Source | Used for |
+| --- | --- | --- |
+| `Idle` | built from the first frame of Waving, with a gentle breathing loop | standing still |
+| `Walk` | Walk.fbx | walking, and running (played faster) |
+| `Wave` | Waving.fbx | waving, cheering |
+| `Sitting` | Sitting.fbx | chairs, armchair, sitting on the bed |
+| `LyingDown` | Lying Down.fbx | going to bed (held on its last frame while asleep) |
+| `WakeUp` | Lying Down reversed | getting out of bed |
+| `Petting` | Petting.fbx | petting Zuzu |
+| `Throw` | Throw.fbx | reaching for / touching objects |
+
+To rebuild it from the Mixamo files (one skinned FBX plus the clips, all on the same rig):
+
+```bash
+blender -b --factory-startup --python scripts/build_avatar.py -- "<folder with zarina_mixamo_RIGGED.fbx and animations/>" raw.glb
+npx @gltf-transform/cli optimize raw.glb public/models/avatar/avatar_rigged.glb --compress meshopt --texture-compress webp --texture-size 1024 --simplify false
+```
+
+Clips are matched by name in `src/world/avatar/mixamo.ts`, so extra clips (e.g. a real Run) only need a matching name.
 
 ## 🔒 Environment Variables (`.env.example`)
 

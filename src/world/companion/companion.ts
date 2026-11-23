@@ -176,9 +176,9 @@ export class Companion {
       // Turn a little to the left of Zuzu so it sits right under her right hand
       const toZuzu = Math.atan2(this.position.x - avatar.position.x, this.position.z - avatar.position.z);
       avatar.faceYaw = toZuzu + 0.34;
-      avatar.doGesture('pet', 1.8);
-      this.holdTimer = 2.2;
-      this.happyTimer = 1.8;
+      const petFor = avatar.doGesture('pet', 1.8) || 1.8;
+      this.holdTimer = petFor + 0.4;
+      this.happyTimer = petFor;
       this.rotationY = toZuzu + Math.PI;
       audioManager.playPurr();
       store.completeQuest('pet_zuzu');

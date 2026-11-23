@@ -91,9 +91,17 @@ export class Avatar {
       model.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).frustumCulled = false) : null));
       this.modelContainer.add(model);
       this.mixamo = new MixamoAvatar(model, rigged.clips);
-      this.mixamo.play('idle', 0);
+      this.mixamo.setSpeed('wave', 1.3);
+      this.mixamo.setSpeed('cheer', 1.4);
+      this.mixamo.setSpeed('reach', 1.5);
+      this.mixamo.setSpeed('pet', 1.8);
+      this.mixamo.setSpeed('sleep', 1.4);
+      this.mixamo.setSpeed('wake', 1.5);
       this.hasExternalModel = true;
       this.modelReady = true;
+      // startInBed() may have run before the model arrived: switch to the clip-based bed pose
+      if (this.isSleeping && !this.isWakingUp && this.lastBedPos) this.startInBed(this.lastBedPos);
+      else this.mixamo.play('idle', 0);
       return;
     }
     const gltf = await assetLoader.loadGLTF('avatar');
@@ -235,11 +243,34 @@ export class Avatar {
     this.modelContainer.add(this.leftLeg, this.rightLeg);
   }
 
+  /** Last bed spot given to startInBed/goToBed. */
+  private lastBedPos: THREE.Vector3 | null = null;
+
+  /**
+   * Rigged avatar: she lies ACROSS the bed (head to the wall, feet toward the room), because the
+   * Mixamo LyingDown clip starts sitting on the mattress edge, facing out, and lies back from there.
+   * The group stands on the clip's floor, so her back lands on top of the blanket (~0.65 m).
+   */
+  private placeOnBedEdge(bedPos: THREE.Vector3): void {
+    this.position.set(bedPos.x + 0.62, 0.27, bedPos.z - 0.35);
+    this.rotationY = Math.PI / 2;
+    this.rootNode.position.set(0, 0, 0);
+    this.rootNode.rotation.set(0, 0, 0);
+    this.rootNode.scale.set(1, 1, 1);
+    this.shadow.visible = false;
+  }
+
   startInBed(bedPos: THREE.Vector3): void {
     this.isSleeping = true;
     this.isWakingUp = false;
     this.isSitting = false;
     this.isMoving = false;
+    this.lastBedPos = bedPos.clone();
+    if (this.mixamo) {
+      this.placeOnBedEdge(bedPos);
+      this.mixamo.play('sleep', 0, true, true); // already lying down
+      return;
+    }
     this.position.copy(bedPos);
     this.position.y = 0.52; // Bed mattress height
     this.rotationY = 0; // Lie along the bed with the head on the pillow (-Z)
@@ -253,10 +284,21 @@ export class Avatar {
   }
 
   goToBed(bedPos: THREE.Vector3, onComplete?: () => void): void {
+    this.cancelAutoWalk();
     this.isSleeping = true;
     this.isWakingUp = false;
     this.isSitting = false;
     this.isMoving = false;
+    this.waveTimer = -1;
+    this.gesture = null;
+    this.lastBedPos = bedPos.clone();
+    if (this.mixamo) {
+      // Sit on the edge and lie back (LyingDown clip, held on its last frame)
+      this.placeOnBedEdge(bedPos);
+      this.mixamo.play('sleep', 0.3, true);
+      onComplete?.();
+      return;
+    }
     this.position.copy(bedPos);
     this.position.y = 0.52;
     this.rotationY = 0;
@@ -282,6 +324,21 @@ export class Avatar {
     const yaw = this.stepOutYaw();
     this.bedEdge.set(outPos.x - Math.sin(yaw) * 0.72, 0, outPos.z - Math.cos(yaw) * 0.72);
     this.onWakeUpDone = onComplete || null;
+    if (this.mixamo) {
+      // WakeUp clip (LyingDown reversed): sit up on the edge, then hop down and walk out
+      this.placeOnBedEdge(bedPos);
+      this.wakeHopFrom.copy(this.position);
+      this.mixamo.play('sleep', 0, true, true);
+      this.mixamo.play('wake', 0.15, true);
+      this.wakeUpDuration = this.mixamo.duration('wake');
+    }
+  }
+
+  /** Rigged wake-up: where she sits on the bed edge before hopping down. */
+  private wakeHopFrom = new THREE.Vector3();
+  private readonly wakeHopTime = 0.6;
+  private get wakeHopping(): boolean {
+    return this.isWakingUp && !!this.mixamo && this.wakeUpTimer >= this.wakeUpDuration;
   }
 
   sitOnChair(chairPos: THREE.Vector3, rotY: number = 0, seatHeight = 0.42): void {
@@ -295,8 +352,11 @@ export class Avatar {
     this.position.copy(chairPos);
     this.position.y = seatHeight;
     this.rotationY = rotY;
-    // Drop the hips onto the seat; the rig swings the legs forward (see updateRig)
-    this.rootNode.position.set(0, this.rigged ? -0.4 : -0.06, 0);
+    // Drop the hips onto the seat. Sitting clip: hips are 0.365 m above its floor, which puts
+    // them ~0.07 m above the seat. GPU rig: the rig swings the legs forward (see updateRig).
+    this.rootNode.rotation.set(0, 0, 0);
+    this.rootNode.scale.set(1, 1, 1);
+    this.rootNode.position.set(0, this.mixamo ? 0.07 - 0.365 : this.rigged ? -0.4 : -0.06, 0);
     this.shadow.visible = false;
   }
 
@@ -349,12 +409,21 @@ export class Avatar {
   }
 
   /** One-off gesture. 'reach' for touching objects, 'pet' for Zuzu, 'cheer' for wins, 'think' for reading. */
-  doGesture(kind: 'reach' | 'pet' | 'cheer' | 'think', dur?: number): void {
-    if (this.isSleeping || this.isWakingUp) return;
-    if (this.isSitting && kind !== 'think' && kind !== 'reach') return;
+  /** Returns how long the gesture lasts in seconds (0 if skipped). */
+  doGesture(kind: 'reach' | 'pet' | 'cheer' | 'think', dur?: number): number {
+    if (this.isSleeping || this.isWakingUp) return 0;
+    if (this.isSitting && kind !== 'think' && kind !== 'reach') return 0;
+    if (this.mixamo) {
+      // Clips: keep the Sitting pose while seated; standing gestures play their whole clip
+      if (this.isSitting || kind === 'think') return 0;
+      const d = this.mixamo.duration(kind) || dur || 1;
+      this.gesture = { kind, t: 0, dur: d };
+      this.mixamo.play(kind, 0.2, true);
+      return d;
+    }
     const d = dur ?? { reach: 0.9, pet: 1.6, cheer: 1.4, think: 1.8 }[kind];
     this.gesture = { kind, t: 0, dur: d };
-    if (this.mixamo) this.mixamo.play(kind === 'think' ? 'idle' : kind, 0.2, true);
+    return d;
   }
 
   /** Walk a list of waypoints in order (from the navigation grid). */
@@ -522,19 +591,25 @@ export class Avatar {
 
   private updateMixamo(delta: number): void {
     const m = this.mixamo!;
-    if (this.isSleeping && !this.isWakingUp) m.play('sleep');
-    else if (this.isWakingUp) m.play(m.has('wake') ? 'wake' : 'idle');
-    else if (this.isSitting) m.play('sit');
-    else if (this.waveTimer >= 0) {
+    if (this.isSleeping && !this.isWakingUp) m.play('sleep', 0, true, true);
+    else if (this.wakeHopping) m.play('idle', 0.4);
+    else if (this.isWakingUp) m.play('wake', 0.15, true);
+    else if (this.isSitting) m.play('sit', 0.3);
+    else if (this.isMoving) {
+      // Walking cancels one-off clips so she never slides around mid-gesture
+      this.waveTimer = -1;
+      this.gesture = null;
+      const clip = this.isRunning ? 'run' : 'walk';
+      m.play(clip, 0.18);
+      // The Walk clip covers roughly 1.6 m/s at 1x; running plays the same clip faster
+      m.setSpeed(clip, THREE.MathUtils.clamp(this.groundSpeed / 1.6, 0.6, this.isRunning ? 2.6 : 1.8));
+    } else if (this.waveTimer >= 0) {
       m.play('wave', 0.2, true);
       this.waveTimer += delta;
-      if (this.waveTimer > this.waveDuration) this.waveTimer = -1;
+      if (this.waveTimer > m.duration('wave')) this.waveTimer = -1;
     } else if (this.gesture) {
-      /* gesture clip already playing */
-    } else if (this.isMoving) {
-      m.play(this.isRunning ? 'run' : 'walk', 0.18);
-      m.setSpeed(this.isRunning ? 'run' : 'walk', THREE.MathUtils.clamp(this.groundSpeed / (this.isRunning ? 5.6 : 3.2), 0.5, 1.4));
-    } else m.play('idle');
+      m.play(this.gesture.kind === 'think' ? 'idle' : this.gesture.kind, 0.2, true);
+    } else m.play('idle', 0.3);
     m.update(delta);
   }
 
@@ -565,6 +640,49 @@ export class Avatar {
     this.updateRig(delta);
     this.group.position.copy(this.position);
     this.group.rotation.y = this.rotationY;
+
+    // 1a. Rigged wake-up: WakeUp clip on the bed edge, then hop down and walk to outPos
+    if (this.isWakingUp && this.mixamo) {
+      this.wakeUpTimer += delta;
+      const hopT = this.wakeUpTimer - this.wakeUpDuration;
+      if (hopT >= 0) {
+        const k = THREE.MathUtils.smoothstep(Math.min(1, hopT / this.wakeHopTime), 0, 1);
+        const landing = this.wakeHopFrom.clone().add(new THREE.Vector3(Math.sin(this.rotationY) * 0.45, 0, Math.cos(this.rotationY) * 0.45));
+        landing.y = 0;
+        this.position.lerpVectors(this.wakeHopFrom, landing, k);
+        this.shadow.visible = k > 0.6;
+        if (hopT >= this.wakeHopTime) {
+          this.isWakingUp = false;
+          this.isSleeping = false;
+          this.shadow.visible = true;
+          const done = this.onWakeUpDone;
+          this.onWakeUpDone = null;
+          this.walkTo(this.wakeUpTarget, 1.4, () => done?.());
+        }
+      }
+      return;
+    }
+
+    // Clips carry their own breathing, bob and crouch: keep the body container neutral
+    if (this.mixamo && !this.isSleeping) {
+      this.rootNode.rotation.set(0, 0, 0);
+      this.rootNode.scale.set(1, 1, 1);
+      if (!this.isSitting) this.rootNode.position.set(0, 0, 0);
+      if (this.isMoving) {
+        this.walkTime += delta * (4.5 + this.groundSpeed * 1.6);
+        const step = Math.floor(this.walkTime / Math.PI);
+        if (step !== this.lastStep) {
+          this.lastStep = step;
+          audioManager.playStep(this.isRunning);
+        }
+      }
+      if (this.isHopping && !this.isSitting) {
+        this.hopTimer += delta * 4;
+        if (this.hopTimer >= 1.0) this.isHopping = false;
+        else this.rootNode.position.y = Math.max(0, Math.sin(this.hopTimer * Math.PI) * 0.55);
+      }
+      return;
+    }
 
     // 1. Waking-up Sequence
     if (this.isWakingUp) {
