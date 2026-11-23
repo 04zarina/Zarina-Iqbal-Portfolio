@@ -54,6 +54,7 @@ const URDU_TERMS: [RegExp, string][] = [
   [/ایوارڈ|انعام|کامیابی/, 'achievements awards'],
   [/سرٹیفکیٹ|سند/, 'certificates'],
   [/پس منظر|کون ہے|کون ہیں|بارے/, 'about background zarina'],
+  [/کمیونٹی|قیادت|سرگرمی|سرگرمیاں|تقریب|ایونٹ/, 'leadership community events host'],
   [/زوزو/, 'zuzu companion']
 ];
 function urduKeywords(text: string): string {

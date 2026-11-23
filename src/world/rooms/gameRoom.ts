@@ -77,17 +77,17 @@ function spotPoolMat(): THREE.MeshBasicMaterial {
 }
 
 const MINI_SLOTS: [number, number, number][] = [
-  // left wall (faces +X): five cabinets, 0.9 m apart, starting clear of the featured row
-  [-5.4, -1.8, Math.PI / 2],
-  [-5.4, -0.9, Math.PI / 2],
-  [-5.4, 0, Math.PI / 2],
-  [-5.4, 0.9, Math.PI / 2],
-  [-5.4, 1.8, Math.PI / 2],
-  // right wall (faces -X): the door at z = 0 stays free
-  [5.4, -1.8, -Math.PI / 2],
-  [5.4, -1.0, -Math.PI / 2],
-  [5.4, 1.1, -Math.PI / 2],
-  [5.4, 2.0, -Math.PI / 2]
+  // left wall (faces +X): five cabinets spread evenly along the whole wall
+  [-5.4, -1.9, Math.PI / 2],
+  [-5.4, -0.65, Math.PI / 2],
+  [-5.4, 0.6, Math.PI / 2],
+  [-5.4, 1.85, Math.PI / 2],
+  [-5.4, 3.1, Math.PI / 2],
+  // right wall (faces -X): the door at z = 0 stays free, cabinets fill both sides of it
+  [5.4, -1.9, -Math.PI / 2],
+  [5.4, -1.05, -Math.PI / 2],
+  [5.4, 1.4, -Math.PI / 2],
+  [5.4, 2.55, -Math.PI / 2]
 ];
 
 export class GameRoom {

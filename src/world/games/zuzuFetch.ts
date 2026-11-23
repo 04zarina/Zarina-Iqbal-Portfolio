@@ -36,12 +36,13 @@ export class ZuzuFetch {
   private ballFrom = new THREE.Vector3();
   private ballTo = new THREE.Vector3();
   private carrying = false;
+  private ballFade = 0;
   private bar: HTMLElement;
   private panel: HTMLElement;
   private throwBtn!: HTMLButtonElement;
   private keyHandler = (e: KeyboardEvent) => {
     if (!this.running || this.phase !== 'idle') return;
-    if (e.key === 'e' || e.key === 'E' || e.key === 'Enter' || e.code === 'Space') {
+    if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
       e.preventDefault();
       e.stopImmediatePropagation();
       this.throwBall();
@@ -73,7 +74,7 @@ export class ZuzuFetch {
         <div class="game-title">🎾 FETCH WITH ZUZU</div>
         <p class="game-sub">Throw the ball and Zuzu brings it back. That's it!</p>
         <ul class="game-rules">
-          <li>Tap <b>Throw</b> (or press <b>E</b>) to toss the ball</li>
+          <li>Tap <b>Throw</b> (or press <b>E</b>) to toss the ball. You can still walk around!</li>
           <li>Zuzu runs, grabs it and brings it back to you</li>
           <li>Play ${ROUNDS} rounds and make Zuzu happy 💕</li>
         </ul>
@@ -97,9 +98,9 @@ export class ZuzuFetch {
 
   private begin(): void {
     this.panel.classList.remove('active');
-    // Keep input locked: Zarina stays put and just throws
+    // Zarina can still walk around (WASD / stick): Zuzu fetches wherever she stands
     store.set('activeOverlay', 'none');
-    store.set('inputLocked', true);
+    store.set('inputLocked', false);
     const zuzu = refs.companion;
     if (zuzu && !zuzu.summoned) eventBus.emit('companion:summon', { quiet: true });
     if (zuzu) {
@@ -118,7 +119,7 @@ export class ZuzuFetch {
 
   private renderBar(): void {
     const idle = this.phase === 'idle';
-    const label = idle ? '🎾 Throw!' : this.phase === 'celebrate' ? 'Yay! 💕' : 'Zuzu is fetching…';
+    const label = idle ? '🎾 Throw!' : 'Zuzu is fetching…';
     this.bar.innerHTML = `
       <div class="game-pill">🎾 ${Math.min(this.round, ROUNDS)}/${ROUNDS}</div>
       <button class="fetch-throw" ${idle ? '' : 'disabled'}>${label}</button>
@@ -148,6 +149,8 @@ export class ZuzuFetch {
     this.ballFrom.set(av.position.x, 1.2, av.position.z);
     this.ballTo.copy(spot).setY(0.11);
     this.ball.position.copy(this.ballFrom);
+    this.ballFade = 0;
+    this.ball.scale.setScalar(1);
     this.ball.visible = true;
     this.carrying = false;
     this.phase = 'flying';
@@ -189,10 +192,11 @@ export class ZuzuFetch {
       const f = new THREE.Vector3(Math.sin(av.rotationY), 0, Math.cos(av.rotationY));
       zuzu.gameTarget = av.position.clone().addScaledVector(f, 0.85);
       const d = Math.hypot(zuzu.position.x - zuzu.gameTarget.x, zuzu.position.z - zuzu.gameTarget.z);
-      if (d < 0.3 || this.t > 7) {
+      if (d < 0.55 || this.t > 7) {
         this.carrying = false;
         this.fetched++;
-        this.phase = 'celebrate';
+        this.phase = this.round >= ROUNDS ? 'celebrate' : 'idle';
+        this.ballFade = 0.4;
         this.t = 0;
         this.ball.position.set(zuzu.gameTarget.x, 0.11, zuzu.gameTarget.z);
         zuzu.gameTarget = null;
@@ -204,17 +208,16 @@ export class ZuzuFetch {
         floatPop('+1', at, 'heart');
         this.renderBar();
       }
-    } else if (this.phase === 'celebrate') {
-      this.ball.scale.setScalar(Math.max(0.01, 1 - this.t * 1.5));
-      if (this.t > 1.1) {
+    } else if (this.phase === 'celebrate' && this.t > 0.9) {
+      this.finish(false);
+    }
+
+    if (this.ballFade > 0) {
+      this.ballFade -= delta;
+      this.ball.scale.setScalar(Math.max(0.01, this.ballFade / 0.4));
+      if (this.ballFade <= 0) {
         this.ball.visible = false;
         this.ball.scale.setScalar(1);
-        if (this.round >= ROUNDS) {
-          this.finish(false);
-        } else {
-          this.phase = 'idle';
-          this.renderBar();
-        }
       }
     }
 

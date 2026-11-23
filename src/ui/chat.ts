@@ -345,6 +345,12 @@ export class ChatPanel {
         sources: [{ title: 'Study Nook Resume', targetId: 'DOOR_study' }]
       };
     }
+    if (has('کمیونٹی', 'قیادت', 'سرگرمی', 'سرگرمیاں', 'تقریب', 'ایونٹ', 'گیم کون')) {
+      return {
+        text: 'کیمپس کی زندگی میں زرینہ بہت فعال ہیں: GameVerse سوسائٹی کی ایونٹس اور لاجسٹکس ٹیم کا حصہ، دونوں ایڈیشنز میں اس کے مرکزی ایونٹ GameCon کی میزبان، ایک سال SENTEC کی رکن، اور MPERC ایونٹ کی آرگنائزنگ ٹیم میں شامل۔ بیڈروم کی کمیونٹی وال بھی دیکھیں! 🎉',
+        sources: [{ title: 'Community wall (Bedroom)', targetId: 'DOOR_bedroom' }]
+      };
+    }
     if (has('گیم', 'کھیل', 'پروجیکٹ', 'پراجیکٹ', 'منصوب', 'آرکیڈ')) {
       const featured = projectsData.filter((p) => p.featured).map((p) => p.title).join('، ');
       return {
@@ -384,6 +390,14 @@ export class ChatPanel {
       return {
         text: `Yes! Zarina's resume is on the desk in the Study Nook (press E on it), or download it straight away from ${profile.resume}. It's also in the pause menu. 📄`,
         sources: [{ title: 'Study Nook Resume', targetId: 'DOOR_study' }]
+      };
+    }
+
+    // Community / extracurriculars
+    if (q.includes('communit') || q.includes('extra') || q.includes('activit') || q.includes('lead') || q.includes('event') || q.includes('gamecon') || q.includes('society') || q.includes('volunteer')) {
+      return {
+        text: "Beyond code, Zarina is active in campus life: part of the GameVerse society's events and logistics team, host of its flagship event GameCon at both editions, a member of SENTEC for a year, and part of the organizing team for the MPERC event. See the Community wall in the bedroom!",
+        sources: [{ title: 'Community wall (Bedroom)', targetId: 'DOOR_bedroom' }]
       };
     }
 
