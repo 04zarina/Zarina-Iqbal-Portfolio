@@ -7,7 +7,7 @@ import type { RoomId } from '../../core/store';
 import { audioManager } from '../../audio/audioManager';
 
 /** Showreel tape: stands on the desk between the lamp and the front edge, big enough to spot. */
-const TAPE_POS = new THREE.Vector3(1.78, 0.76, -2.93);
+const TAPE_POS = new THREE.Vector3(1.6, 0.76, -2.82);
 /** Desk lamp state survives leaving and re-entering the bedroom. Off when she first wakes up. */
 let lampOn = false;
 const MIRROR_X = -0.8;
