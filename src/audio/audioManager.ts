@@ -195,35 +195,53 @@ export class AudioManager {
     seq.forEach((f, i) => this.tone(f, 0.22, { type: 'triangle', vol: 0.12, at: i * 0.12 }));
   }
   /** Zuzu purring while being petted. */
+  /** Zuzu being petted: a happy chirp, two soft rumbly purr breaths and a little trill. */
   playPurr(): void {
     if (this.isMuted || !this.ctx) return;
-    try {
-      const t0 = this.ctx.currentTime;
-      const osc = this.ctx.createOscillator();
-      const lfo = this.ctx.createOscillator();
-      const lfoGain = this.ctx.createGain();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.value = 55;
-      lfo.frequency.value = 24;
-      lfoGain.gain.value = this.sfxVolume * 0.06;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.linearRampToValueAtTime(this.sfxVolume * 0.05, t0 + 0.2);
-      gain.gain.linearRampToValueAtTime(0.0001, t0 + 1.4);
-      const lp = this.ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 300;
-      lfo.connect(lfoGain);
-      lfoGain.connect(gain.gain);
-      osc.connect(lp);
-      lp.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(t0);
-      lfo.start(t0);
-      osc.stop(t0 + 1.5);
-      lfo.stop(t0 + 1.5);
-    } catch {}
-    this.tone(1200, 0.2, { type: 'sine', vol: 0.05, to: 1700, at: 0.1 });
+    const ctx = this.ctx;
+    const v = this.sfxVolume;
+    const breath = (at: number, dur: number, pitch: number) => {
+      try {
+        const t0 = ctx.currentTime + at;
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(pitch, t0);
+        osc.frequency.linearRampToValueAtTime(pitch * 0.92, t0 + dur);
+        // Rumble: amplitude wobble ~23 times a second, like a real purr
+        const am = ctx.createGain();
+        am.gain.value = 0.5;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 23;
+        const lfoDepth = ctx.createGain();
+        lfoDepth.gain.value = 0.5;
+        lfo.connect(lfoDepth);
+        lfoDepth.connect(am.gain);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 650;
+        lp.Q.value = 2;
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, t0);
+        env.gain.linearRampToValueAtTime(v * 0.09, t0 + dur * 0.3);
+        env.gain.linearRampToValueAtTime(v * 0.07, t0 + dur * 0.7);
+        env.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+        osc.connect(am);
+        am.connect(lp);
+        lp.connect(env);
+        env.connect(ctx.destination);
+        osc.start(t0);
+        lfo.start(t0);
+        osc.stop(t0 + dur + 0.05);
+        lfo.stop(t0 + dur + 0.05);
+      } catch {}
+    };
+    // "Mrrp?" up-chirp, purr in, purr out, then a tiny "prrt!" trill
+    this.tone(820, 0.12, { type: 'triangle', vol: 0.07, to: 1250 });
+    this.tone(1250, 0.1, { type: 'sine', vol: 0.05, to: 1500, at: 0.1 });
+    breath(0.22, 0.65, 120);
+    breath(0.95, 0.75, 105);
+    this.tone(1400, 0.06, { type: 'sine', vol: 0.045, to: 1700, at: 1.75 });
+    this.tone(1600, 0.07, { type: 'sine', vol: 0.04, to: 1300, at: 1.83 });
   }
   /** Zuzu's little "mrrp" when speaking. */
   playMrrp(): void {

@@ -93,6 +93,13 @@ export class AvatarController {
       return;
     }
 
+    // Getting out of bed is scripted: ignore movement keys until she's standing
+    if (this.avatar.isWakingUp) {
+      this.velocity.set(0, 0, 0);
+      this.avatar.update(delta);
+      return;
+    }
+
     // If sitting and player moves or jumps, stand up!
     if (this.avatar.isSitting) {
       if (inputLength > 0.1 || this.keys['Space']) {

@@ -22,7 +22,7 @@ export const CLIP_KEYWORDS: Record<AvatarClip, string[]> = {
   wake: ['wakeup', 'getting up', 'stand up', 'wake'],
   pet: ['petting', 'pet', 'kneel', 'crouch'],
   cheer: ['cheer', 'victory', 'happy', 'clap', 'wave'],
-  reach: ['button', 'reach', 'grab', 'throw'],
+  reach: ['button', 'reach', 'grab'],
   throw: ['throw']
 };
 
@@ -33,7 +33,7 @@ export type AvatarClip = 'idle' | 'walk' | 'run' | 'wave' | 'sit' | 'sleep' | 'w
  * after standing back up; Throw has a slow start and a long settle at the end.
  */
 const TRIM: Record<string, [number, number]> = {
-  Petting: [2.0, 8.6],
+  Petting: [2.6, 8.0],
   Throw: [0.25, 1.75]
 };
 

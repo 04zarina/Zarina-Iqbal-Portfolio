@@ -95,6 +95,7 @@ export class Avatar {
       model.updateMatrixWorld(true);
       model.position.y = -new THREE.Box3().setFromObject(model).min.y;
       model.traverse((o) => {
+        if ((o as THREE.Bone).isBone && /RightHand$/.test(o.name)) this.rightHand = o;
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;
         mesh.frustumCulled = false;
@@ -112,7 +113,7 @@ export class Avatar {
       this.mixamo.setSpeed('cheer', 1.4);
       this.mixamo.setSpeed('reach', 1.3);
       this.mixamo.setSpeed('throw', 1.2);
-      this.mixamo.setSpeed('pet', 1.6);
+      this.mixamo.setSpeed('pet', 2.0);
       this.mixamo.setSpeed('sleep', 1.4);
       this.mixamo.setSpeed('wake', 1.5);
       this.hasExternalModel = true;
@@ -492,8 +493,9 @@ export class Avatar {
     if (this.isSleeping || this.isWakingUp) return 0;
     if (this.isSitting && kind !== 'think' && kind !== 'reach') return 0;
     if (this.mixamo) {
-      // Clips: keep the Sitting pose while seated; standing gestures play their whole clip
-      if (this.isSitting || kind === 'think') return 0;
+      // Clips: keep the Sitting pose while seated; standing gestures play their whole clip.
+      // Touching objects (lamp, books...) has no fitting clip, so she just stays relaxed.
+      if (this.isSitting || kind === 'think' || kind === 'reach') return 0;
       const d = this.mixamo.duration(kind) || dur || 1;
       this.gesture = { kind, t: 0, dur: d };
       this.mixamo.play(kind, 0.2, true);
@@ -511,7 +513,7 @@ export class Avatar {
   gestureContact(kind: GestureKind): number {
     if (!this.mixamo) return kind === 'pet' ? 0.4 : kind === 'throw' ? 0.35 : 0;
     // Clip times after trimming (see TRIM in mixamo.ts), divided by playback speed
-    if (kind === 'pet') return 2.5 / 1.6;
+    if (kind === 'pet') return 1.85 / 2.0;
     if (kind === 'throw') return 0.6 / 1.2;
     return 0;
   }
@@ -547,13 +549,26 @@ export class Avatar {
 
   /** Something held in her right hand (e.g. the watering can). */
   private heldProp: THREE.Object3D | null = null;
+  private rightHand: THREE.Object3D | null = null;
+  private handTmp = new THREE.Vector3();
   attachToHand(obj: THREE.Object3D | null): void {
     if (this.heldProp) this.rootNode.remove(this.heldProp);
     this.heldProp = obj;
     if (obj) {
       obj.position.set(-0.3, 0.5, 0.22);
       this.rootNode.add(obj);
+      this.followHand();
     }
+  }
+
+  /** Rigged avatar: keep the held prop's handle in her right hand as the clips move it. */
+  private followHand(): void {
+    if (!this.heldProp || !this.rightHand || !this.mixamo) return;
+    this.group.updateMatrixWorld(true);
+    this.rightHand.getWorldPosition(this.handTmp);
+    this.rootNode.worldToLocal(this.handTmp);
+    // The can's handle top is ~0.28 m above its base; the grip sits a few cm below the wrist
+    this.heldProp.position.set(this.handTmp.x - 0.05, this.handTmp.y - 0.34, this.handTmp.z + 0.05);
   }
   get holding(): THREE.Object3D | null {
     return this.heldProp;
@@ -730,6 +745,7 @@ export class Avatar {
     this.updateRig(delta);
     this.group.position.copy(this.position);
     this.group.rotation.y = this.rotationY;
+    this.followHand();
 
     // 1a. Rigged wake-up: WakeUp clip on the bed edge, then hop down and walk to outPos
     if (this.isWakingUp && this.mixamo) {
