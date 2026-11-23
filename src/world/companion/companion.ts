@@ -13,7 +13,7 @@ import { navGrid } from '../nav';
 import { floatPop } from '../../ui/floatPop';
 
 const IDLE_LINES = [
-  'Psst! Play Snack Rain with me in the Dev Realm 🍪',
+  'Psst! Play fetch with me in the Dev Realm 🎾',
   'The watering can in the greenhouse makes skills grow 🌱',
   'Drag the screen to look around, F to see Zarina up close 👀',
   "Zarina's resume is on the Study desk 📄",
@@ -42,7 +42,7 @@ export class Companion {
   private idleChatTimer = 30;
   /** While > 0 Zuzu stays put (being petted, or waiting for Zarina to walk over). */
   private holdTimer = 0;
-  /** Snack Rain: Zuzu dashes to this spot instead of following. */
+  /** Fetch: Zuzu dashes to this spot instead of following. */
   public gameMode = false;
   public gameTarget: THREE.Vector3 | null = null;
 
@@ -447,7 +447,7 @@ export class Companion {
     return from + d * Math.min(1, k);
   }
 
-  /** Snack Rain: dash to the target snack, otherwise stay at Zarina's heels. */
+  /** Fetch: dash to the ball, otherwise stay at Zarina's heels. */
   private updateGame(delta: number, avatarPosition: THREE.Vector3): void {
     const goal = this.gameTarget ?? avatarPosition.clone().add(new THREE.Vector3(0.6, 0, 0.4));
     const to = goal.clone().sub(this.position).setY(0);
@@ -464,7 +464,7 @@ export class Companion {
     this.updateInteractAnchor();
   }
 
-  /** Celebrate a caught snack. */
+  /** Celebrate a fetch. */
   cheer(): void {
     this.happyTimer = 0.7;
     audioManager.playMrrp();

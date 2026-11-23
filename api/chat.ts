@@ -169,8 +169,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     console.error('Chat model error:', err);
     // Still answer from the notes rather than failing outright.
     const best = matches[0].chunk;
+    const note = lang === 'ur' ? 'معاف کیجیے، اردو جواب اس وقت دستیاب نہیں، یہ انگریزی نوٹس ہیں:\n' : '';
     return res.status(200).json({
-      answer: `${best.text.split(/(?<=[.!?])\s+/).slice(0, 3).join(' ')} [1]`,
+      answer: `${note}${best.text.split(/(?<=[.!?])\s+/).slice(0, 3).join(' ')} [1]`,
       sources: sources.slice(0, 3),
       grounded: true,
       mode: 'extractive'
@@ -197,9 +198,15 @@ export async function askGemini(apiKey: string, prompt: string, system = SYSTEM)
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 600 }
-      })
+        // Urdu script and "thinking" tokens use a lot of the budget, so leave plenty of room
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1600 }
+      }),
+      signal: AbortSignal.timeout(9000)
+    }).catch((e) => {
+      lastError = `${model}: ${String(e?.name || e)}`;
+      return null;
     });
+    if (!r) continue;
     if (r.status === 503 || r.status === 429 || r.status === 404 || r.status >= 500) {
       lastError = `${model}: ${r.status}`;
       continue;

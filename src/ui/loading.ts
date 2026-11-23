@@ -51,7 +51,7 @@ export class LoadingScreen {
     'Walk up to anything that sparkles and press E, or just click it',
     'Click the floor to walk there, drag to look around',
     'Zuzu the red panda knows all about Zarina. Click to pet!',
-    'Play Snack Rain with Zuzu, the mini game in the Dev Realm 🍪',
+    'Play fetch with Zuzu, the mini game in the Dev Realm 🎾',
     "Grab the watering can in the greenhouse and grow Zarina's skills",
     'The wardrobe in the bedroom is a portal… 🌀'
   ];

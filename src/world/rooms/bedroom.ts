@@ -800,7 +800,7 @@ export class BedroomRoom {
       if (interactionSystem.currentActive?.id === 'lamp') eventBus.emit('interaction:available', { id: 'lamp', label: item.label, keyHint: 'E', position: item.position });
     }
     if (lampOn) store.completeQuest('lamp_on');
-    eventBus.emit('toast:show', lampOn ? 'Lights on! 💡 The room is all cozy now. (☰ menu → Day mode for morning sunshine)' : 'Lamp off 🌙');
+    eventBus.emit('toast:show', lampOn ? 'Lamp on! 💡 Cozy night light. (☰ menu → Day mode for sunshine)' : 'Lamp off 🌙');
   }
 
   private setupSeats(): void {

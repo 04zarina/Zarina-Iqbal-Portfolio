@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alex Morgan — Portfolio (Classic 2D View)</title>
+  <title>Zarina Iqbal Buriro — Game Developer Portfolio (Classic 2D View)</title>
+  <meta name="description" content="Zarina Iqbal Buriro, game developer: gameplay systems, UI and interactions in Unreal Engine 5, Unity and Three.js." />
   <style>
     body {
       overflow-y: auto !important;
@@ -28,6 +29,23 @@
       gap: 24px;
       align-items: center;
       flex-wrap: wrap;
+    }
+    .hero-avatar {
+      width: 132px; height: 150px; flex: none;
+      border-radius: 28px;
+      background: radial-gradient(circle at 50% 38%, var(--butter), var(--blush) 70%);
+      border: 3px solid var(--cocoa);
+      display: flex; align-items: flex-end; justify-content: center; overflow: hidden;
+    }
+    .hero-avatar-sprite {
+      width: 109px; height: 160px;
+      background: url('/images/avatar-wave.webp') 0 0 / 2180px 160px no-repeat;
+      animation: hero-wave 2s steps(20) infinite;
+      margin-bottom: -10px;
+    }
+    @keyframes hero-wave { to { background-position: -2180px 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-avatar-sprite { animation: none; background-position: -654px 0; }
     }
     .section-card {
       background: var(--surface-color);
@@ -54,9 +72,10 @@
       justify-content: space-between;
     }
   </style>
-  <script type="module" crossorigin src="/assets/classic-C9pqMKLt.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/experience-CY5cJiN6.js">
-  <link rel="stylesheet" crossorigin href="/assets/experience-CeIbedZD.css">
+<style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}</style>
+  <script type="module" crossorigin src="/assets/classic-CxhSusWj.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/achievements-IHmIcE23.js">
+  <link rel="stylesheet" crossorigin href="/assets/achievements-DM-baiCW.css">
 </head>
 <body>
   <div class="classic-container">
@@ -68,17 +87,22 @@
 
     <!-- Hero Card -->
     <div class="hero-card">
-      <div style="width:96px; height:96px; border-radius:50%; background:var(--blush); border:3px solid var(--cocoa); display:flex; align-items:center; justify-content:center; font-size:3rem;">
-        🐾
-      </div>
+      <div class="hero-avatar" role="img" aria-label="Zarina's avatar waving hello"><div class="hero-avatar-sprite"></div></div>
       <div style="flex:1;">
-        <h1 style="font-family:var(--font-display); font-size:2.2rem; color:var(--ink); margin-bottom:4px;">Alex Morgan</h1>
+        <h1 style="font-family:var(--font-display); font-size:2.2rem; color:var(--ink); margin-bottom:4px;">Zarina Iqbal Buriro</h1>
         <p style="font-size:1.1rem; font-weight:700; color:var(--text-muted); margin-bottom:12px;">
-          Game Developer & Interactive 3D Technologist
+          Game Developer · Computer Science Undergraduate, NED University of Engineering and Technology
         </p>
-        <p style="font-size:0.95rem; line-height:1.5;">
-          Crafting playful digital worlds, cozy mechanics, and real-time interactive 3D experiences.
+        <p style="font-size:0.95rem; line-height:1.5; margin-bottom:10px;">
+          I build gameplay systems, UI and interactions in Unreal Engine 5, Unity and Three.js, from VR escape rooms to browser games.
         </p>
+        <p style="font-size:0.9rem; margin-bottom:12px;"><strong>Currently:</strong> interning at Aerox ERP on web and 3D interactions, final year at NED University.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <a href="/resume/Zarina_Iqbal_Resume.pdf" download="Zarina_Iqbal_Resume.pdf" class="sticker-btn accent-butter">Download Resume ⬇️</a>
+          <a href="mailto:zarinaiqbal04@gmail.com" class="sticker-btn accent-peach">Email ✉️</a>
+          <a href="https://www.linkedin.com/in/zarina-iqbal-97161528a" target="_blank" rel="noreferrer" class="sticker-btn accent-sky">LinkedIn</a>
+          <a href="https://github.com/04zarina" target="_blank" rel="noreferrer" class="sticker-btn accent-mint">GitHub</a>
+        </div>
       </div>
     </div>
 
@@ -86,11 +110,12 @@
     <section class="section-card">
       <h2 style="font-family:var(--font-display); margin-bottom:12px;">About Me</h2>
       <p style="line-height:1.6; margin-bottom:12px;">
-        Hi there! I am Alex Morgan, a game programmer, technical artist, and web 3D developer. I blend procedural generation, tactile physics, and cozy aesthetics to build games and web toys that bring smiles.
+        I'm Zarina, a Computer Science undergrad at NED University, specializing in Gaming &amp; Animation. I build gameplay systems, UI and interactions in Unreal Engine 5 and Unity3D, with a chunk of that work in VR and full gameplay loops built both solo and in teams.
       </p>
-      <p style="line-height:1.6;">
-        Specialized in Unity (C#), Three.js, WebGL, Godot 4, C++, and Blender 3D character modeling and rigging.
+      <p style="line-height:1.6; margin-bottom:12px;">
+        Outside pure development, I've worked through the production pipeline too: story and storyboarding for an original short, and motion graphics in After Effects. That range means I understand pacing and feel, not just code.
       </p>
+      <p style="line-height:1.6; font-weight:700;">Open to game development, game programming and interactive 3D roles and internships. Karachi, Pakistan.</p>
     </section>
 
     <!-- Projects Section with Filter & Search -->
@@ -116,15 +141,39 @@
       <div id="classic-timeline-list"></div>
     </section>
 
+    <!-- Leadership & Community -->
+    <section class="section-card">
+      <h2 style="font-family:var(--font-display); margin-bottom:12px;">Leadership &amp; Community</h2>
+      <p style="line-height:1.6;">
+        Beyond code, I am active in campus life. I have been part of the GameVerse society's events and logistics team and hosted its flagship event, GameCon, at both editions. I was a member of SENTEC for a year, also part of the organizing team for the MPERC event. Hosting in front of a live audience has made public speaking one of my strongest skills.
+      </p>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px;">
+        <figure style="margin:0;"><img src="/images/community/gamecon25.webp" alt="Zarina hosting NED GameCon'25 at TechFest'25" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Hosting NED GameCon'25</figcaption></figure>
+        <figure style="margin:0;"><img src="/images/community/gamecon26.webp" alt="Zarina at the podium hosting NED GameCon'26" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Hosting NED GameCon'26</figcaption></figure>
+        <figure style="margin:0;"><img src="/images/community/luth-gamecon26.webp" alt="Light Up The House presented on stage at GameCon'26" loading="lazy" style="width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:12px; border:2px solid var(--cocoa);" /><figcaption style="font-size:0.85rem; margin-top:4px;">Light Up The House, a GameCon'26 entry</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- Certificates (collapsed) -->
+    <section class="section-card">
+      <details>
+        <summary style="font-family:var(--font-display); font-size:1.3rem; font-weight:700; cursor:pointer;">Certificates</summary>
+        <ul id="classic-cert-list" style="margin-top:12px; padding-left:18px; line-height:1.6;"></ul>
+      </details>
+    </section>
+
     <!-- Contact Form -->
     <section class="section-card">
       <h2 style="font-family:var(--font-display); margin-bottom:12px;">Send a Message</h2>
       <form id="classic-contact-form" style="display:flex; flex-direction:column; gap:12px; max-width:540px;">
-        <input type="text" name="name" required placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <input type="email" name="email" required placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <input type="text" name="subject" required placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
-        <textarea name="message" required rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
+        <input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute; left:-9999px;" />
+        <label class="sr-only" for="cf-name">Your name</label>
+        <input id="cf-name" type="text" name="name" required minlength="2" maxlength="80" placeholder="Your Name" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="email" name="email" required maxlength="254" aria-label="Your email" placeholder="Your Email" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <input type="text" name="subject" required minlength="3" maxlength="120" aria-label="Subject" placeholder="Subject" style="padding:10px 14px; border-radius:var(--radius-pill); border:2px solid var(--cocoa);" />
+        <textarea name="message" required minlength="10" maxlength="2000" aria-label="Message" rows="4" placeholder="Your Message..." style="padding:10px 14px; border-radius:12px; border:2px solid var(--cocoa);"></textarea>
         <button type="submit" class="sticker-btn accent-butter" style="align-self:flex-start;">Submit Message ✉️</button>
+        <p id="classic-contact-status" role="status" aria-live="polite" style="display:none; font-weight:700;"></p>
       </form>
     </section>
   </div>

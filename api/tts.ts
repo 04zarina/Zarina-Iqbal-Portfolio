@@ -25,7 +25,7 @@ const MODELS = (process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts,ge
 
 const STYLE: Record<string, string> = {
   en: 'Say this in English in a cute, bubbly, high-pitched little cartoon-pet voice, warm and playful, at a lively pace:',
-  ur: 'یہ بات اردو زبان میں، صاف پاکستانی اردو لہجے میں، ایک پیاری، خوش مزاج، باریک کارٹون آواز میں کہیں (Speak in natural Urdu, cute cheerful cartoon-pet voice):'
+  ur: 'Read the following text aloud in natural Urdu with a native Pakistani Urdu accent, in a cute, cheerful, high-pitched cartoon-pet voice. Do not translate it:'
 };
 
 const hits = new Map<string, { count: number; since: number }>();
@@ -70,28 +70,32 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').split(',')[0].trim();
   if (rateLimited(ip)) return res.status(429).json({ error: 'Too many requests' });
 
+  const langCode = lang === 'ur' ? 'ur-PK' : 'en-US';
   for (const model of MODELS) {
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `${STYLE[lang]}\n${text}` }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } }
-          }
-        })
-      });
-      if (!r.ok) continue;
-      const data: any = await r.json();
-      const part = (data?.candidates?.[0]?.content?.parts || []).find((p: any) => p.inlineData?.data);
-      if (!part) continue;
-      const rate = Number(/rate=(\d+)/.exec(part.inlineData.mimeType || '')?.[1]) || 24000;
-      const wav = pcmToWav(Buffer.from(part.inlineData.data, 'base64'), rate);
-      return res.status(200).json({ audio: wav.toString('base64'), mime: 'audio/wav' });
-    } catch {
-      /* try the next model */
+    // Try with an explicit language first, then without in case the model rejects it
+    for (const withLang of [true, false]) {
+      try {
+        const speechConfig: any = { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } };
+        if (withLang) speechConfig.languageCode = langCode;
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `${STYLE[lang]}\n${text}` }] }],
+            generationConfig: { responseModalities: ['AUDIO'], speechConfig }
+          }),
+          signal: AbortSignal.timeout(12000)
+        });
+        if (!r.ok) continue;
+        const data: any = await r.json();
+        const part = (data?.candidates?.[0]?.content?.parts || []).find((p: any) => p.inlineData?.data);
+        if (!part) continue;
+        const rate = Number(/rate=(\d+)/.exec(part.inlineData.mimeType || '')?.[1]) || 24000;
+        const wav = pcmToWav(Buffer.from(part.inlineData.data, 'base64'), rate);
+        return res.status(200).json({ audio: wav.toString('base64'), mime: 'audio/wav' });
+      } catch {
+        /* try the next option */
+      }
     }
   }
   return res.status(502).json({ error: 'Voice unavailable' });

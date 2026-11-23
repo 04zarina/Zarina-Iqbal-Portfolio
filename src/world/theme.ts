@@ -87,13 +87,13 @@ export class ThemeManager {
 
     if (this.ambientLight) {
       // At night the room lights (interior) swap the cool moonlit ambient for a warm indoor fill
-      this.ambientLight.color.copy(this.dayAmbient).lerp(this.duskAmbient, p).lerp(WARM_ROOM, p * this.interior * 0.75);
-      this.ambientLight.intensity = THREE.MathUtils.lerp(1.2, THREE.MathUtils.lerp(0.32, 1.15, this.interior), p);
+      this.ambientLight.color.copy(this.dayAmbient).lerp(this.duskAmbient, p).lerp(WARM_ROOM, p * this.interior * 0.35);
+      this.ambientLight.intensity = THREE.MathUtils.lerp(1.2, THREE.MathUtils.lerp(0.32, 0.72, this.interior), p);
     }
 
     if (this.dirLight) {
-      this.dirLight.color.copy(this.dayLightColor).lerp(this.duskLightColor, p).lerp(WARM_ROOM, p * this.interior * 0.5);
-      this.dirLight.intensity = THREE.MathUtils.lerp(1.4, THREE.MathUtils.lerp(0.35, 1.1, this.interior), p);
+      this.dirLight.color.copy(this.dayLightColor).lerp(this.duskLightColor, p).lerp(WARM_ROOM, p * this.interior * 0.3);
+      this.dirLight.intensity = THREE.MathUtils.lerp(1.4, THREE.MathUtils.lerp(0.35, 0.62, this.interior), p);
     }
 
     eventBus.emit('theme:updated', { progress: p, mode: this.currentTheme });

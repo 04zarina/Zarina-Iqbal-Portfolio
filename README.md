@@ -11,7 +11,7 @@
   - **Arcade Room:** 5 big cabinets for the featured games plus 9 mini cabinets for the side projects, all with animated screens.
   - **Greenhouse Balcony:** Skill garden in five raised beds. Pick up the watering can and water a bed: each plant grows and pops a "+ skill" label.
   - **Study Hub:** Cork board with the certificate scans (click to view full size, Google AI Essentials has a verify link), sticky notes for each section, a big More Projects board and the resume on the desk.
-  - **Dev Realm:** Floating sky island through the wardrobe portal, with fireflies, the mailbox, and **Snack Rain**, a 40-second mini game where you play catch with Zuzu, plus a starry sky dome, crystals and a flower meadow.
+  - **Dev Realm:** Floating sky island through the wardrobe portal, with fireflies, the mailbox, and **Fetch with Zuzu**, a quick five-throw mini game, in a tidy layout with a plaza, a grove, a picnic spot and a starry sky.
   - Themed, labelled doors that swing open as you approach, rugs, seats (sofas, armchairs, chairs, the bed, a log) and night-mode lighting in every room.
 - **Interactive Avatar (Module 2):**
   - Wakes up in bed, sits up, stretches, walks to the camera and waves on start.

@@ -27,7 +27,7 @@ const BEAN_BAGS: [number, number, number, number][] = [
 
 /** Featured cabinets: one big row along the back wall, evenly spaced, on a lit stage. */
 const FEATURED_SCALE = 1.12;
-const FEATURED_SPACING = 2.2;
+const FEATURED_SPACING = 2.0;
 const FEATURED_Z = -3.05;
 const featuredX = (i: number) => (i - (Math.min(5, projectsData.length) - 1) / 2) * FEATURED_SPACING;
 
@@ -77,15 +77,17 @@ function spotPoolMat(): THREE.MeshBasicMaterial {
 }
 
 const MINI_SLOTS: [number, number, number][] = [
-  [-5.4, -2.2, Math.PI / 2],
-  [-5.4, -1.05, Math.PI / 2],
-  [-5.4, 0.1, Math.PI / 2],
-  [-5.4, 1.25, Math.PI / 2],
-  [-5.4, 2.4, Math.PI / 2],
-  [5.4, -2.3, -Math.PI / 2],
-  [5.4, -1.2, -Math.PI / 2],
-  [5.4, 1.3, -Math.PI / 2],
-  [5.4, 2.45, -Math.PI / 2]
+  // left wall (faces +X): five cabinets, 0.9 m apart, starting clear of the featured row
+  [-5.4, -1.8, Math.PI / 2],
+  [-5.4, -0.9, Math.PI / 2],
+  [-5.4, 0, Math.PI / 2],
+  [-5.4, 0.9, Math.PI / 2],
+  [-5.4, 1.8, Math.PI / 2],
+  // right wall (faces -X): the door at z = 0 stays free
+  [5.4, -1.8, -Math.PI / 2],
+  [5.4, -1.0, -Math.PI / 2],
+  [5.4, 1.1, -Math.PI / 2],
+  [5.4, 2.0, -Math.PI / 2]
 ];
 
 export class GameRoom {

@@ -184,12 +184,39 @@ export class ChatPanel {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   }
 
+  private voicesReady(): Promise<SpeechSynthesisVoice[]> {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) return resolve([]);
+      const have = speechSynthesis.getVoices();
+      if (have.length) return resolve(have);
+      const done = () => resolve(speechSynthesis.getVoices());
+      speechSynthesis.addEventListener('voiceschanged', done, { once: true });
+      setTimeout(done, 1200);
+    });
+  }
+
   private async speak(text: string): Promise<void> {
     if (!this.speakAnswers) return;
     this.stopSpeaking();
     const seq = this.speakSeq;
     const clean = text.replace(/\[\d+\]/g, '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim();
     if (!clean) return;
+    const voices = await this.voicesReady();
+    if (seq !== this.speakSeq) return;
+    const urduVoice = voices.find((v) => /^ur/i.test(v.lang) || /urdu|uzma|asad/i.test(v.name));
+
+    // Urdu: a real Urdu voice from the device (Edge/Windows/Android/Apple have them) sounds best
+    const speakInBrowser = (voice?: SpeechSynthesisVoice) => {
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = this.lang === 'ur' ? 'ur-PK' : 'en-US';
+      if (voice) u.voice = voice;
+      u.rate = 1.0;
+      u.pitch = 1.35;
+      speechSynthesis.speak(u);
+    };
+    if (this.lang === 'ur' && urduVoice) return speakInBrowser(urduVoice);
+
+    // Otherwise the cute server voice (speaks Urdu properly too)
     try {
       const r = await fetch('/api/tts', {
         method: 'POST',
@@ -200,7 +227,6 @@ export class ChatPanel {
         const { audio, mime } = await r.json();
         if (seq !== this.speakSeq || !this.speakAnswers) return;
         const a = new Audio(`data:${mime || 'audio/wav'};base64,${audio}`);
-        // A touch faster without pitch correction makes the voice a little squeakier, like Zuzu
         a.playbackRate = 1.08;
         (a as any).preservesPitch = false;
         this.audio = a;
@@ -208,23 +234,15 @@ export class ChatPanel {
         return;
       }
     } catch {
-      /* fall through to the browser voice */
+      /* fall through */
     }
-    if (seq !== this.speakSeq || !('speechSynthesis' in window)) return;
-    const voices = speechSynthesis.getVoices();
-    const voice =
-      this.lang === 'ur'
-        ? voices.find((v) => v.lang.toLowerCase().startsWith('ur'))
-        : voices.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|aria|jenny|google us english/i.test(v.name)) ||
-          voices.find((v) => /^en/i.test(v.lang));
-    // Without a real Urdu voice the browser reads Urdu with an English accent, so stay quiet instead
-    if (this.lang === 'ur' && !voice) return;
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = this.lang === 'ur' ? 'ur-PK' : 'en-US';
-    if (voice) u.voice = voice;
-    u.rate = 1.05;
-    u.pitch = 1.7;
-    speechSynthesis.speak(u);
+    if (seq !== this.speakSeq) return;
+    if (this.lang === 'ur') {
+      eventBus.emit('toast:show', 'No Urdu voice found on this device, so Zuzu will stay quiet. Try Microsoft Edge, which has Urdu voices. 🔇');
+      return;
+    }
+    const en = voices.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|aria|jenny|google us english/i.test(v.name)) || voices.find((v) => /^en/i.test(v.lang));
+    speakInBrowser(en);
   }
 
   private renderStarters(): void {
@@ -314,8 +332,48 @@ export class ChatPanel {
 
     // 2. Grounded Local Retrieval Fallback (Ensures chatbot functions seamlessly in all environments)
     thinkingBubble.remove();
-    const localAnswer = this.getLocalGroundedAnswer(text);
+    const localAnswer = this.lang === 'ur' || /[\u0600-\u06FF]/.test(text) ? this.getLocalUrduAnswer(text) : this.getLocalGroundedAnswer(text);
     this.appendMessage('bot', localAnswer.text, localAnswer.sources);
+  }
+
+  /** Offline answers in Urdu, used when the chat server can't be reached. */
+  private getLocalUrduAnswer(query: string): { text: string; sources: { title: string; targetId: string }[] } {
+    const has = (...w: string[]) => w.some((x) => query.includes(x));
+    if (has('ریزیوم', 'ریزومے', 'سی وی', 'resume', 'cv', 'ڈاؤن لوڈ')) {
+      return {
+        text: `جی ہاں! زرینہ کا ریزیومے اسٹڈی نُک کی میز پر رکھا ہے (اس پر E دبائیں)، یا سیدھا ${profile.resume} سے ڈاؤن لوڈ کر لیں۔ یہ پاز مینو میں بھی ہے۔ 📄`,
+        sources: [{ title: 'Study Nook Resume', targetId: 'DOOR_study' }]
+      };
+    }
+    if (has('گیم', 'کھیل', 'پروجیکٹ', 'پراجیکٹ', 'منصوب', 'آرکیڈ')) {
+      const featured = projectsData.filter((p) => p.featured).map((p) => p.title).join('، ');
+      return {
+        text: `زرینہ کی نمایاں گیمز آرکیڈ کیبنٹس پر ہیں: ${featured}۔ کل ${projectsData.length} پروجیکٹس ہیں، باقی دیکھنے کے لیے کسی بھی کارڈ پر Next دبائیں۔ 🕹️`,
+        sources: [{ title: 'Arcade Room Cabinets', targetId: 'DOOR_gameRoom' }]
+      };
+    }
+    if (has('مہارت', 'ہنر', 'اسکل', 'ٹول', 'سافٹ ویئر', 'یونٹی', 'انریل')) {
+      return {
+        text: 'زرینہ Unreal Engine 5 (Blueprints)، Unity (C#، VR/XR) اور Three.js / React Three Fiber میں کام کرتی ہیں، ساتھ TypeScript، Python، C++، Blender اور After Effects بھی۔ ہر مہارت کا ثبوت گرین ہاؤس میں دیکھیں! 🌿',
+        sources: [{ title: 'Greenhouse Skill Garden', targetId: 'DOOR_greenhouse' }]
+      };
+    }
+    if (has('رابطہ', 'ای میل', 'ایمیل', 'لنکڈ', 'ملاز', 'نوکری کے لیے')) {
+      return {
+        text: `آپ زرینہ کو ${profile.email} پر ای میل کر سکتے ہیں، LinkedIn پر رابطہ کر سکتے ہیں، یا Dev Realm کے میل باکس میں خط ڈال سکتے ہیں۔ 📬`,
+        sources: [{ title: 'Dev Realm Mailbox', targetId: 'DOOR_devRealm' }]
+      };
+    }
+    if (has('تعلیم', 'یونیورسٹی', 'ڈگری', 'تجربہ', 'انٹرن', 'پس منظر', 'بارے', 'کون', 'پڑھ')) {
+      return {
+        text: 'زرینہ NED یونیورسٹی میں کمپیوٹر سائنس (گیمنگ اینڈ اینیمیشن) کے آخری سال میں ہیں اور اس وقت Aerox ERP میں گیم ڈویلپر انٹرن ہیں، جہاں ویب اور تھری ڈی انٹرایکشنز پر کام کر رہی ہیں۔ پوری ٹائم لائن اسٹڈی کی کارک بورڈ پر ہے! 📚',
+        sources: [{ title: 'Study Nook Corkboard', targetId: 'DOOR_study' }]
+      };
+    }
+    return {
+      text: `میاؤ! یہ بات میرے نوٹس میں نہیں ہے۔ آپ ${profile.email} پر ای میل کر سکتے ہیں یا Dev Realm کے میل باکس میں خط ڈال سکتے ہیں! 📬`,
+      sources: [{ title: 'Dev Realm Mailbox', targetId: 'DOOR_devRealm' }]
+    };
   }
 
   private getLocalGroundedAnswer(query: string): { text: string; sources: { title: string; targetId: string }[] } {

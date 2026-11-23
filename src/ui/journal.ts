@@ -18,7 +18,7 @@ export class JournalOverlay {
     { id: 'explore_rooms', title: 'Studio Explorer', desc: 'Discover all 4 connected rooms.' },
     { id: 'get_resume', title: 'Hire Me?', desc: 'Grab the resume from the desk in the Study Nook.' },
     { id: 'send_letter', title: 'Pen Pal', desc: 'Drop a message into the mailbox on the Dev Realm island.' },
-    { id: 'snack_rain', title: 'Snack Buddies', desc: 'Play Snack Rain with Zuzu on the Dev Realm island.' },
+    { id: 'play_fetch', title: 'Fetch Buddies', desc: 'Play fetch with Zuzu on the Dev Realm island.' },
     { id: 'pet_zuzu', title: 'Best Friends', desc: 'Give Zuzu a pet.' }
   ];
 
