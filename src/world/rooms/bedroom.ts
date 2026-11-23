@@ -7,7 +7,7 @@ import type { RoomId } from '../../core/store';
 import { audioManager } from '../../audio/audioManager';
 
 /** Showreel tape: stands on the desk between the lamp and the front edge, big enough to spot. */
-const TAPE_POS = new THREE.Vector3(1.65, 0.76, -2.95);
+const TAPE_POS = new THREE.Vector3(1.78, 0.76, -2.93);
 /** Desk lamp state survives leaving and re-entering the bedroom. Off when she first wakes up. */
 let lampOn = false;
 const MIRROR_X = -0.8;
@@ -135,13 +135,13 @@ export class BedroomRoom {
 
     // 4. Point light for bedroom lamp
     this.lampLight = new THREE.PointLight(0xFFC27A, 1.4, 12, 1.2);
-    this.lampLight.position.set(1.05, 1.25, -3.0);
+    this.lampLight.position.set(1.35, 1.25, -3.0);
     this.group.add(this.lampLight);
     // Glowing bulb + halo inside the shade, only lit when the lamp is on
     this.lampBulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true }));
-    this.lampBulb.position.set(1.05, 1.12, -3.25);
+    this.lampBulb.position.set(1.35, 1.12, -3.25);
     this.lampHalo = this.night.halo(0xffd08a, 1.4);
-    this.lampHalo.position.set(1.05, 1.15, -3.2);
+    this.lampHalo.position.set(1.35, 1.15, -3.2);
     this.lampHalo.userData.manual = true;
     this.group.add(this.lampBulb, this.lampHalo);
     themeManager.setInteriorLight(lampOn ? 1 : 0, true);
@@ -306,7 +306,7 @@ export class BedroomRoom {
     const lampGltf = await assetLoader.loadGLTF('lamp_table');
     if (lampGltf) {
       const lamp = recenter(lampGltf);
-      lamp.position.set(1.05, 0.76, -3.25);
+      lamp.position.set(1.35, 0.76, -3.25);
       lamp.scale.setScalar(1.9);
       this.group.add(lamp);
     } else {
@@ -371,7 +371,7 @@ export class BedroomRoom {
 
   private buildFallbackLamp(): void {
     const lampGroup = new THREE.Group();
-    lampGroup.position.set(1.05, 0.76, -3.25);
+    lampGroup.position.set(1.35, 0.76, -3.25);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 16), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
     base.position.y = 0.02;
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 8), new THREE.MeshLambertMaterial({ color: 0xBBD4DD }));
@@ -651,7 +651,7 @@ export class BedroomRoom {
       label: lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡',
       keyHint: 'E',
       radius: 1.8,
-      position: new THREE.Vector3(1.05, 1.0, -3.0),
+      position: new THREE.Vector3(1.35, 1.0, -3.0),
       onInteract: () => this.toggleLamp()
     });
 
@@ -795,7 +795,7 @@ export class BedroomRoom {
     // Lamp on = morning: the whole studio turns to day. Lamp off = back to night.
     store.set('theme', lampOn ? 'day' : 'dusk');
     audioManager.playClick();
-    sparkleSystem.burst(new THREE.Vector3(1.05, 1.3, -3.1), 12);
+    sparkleSystem.burst(new THREE.Vector3(1.35, 1.3, -3.1), 12);
     const item = (interactionSystem as any).interactables?.get('lamp');
     if (item) {
       item.label = lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡';
