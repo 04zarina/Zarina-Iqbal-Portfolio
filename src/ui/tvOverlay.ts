@@ -72,6 +72,8 @@ export class TVVideoOverlay {
       video.controls = true;
       video.autoplay = true;
       video.playsInline = true;
+      video.poster = profile.showreel.poster;
+      video.preload = 'metadata';
       video.title = profile.showreel.title;
       video.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; background:#000;';
       screen.appendChild(video);
