@@ -101,6 +101,13 @@ export class HUD {
       eventBus.emit('companion:summon');
     };
 
+    // Showreel: always one click away (the TV in the bedroom plays the same video)
+    const reelBtn = document.createElement('button');
+    reelBtn.className = 'sticker-btn accent-mint hud-reel-btn';
+    reelBtn.innerHTML = '\u25B6 <span class="hud-ask-label">Showreel</span>';
+    reelBtn.setAttribute('aria-label', 'Watch the showreel');
+    reelBtn.onclick = () => this.openShowreel();
+
     // Journal stays on the bar; everything else lives in the ☰ menu to keep the screen clean
     const journalBtn = document.createElement('button');
     journalBtn.className = 'hud-icon-btn';
@@ -142,7 +149,7 @@ export class HUD {
 
     [journalBtn, menuBtn].forEach((b) => b.setAttribute('aria-label', b.title));
     askZuzuBtn.setAttribute('aria-label', 'Ask Zuzu, the chat guide');
-    topRight.append(askZuzuBtn, journalBtn, menuBtn, menu);
+    topRight.append(reelBtn, askZuzuBtn, journalBtn, menuBtn, menu);
     this.container.appendChild(topRight);
 
     // 3. Prompt Bubble (Projected 3D Sticker)
@@ -178,6 +185,14 @@ export class HUD {
     this.initJoystickTouch();
   }
 
+  private openShowreel(): void {
+    audioManager.playPop();
+    store.set('activeOverlay', 'tv');
+    store.set('tvPlaying', true);
+    store.completeQuest('watch_reel');
+    eventBus.emit('overlay:open', 'tv');
+  }
+
   /** The ☰ dropdown: view, sound, travel, quality and shortcuts. */
   private buildMenu(): HTMLElement {
     const menu = document.createElement('div');
@@ -187,6 +202,7 @@ export class HUD {
       <div class="hud-menu-section">
         <div class="hud-menu-title">Quick actions</div>
         <div class="hud-menu-grid">
+          <button data-act="reel">▶ Watch showreel</button>
           <button data-act="library">🗂️ All projects</button>
           <button data-act="face">👀 See her face</button>
           <button data-act="wave">👋 Wave</button>
@@ -224,7 +240,10 @@ export class HUD {
       const act = btn.dataset.act;
       const seg = (btn.parentElement as HTMLElement)?.dataset.seg;
       audioManager.playPop();
-      if (act === 'library') {
+      if (act === 'reel') {
+        menu.classList.remove('open');
+        this.openShowreel();
+      } else if (act === 'library') {
         store.set('activeOverlay', 'library');
         eventBus.emit('overlay:open', 'library');
         menu.classList.remove('open');
