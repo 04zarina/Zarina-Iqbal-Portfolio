@@ -121,7 +121,8 @@ export class AvatarController {
       } else {
         this.velocity.set(0, 0, 0);
         this.avatar.update(delta);
-        this.avatar.position.copy(collisionSystem.resolve(this.avatar.position, 0.4));
+        // (she may have just sat down on a bean bag or chair, which are inside collision boxes)
+        if (!this.avatar.isSitting) this.avatar.position.copy(collisionSystem.resolve(this.avatar.position, 0.4));
         interactionSystem.update(this.avatar.position, this.avatar.rotationY);
         return;
       }

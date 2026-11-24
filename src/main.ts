@@ -15,6 +15,7 @@ import { store } from './core/store';
 
 // UI Overlays
 import { HUD } from './ui/hud';
+import { accessibility } from './ui/accessibility';
 import { LoadingScreen } from './ui/loading';
 import { ProjectCardOverlay } from './ui/projectCard';
 import { ChatPanel } from './ui/chat';
@@ -128,6 +129,7 @@ async function bootstrap() {
 
   // 9. UI Systems
   const hud = new HUD();
+  accessibility.init();
   const projectOverlay = new ProjectCardOverlay();
   const chatPanel = new ChatPanel();
   const contactOverlay = new ContactFormOverlay();

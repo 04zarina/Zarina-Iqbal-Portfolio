@@ -106,6 +106,10 @@ export class InteractionSystem {
     this.clearActive();
   }
 
+  list(): InteractableConfig[] {
+    return [...this.interactables.values()].filter((i) => i.clickable !== false);
+  }
+
   get(id: string): InteractableConfig | undefined {
     return this.interactables.get(id);
   }

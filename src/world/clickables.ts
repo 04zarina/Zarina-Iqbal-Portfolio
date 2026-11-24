@@ -105,6 +105,11 @@ class ClickSystem {
     if (this.hovered?.object === object) this.hideTooltip();
   }
 
+  /** Everything registered in the room (for the accessibility list). Skips Zarina herself. */
+  list(): Clickable[] {
+    return this.items.filter((i) => i.object.visible && !i.label.includes('Say hi'));
+  }
+
   setWorldRoot(root: THREE.Object3D | null): void {
     this.worldRoot = root;
   }

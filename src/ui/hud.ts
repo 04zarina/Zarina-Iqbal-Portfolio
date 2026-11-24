@@ -3,6 +3,7 @@ import { store, RoomId } from '../core/store';
 import { eventBus } from '../core/events';
 import { audioManager } from '../audio/audioManager';
 import { qualityManager } from '../core/quality';
+import { accessibility } from './accessibility';
 import { profile } from '../content/profile';
 
 export class HUD {
@@ -202,6 +203,10 @@ export class HUD {
           <button data-val="high">High</button><button data-val="medium">Medium</button><button data-val="low">Low</button>
         </div>
       </div>
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Accessibility</div>
+        <button class="hud-menu-row" data-act="a11y">♿ Accessibility options and room list</button>
+      </div>
       <div class="hud-menu-section hud-menu-links">
         <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf">⬇️ Resume (PDF)</a>
         <a href="/classic">📄 2D classic view</a>
@@ -220,6 +225,9 @@ export class HUD {
         store.set('activeOverlay', 'library');
         eventBus.emit('overlay:open', 'library');
         menu.classList.remove('open');
+      } else if (act === 'a11y') {
+        menu.classList.remove('open');
+        accessibility.open(document.querySelector<HTMLElement>('.hud-burger') ?? undefined);
       } else if (act === 'face') {
         eventBus.emit('camera:face');
         menu.classList.remove('open');
