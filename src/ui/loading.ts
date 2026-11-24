@@ -48,7 +48,7 @@ export class LoadingScreen {
   private tipText: HTMLElement;
   private startBtn: HTMLButtonElement;
   private tips = [
-    'Walk up to anything that sparkles and press E, or just click it',
+    'Click or tap anything that sparkles to use it',
     'Click the floor to walk there, drag to look around',
     'Zuzu the red panda knows all about Zarina. Click to pet!',
     'Play fetch with Zuzu, the mini game in the Dev Realm 🎾',
@@ -80,7 +80,7 @@ export class LoadingScreen {
         <button class="splash-start" id="start-btn" hidden>▶ PRESS START</button>
         <p class="splash-tip" id="loading-tip">💡 ${this.tips[0]}</p>
       </div>
-      <div class="splash-foot">WASD / arrows to move · drag to look · E to interact · <a href="/classic">2D version</a></div>
+      <div class="splash-foot">WASD / arrows or click the floor to move · drag to look · click things to use them · <a href="/classic">2D version</a></div>
     `;
 
     document.body.appendChild(this.element);

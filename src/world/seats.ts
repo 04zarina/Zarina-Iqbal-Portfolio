@@ -16,18 +16,20 @@ export interface SeatConfig {
   standAt?: THREE.Vector3;
   radius?: number;
   priority?: number;
+  /** See InteractableConfig.clickRadius. */
+  clickRadius?: number;
   onSit?: () => void;
 }
 
-/** Registers a sit-able spot: press E (or tap the prompt) and she sits; move to stand up. */
+/** Registers a sit-able spot: click / tap the seat and she walks over and sits; move to stand up. */
 export function registerSeat(cfg: SeatConfig): void {
   const stand = cfg.standAt ?? cfg.position.clone().add(new THREE.Vector3(Math.sin(cfg.yaw) * 0.7, 0, Math.cos(cfg.yaw) * 0.7));
   interactionSystem.register({
     id: cfg.id,
     label: cfg.label,
-    keyHint: 'E',
     radius: cfg.radius ?? 1.4,
     priority: cfg.priority,
+    clickRadius: cfg.clickRadius,
     gesture: 'none',
     position: new THREE.Vector3(cfg.position.x, 0.5, cfg.position.z),
     onInteract: () => {
@@ -36,7 +38,7 @@ export function registerSeat(cfg: SeatConfig): void {
       a.standUpAt = stand.clone().setY(0);
       a.sitOnChair(new THREE.Vector3(cfg.position.x, 0, cfg.position.z), cfg.yaw, cfg.height ?? 0.42);
       audioManager.playSit();
-      eventBus.emit('toast:show', 'Comfy! 🛋️ Move or press Space to stand up.');
+      eventBus.emit('toast:show', 'Comfy! 🛋️ Walk or click the floor to stand up.');
       cfg.onSit?.();
     }
   });

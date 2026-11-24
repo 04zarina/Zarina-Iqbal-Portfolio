@@ -388,7 +388,7 @@ export class ChatPanel {
     // Resume
     if (q.includes('resume') || q.includes('cv') || q.includes('download')) {
       return {
-        text: `Yes! Zarina's resume is on the desk in the Study Nook (press E on it), or download it straight away from ${profile.resume}. It's also in the pause menu. 📄`,
+        text: `Yes! Zarina's resume is on the desk in the Study Nook (click it), or download it straight away from ${profile.resume}. It's also in the pause menu. 📄`,
         sources: [{ title: 'Study Nook Resume', targetId: 'DOOR_study' }]
       };
     }

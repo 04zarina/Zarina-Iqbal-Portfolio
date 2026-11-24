@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { eventBus } from '../core/events';
 import { store } from '../core/store';
-import { JellyController, jellyController } from './fx/jelly';
+import { jellyController } from './fx/jelly';
+import { clickSystem } from './clickables';
+import { navGrid } from './nav';
+import { refs } from './refs';
 
 export interface InteractableConfig {
   id: string;
   label: string;
-  keyHint?: string;
   radius: number;
   position: THREE.Vector3;
   mesh?: THREE.Object3D;
@@ -15,6 +17,10 @@ export interface InteractableConfig {
   priority?: number;
   /** Body language when used: 'reach' (default) touches the object, 'think' reads, 'none' for doors/seats. */
   gesture?: 'reach' | 'think' | 'none';
+  /** False keeps it off mouse/tap clicks (e.g. Zuzu, who has her own click handler). Default true. */
+  clickable?: boolean;
+  /** How far (m, on the floor plane) from `position` a click on the furniture still counts. Default 0.9. */
+  clickRadius?: number;
   onInteract: () => void | Promise<void>;
 }
 
@@ -84,7 +90,6 @@ export class InteractionSystem {
         eventBus.emit('interaction:available', {
           id: nearest.id,
           label: nearest.label,
-          keyHint: nearest.keyHint || 'E',
           position: nearest.position
         });
         if (nearest.mesh) {
@@ -105,16 +110,60 @@ export class InteractionSystem {
     return this.interactables.get(id);
   }
 
+  /** Keyboard shortcut (E / Enter): use whatever she's standing next to. No on-screen prompt. */
   triggerCurrent(): void {
-    if (this.currentActive && !store.get().inputLocked) {
-      const item = this.currentActive;
-      if (item.mesh) {
-        jellyController.trigger(item.mesh, 0.25, -0.3, 0.25);
-      }
-      eventBus.emit('interaction:use', item);
-      item.onInteract();
-      eventBus.emit('interaction:trigger', item.id);
+    if (this.currentActive) this.trigger(this.currentActive);
+  }
+
+  private trigger(item: InteractableConfig): void {
+    if (store.get().inputLocked || !this.interactables.has(item.id)) return;
+    if (item.mesh) {
+      jellyController.trigger(item.mesh, 0.25, -0.3, 0.25);
     }
+    eventBus.emit('interaction:use', item);
+    item.onInteract();
+    eventBus.emit('interaction:trigger', item.id);
+  }
+
+  /** The clickable interactable nearest to a point on the room's furniture, if one is close enough. */
+  nearestTo(point: THREE.Vector3): InteractableConfig | null {
+    let best: InteractableConfig | null = null;
+    let bestD = Infinity;
+    for (const item of this.interactables.values()) {
+      if (item.clickable === false) continue;
+      const d = Math.hypot(item.position.x - point.x, item.position.z - point.z);
+      if (d <= (item.clickRadius ?? 0.9) && d < bestD) {
+        bestD = d;
+        best = item;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Clicked / tapped: use it straight away if she's close enough, otherwise she walks over first
+   * (around the furniture) and uses it when she gets there.
+   */
+  activate(item: InteractableConfig): void {
+    const avatar = refs.avatar;
+    if (store.get().inputLocked) return;
+    if (!avatar || avatar.isSleeping || avatar.isWakingUp) return this.trigger(item);
+    const dist = Math.hypot(item.position.x - avatar.position.x, item.position.z - avatar.position.z);
+    if (dist <= item.radius) return this.trigger(item);
+
+    // Aim for a spot well inside its range, on the side she's coming from
+    const dir = avatar.position.clone().sub(item.position).setY(0);
+    if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
+    dir.normalize();
+    const spot = item.position.clone().addScaledVector(dir, Math.min(item.radius * 0.55, 0.9)).setY(0);
+    const path = navGrid.findPath(avatar.position, spot);
+    if (!path || !path.length) return;
+    if (avatar.isSitting) avatar.standUp();
+    eventBus.emit('travel:cancel');
+    avatar.followPath(path, 2.9, () => {
+      const d = Math.hypot(item.position.x - avatar.position.x, item.position.z - avatar.position.z);
+      if (d <= item.radius + 0.35) this.trigger(item);
+    });
   }
 
   private clearActive(): void {
@@ -126,3 +175,9 @@ export class InteractionSystem {
 }
 
 export const interactionSystem = new InteractionSystem();
+
+// Mouse and touch: clicking a bed, lamp, door, chair... uses it (with a pointer cursor + label on hover)
+clickSystem.setWorldResolver((point) => {
+  const item = interactionSystem.nearestTo(point);
+  return item ? { label: item.label, onClick: () => interactionSystem.activate(item) } : null;
+});

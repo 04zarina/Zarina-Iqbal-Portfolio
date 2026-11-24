@@ -346,7 +346,6 @@ export class GreenhouseRoom {
       interactionSystem.register({
         id: `bed_${bed.group}`,
         label: `See ${bed.label} skills 🌱`,
-        keyHint: 'E',
         radius: 1.7,
         position: bed.center,
         onInteract: () => {
@@ -359,7 +358,6 @@ export class GreenhouseRoom {
     interactionSystem.register({
       id: 'watering_can',
       label: 'Pick up the watering can 🚿',
-      keyHint: 'E',
       radius: 1.3,
       priority: 0.3,
       position: CAN_HOME.clone().setY(0.6),
@@ -370,7 +368,6 @@ export class GreenhouseRoom {
     interactionSystem.register({
       id: 'DOOR_bedroom',
       label: 'Back to Bedroom 🚪',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(0, 0.5, -3.3),
       onInteract: () => eventBus.emit('room:switch', 'bedroom')
@@ -447,7 +444,7 @@ export class GreenhouseRoom {
       if (cfg) cfg.label = 'Put the watering can back';
       this.relabelBeds(true);
       audioManager.playPickup();
-      eventBus.emit('toast:show', '🚿 Got the watering can! Walk up to a bed and press E (or click a plant) to water it.');
+      eventBus.emit('toast:show', '🚿 Got the watering can! Click a plant or a garden bed to water it.');
     }
     interactionSystem.refresh();
   }

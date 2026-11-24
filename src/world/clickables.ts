@@ -8,7 +8,12 @@ export interface Clickable {
   label: string;
   onClick: () => void;
   persistent?: boolean;
+  /** Made on the fly for furniture matched to an interactable (not registered). */
+  virtual?: boolean;
 }
+
+/** Given a point on the room's geometry, return what clicking there should do (or null). */
+export type WorldResolver = (point: THREE.Vector3) => { label: string; onClick: () => void } | null;
 
 /**
  * Mouse / touch input on the 3D canvas.
@@ -24,6 +29,11 @@ class ClickSystem {
   private canvas: HTMLElement | null = null;
   private tooltip: HTMLDivElement | null = null;
   private hovered: Clickable | null = null;
+  /** The current room's root: clicks on its furniture are matched to nearby interactables. */
+  private worldRoot: THREE.Object3D | null = null;
+  private worldResolver: WorldResolver | null = null;
+  private hoverQueued: { x: number; y: number } | null = null;
+  private hoverRaf = 0;
 
   private down: { x: number; y: number; id: number } | null = null;
   private dragging = false;
@@ -61,7 +71,7 @@ class ClickSystem {
         this.lastY = e.clientY;
         return;
       }
-      if (e.pointerType === 'mouse') this.updateHover(e.clientX, e.clientY);
+      if (e.pointerType === 'mouse') this.queueHover(e.clientX, e.clientY);
     });
 
     const end = (e: PointerEvent) => {
@@ -95,6 +105,14 @@ class ClickSystem {
     if (this.hovered?.object === object) this.hideTooltip();
   }
 
+  setWorldRoot(root: THREE.Object3D | null): void {
+    this.worldRoot = root;
+  }
+
+  setWorldResolver(resolver: WorldResolver | null): void {
+    this.worldResolver = resolver;
+  }
+
   /** Called on room change. Persistent objects (like Zuzu) stay registered. */
   clear(): void {
     this.items = this.items.filter((i) => i.persistent);
@@ -107,7 +125,7 @@ class ClickSystem {
     this.ndc.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, this.camera);
     const roots = this.items.filter((i) => i.object.visible).map((i) => i.object);
-    const hits = this.raycaster.intersectObjects(roots, true);
+    const hits = roots.length ? this.raycaster.intersectObjects(roots, true) : [];
     for (const hit of hits) {
       let o: THREE.Object3D | null = hit.object;
       while (o) {
@@ -116,7 +134,30 @@ class ClickSystem {
         o = o.parent;
       }
     }
+    return this.pickWorld();
+  }
+
+  /** Clicked the room itself: is it a piece of furniture someone can use (bed, lamp, door...)? */
+  private pickWorld(): Clickable | null {
+    if (!this.worldRoot || !this.worldResolver) return null;
+    const hits = this.raycaster.intersectObject(this.worldRoot, true);
+    for (const hit of hits) {
+      if (!this.solid(hit.object)) continue;
+      // The floor is for walking; only things standing on it can be used
+      if (hit.point.y < 0.06) return null;
+      const r = this.worldResolver(hit.point);
+      return r ? { object: hit.object, label: r.label, onClick: r.onClick, virtual: true } : null;
+    }
     return null;
+  }
+
+  /** A visible, opaque mesh (skips hidden helpers, particles and furniture faded out for the camera). */
+  private solid(obj: THREE.Object3D): boolean {
+    if (!(obj as THREE.Mesh).isMesh) return false;
+    const mats = ([] as THREE.Material[]).concat((obj as THREE.Mesh).material as THREE.Material | THREE.Material[]);
+    if (mats.every((m) => !m || !m.visible || (m.transparent && m.opacity < 0.5))) return false;
+    for (let o: THREE.Object3D | null = obj; o; o = o.parent) if (!o.visible) return false;
+    return true;
   }
 
   private blocked(): boolean {
@@ -135,9 +176,21 @@ class ClickSystem {
       }
       return;
     }
-    jellyController.trigger(item.object, 0.2, -0.25, 0.2);
+    if (!item.virtual) jellyController.trigger(item.object, 0.2, -0.25, 0.2);
     this.hideTooltip();
     item.onClick();
+  }
+
+  /** Hover raycasts at most once per frame. */
+  private queueHover(x: number, y: number): void {
+    this.hoverQueued = { x, y };
+    if (this.hoverRaf) return;
+    this.hoverRaf = requestAnimationFrame(() => {
+      this.hoverRaf = 0;
+      const q = this.hoverQueued;
+      this.hoverQueued = null;
+      if (q && !this.down) this.updateHover(q.x, q.y);
+    });
   }
 
   private updateHover(x: number, y: number): void {

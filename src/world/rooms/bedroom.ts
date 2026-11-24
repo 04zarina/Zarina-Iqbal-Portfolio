@@ -461,7 +461,7 @@ export class BedroomRoom {
 
   /**
    * Community wall on the right wall: a framed pin board with polaroid photos (captioned),
-   * washi tape, a bunting garland and a header sign. Click a photo (or press E nearby) for the story.
+   * washi tape, a bunting garland and a header sign. Click a photo for the story.
    */
   private buildCommunityWall(): void {
     const loader = new THREE.TextureLoader();
@@ -580,7 +580,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'community_wall',
       label: 'See GameCon photos 🎤',
-      keyHint: 'E',
       radius: 1.6,
       position: new THREE.Vector3(4.3, 0.5, 1.05),
       onInteract: () => eventBus.emit('open:community', 0)
@@ -634,8 +633,8 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'bed',
       label: 'Sleep in Bed / Lie Down 🛏️',
-      keyHint: 'E',
       radius: 2.0,
+      clickRadius: 1.6,
       position: new THREE.Vector3(-2.1, 0.6, -2.2),
       onInteract: () => {
         if (this.avatar?.isSleeping) {
@@ -650,7 +649,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'lamp',
       label: lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡',
-      keyHint: 'E',
       radius: 1.5,
       priority: 0.6,
       position: new THREE.Vector3(1.1, 0.9, -2.55),
@@ -677,7 +675,6 @@ export class BedroomRoom {
       interactionSystem.register({
         id: 'tape',
         label: 'Pick up Reel Tape 📼',
-        keyHint: 'E',
         radius: 1.7,
         priority: 0.35,
         position: new THREE.Vector3(TAPE_POS.x, 0.8, TAPE_POS.z + 0.3),
@@ -709,7 +706,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'tv',
       label: 'Watch Reel on TV',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(2.1, 0.9, -2.6),
       focusPose: {
@@ -728,7 +724,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'mirror',
       label: 'Look in Mirror (About Zarina)',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(MIRROR_X, 1.2, -3.1),
       onInteract: () => {
@@ -741,7 +736,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'shelf',
       label: 'See Achievements & Certificates 🏆',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(-1.95, 1.6, -2.9),
       onInteract: () => eventBus.emit('open:journal', 'collectibles')
@@ -751,7 +745,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'wardrobe',
       label: 'Enter Dev Realm Portal 🌀',
-      keyHint: 'E',
       radius: 2.0,
       position: new THREE.Vector3(3.8, 1.0, -1.2),
       onInteract: () => {
@@ -765,7 +758,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'DOOR_game',
       label: 'Enter Arcade Room 🕹️',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(-4.4, 0.5, 1.8),
       onInteract: () => eventBus.emit('room:switch', 'gameRoom')
@@ -774,7 +766,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'DOOR_greenhouse',
       label: 'Enter Greenhouse 🌿',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(-1.8, 0.5, 3.4),
       onInteract: () => eventBus.emit('room:switch', 'greenhouse')
@@ -783,7 +774,6 @@ export class BedroomRoom {
     interactionSystem.register({
       id: 'DOOR_study',
       label: 'Enter Study Nook 📚',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(2.0, 0.5, 3.4),
       onInteract: () => eventBus.emit('room:switch', 'study')
@@ -801,7 +791,7 @@ export class BedroomRoom {
     const item = (interactionSystem as any).interactables?.get('lamp');
     if (item) {
       item.label = lampOn ? 'Switch the lamp off 💡' : 'Switch the lamp on 💡';
-      if (interactionSystem.currentActive?.id === 'lamp') eventBus.emit('interaction:available', { id: 'lamp', label: item.label, keyHint: 'E', position: item.position });
+      if (interactionSystem.currentActive?.id === 'lamp') eventBus.emit('interaction:available', { id: 'lamp', label: item.label, position: item.position });
     }
     if (lampOn) store.completeQuest('lamp_on');
     eventBus.emit('toast:show', lampOn ? 'Lamp on! ☀️ It\'s morning, good day!' : 'Lamp off 🌙 Night again');
@@ -819,6 +809,7 @@ export class BedroomRoom {
       height: 0.615,
       radius: 1.1,
       priority: -0.2,
+      clickRadius: 0.5,
       standAt: new THREE.Vector3(-1.95, 0, -1.95)
     });
   }
@@ -843,7 +834,7 @@ export class BedroomRoom {
     if (!this.avatar) return;
     this.avatar.goToBed(this.bedPos, () => {
       store.set('isSleeping', true);
-      eventBus.emit('toast:show', 'Tucked warmly into bed! Press E or move to wake up 💤');
+      eventBus.emit('toast:show', 'Tucked warmly into bed! Click the bed (or just move) to wake up 💤');
       sparkleSystem.burst(new THREE.Vector3(-3.4, 1.0, -2.6), 14);
     });
   }

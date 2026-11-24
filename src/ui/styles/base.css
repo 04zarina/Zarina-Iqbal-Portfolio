@@ -63,7 +63,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hud-container .hud-top-left,
 .hud-container .hud-top-right,
 .hud-container .joystick-zone,
-.hud-container .action-btn-zone,
 .hud-container button { pointer-events: auto; }
 .hud-container .hud-top-left,
 .hud-container .hud-top-right { pointer-events: none; }
