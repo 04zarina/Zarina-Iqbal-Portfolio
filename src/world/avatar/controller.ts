@@ -76,8 +76,10 @@ export class AvatarController {
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) inputX -= 1;
     if (this.keys['KeyD'] || this.keys['ArrowRight']) inputX += 1;
 
-    // Merge joystick
+    // Merge joystick (touch always walks: a thumb easily pins the stick at the rim, which used to trigger running)
+    let usingJoystick = false;
     if (this.joystickVector.lengthSq() > 0.05) {
+      usingJoystick = true;
       inputX = this.joystickVector.x;
       inputZ = this.joystickVector.y;
     }
@@ -125,7 +127,7 @@ export class AvatarController {
       }
     }
 
-    const isRunning = Boolean(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || inputLength > 0.85);
+    const isRunning = !usingJoystick && Boolean(this.keys['ShiftLeft'] || this.keys['ShiftRight']);
 
     if (inputLength > 0.1) {
       // Normalize input
@@ -142,7 +144,8 @@ export class AvatarController {
       this.moveDirection.set(worldX, 0, worldZ).normalize();
 
       // Acceleration
-      const targetSpeed = isRunning ? this.runSpeed : this.walkSpeed;
+      const stick = usingJoystick ? Math.min(1, Math.max(0.55, inputLength)) : 1;
+      const targetSpeed = (isRunning ? this.runSpeed : this.walkSpeed) * stick;
       const targetVel = this.moveDirection.clone().multiplyScalar(targetSpeed);
 
       this.velocity.lerp(targetVel, 1 - Math.exp(-delta * this.acceleration));
