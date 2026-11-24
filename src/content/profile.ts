@@ -42,14 +42,11 @@ export const profile = {
     portfolio: 'https://zarinaiqbal.framer.website/'
   },
   showreel: {
-    title: 'Light Up The House: Trailer',
+    title: 'Game Dev Showreel',
     youtubeId: 'd1nB7CZ_fcg',
-    /**
-     * Promo video from After Effects (course module 3). Drop the export at
-     * public/video/promo.mp4 (H.264, under ~15 MB) and set this to '/video/promo.mp4';
-     * the TV then plays it instead of the YouTube trailer.
-     */
-    mp4: '' as string
+    /** 39s 1080p reel (H.264, ~13 MB). The TV plays this; YouTube id is the fallback if mp4 is empty. */
+    mp4: '/video/showreel.mp4' as string,
+    poster: '/video/showreel-poster.jpg'
   }
 } as const;
 
