@@ -22,7 +22,7 @@ function readBest(): number {
 }
 
 /**
- * "Fetch with Zuzu": the simplest possible game. Tap Throw (or press E / Space), Zarina
+ * "Fetch with Zuzu": the simplest possible game. Tap Throw, Zarina
  * tosses the ball, Zuzu races after it, grabs it and brings it back. Five throws, and
  * Zuzu answers every single one, so it is all about playing with Zuzu.
  */
@@ -74,7 +74,7 @@ export class ZuzuFetch {
         <div class="game-title">🎾 FETCH WITH ZUZU</div>
         <p class="game-sub">Throw the ball and Zuzu brings it back. That's it!</p>
         <ul class="game-rules">
-          <li>Tap <b>Throw</b> (or press <b>E</b>) to toss the ball. You can still walk around!</li>
+          <li>Tap <b>Throw</b> to toss the ball. You can still walk around!</li>
           <li>Zuzu runs, grabs it and brings it back to you</li>
           <li>Play ${ROUNDS} rounds and make Zuzu happy 💕</li>
         </ul>

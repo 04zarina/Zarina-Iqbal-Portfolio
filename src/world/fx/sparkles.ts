@@ -53,6 +53,7 @@ export class SparkleSystem {
   }
 
   burst(origin: THREE.Vector3, count: number = 18): void {
+    if (document.documentElement.classList.contains('a11y-reduce-motion')) return;
     const maxAllowed = qualityManager.config.sparkleCount;
     const actualCount = Math.min(count, Math.max(4, Math.floor(maxAllowed / 4)));
 

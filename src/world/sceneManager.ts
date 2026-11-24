@@ -136,6 +136,7 @@ export class SceneManager {
     const fromRoom = this.currentRoomId;
     this.currentRoom = newRoom;
     this.currentRoomId = targetRoomId;
+    clickSystem.setWorldRoot(newRoom.group);
     this.scene.add(newRoom.group);
 
     // 4. Position Avatar at room spawn

@@ -58,7 +58,7 @@ export class Companion {
     document.body.appendChild(this.bubble);
     this.initModel();
     this.initEvents();
-    clickSystem.register(this.group, '🤚 Pet Zuzu (E to chat)', () => this.pet(), true);
+    clickSystem.register(this.group, '🤚 Pet Zuzu · click again to chat', () => this.onClicked(), true);
   }
 
   private async initModel(): Promise<void> {
@@ -166,6 +166,21 @@ export class Companion {
     this.bubbleTimer = 20;
   }
 
+  private lastPetAt = -Infinity;
+
+  /** First click (or tap) pets Zuzu; another one within a few seconds opens the chat. */
+  private onClicked(): void {
+    const now = performance.now();
+    if (now - this.lastPetAt < 6000 && !this.gameMode) {
+      this.lastPetAt = -Infinity;
+      store.set('activeOverlay', 'chat');
+      eventBus.emit('overlay:open', 'chat');
+      return;
+    }
+    this.lastPetAt = now;
+    this.pet();
+  }
+
   /** Click Zuzu: Zarina walks over, crouches and strokes Zuzu with her right hand. */
   private pet(): void {
     const avatar = refs.avatar;
@@ -215,10 +230,10 @@ export class Companion {
     interactionSystem.register({
       id: 'companion',
       label: 'Chat with Zuzu 🐾',
-      keyHint: 'E',
       radius: 1.4,
       position: this.position,
       mesh: this.modelNode,
+      clickable: false, // clicking Zuzu pets her (see onClicked), E still opens the chat
       onInteract: () => {
         store.set('activeOverlay', 'chat');
         eventBus.emit('overlay:open', 'chat');

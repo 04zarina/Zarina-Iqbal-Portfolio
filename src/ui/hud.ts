@@ -1,23 +1,17 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import { store, RoomId } from '../core/store';
 import { eventBus } from '../core/events';
-import { interactionSystem } from '../world/interaction';
 import { audioManager } from '../audio/audioManager';
 import { qualityManager } from '../core/quality';
+import { accessibility } from './accessibility';
 import { profile } from '../content/profile';
 
 export class HUD {
   private container: HTMLElement;
   private roomButtons: Map<RoomId, HTMLButtonElement> = new Map();
-  private promptBubble: HTMLElement;
   private joystickZone: HTMLElement;
   private joystickKnob: HTMLElement;
-  private actionZone: HTMLElement;
 
-  private promptTarget3D: THREE.Vector3 | null = null;
-  private promptId = '';
-  /** Zuzu's speech bubble is showing: hide Zuzu's own prompt so only one bubble sits over it. */
-  private zuzuTalking = false;
   private joystickActive = false;
   private joystickTouchId: number | null = null;
   private joystickCenter = { x: 0, y: 0 };
@@ -152,34 +146,14 @@ export class HUD {
     topRight.append(reelBtn, askZuzuBtn, journalBtn, menuBtn, menu);
     this.container.appendChild(topRight);
 
-    // 3. Prompt Bubble (Projected 3D Sticker)
-    this.promptBubble = document.createElement('div');
-    this.promptBubble.className = 'prompt-bubble';
-    this.promptBubble.style.display = 'none';
-    this.promptBubble.onclick = () => {
-      interactionSystem.triggerCurrent();
-    };
-    this.container.appendChild(this.promptBubble);
-
-    // 4. Mobile Joystick & Action Button
+    // 3. Mobile Joystick (things in the room are used by tapping them, no USE button)
     this.joystickZone = document.createElement('div');
     this.joystickZone.className = 'joystick-zone';
     this.joystickKnob = document.createElement('div');
     this.joystickKnob.className = 'joystick-knob';
     this.joystickZone.appendChild(this.joystickKnob);
 
-    this.actionZone = document.createElement('div');
-    this.actionZone.className = 'action-btn-zone';
-    const actionBtn = document.createElement('button');
-    actionBtn.className = 'action-big-btn';
-    actionBtn.innerHTML = '<span aria-hidden="true">✋</span><small>USE</small>';
-    actionBtn.setAttribute('aria-label', 'Use / interact');
-    actionBtn.onclick = () => {
-      interactionSystem.triggerCurrent();
-    };
-    this.actionZone.appendChild(actionBtn);
-
-    this.container.append(this.joystickZone, this.actionZone);
+    this.container.append(this.joystickZone);
 
     this.initEvents();
     this.initJoystickTouch();
@@ -229,6 +203,10 @@ export class HUD {
           <button data-val="high">High</button><button data-val="medium">Medium</button><button data-val="low">Low</button>
         </div>
       </div>
+      <div class="hud-menu-section">
+        <div class="hud-menu-title">Accessibility</div>
+        <button class="hud-menu-row" data-act="a11y">♿ Accessibility options and room list</button>
+      </div>
       <div class="hud-menu-section hud-menu-links">
         <a href="${profile.resume}" download="Zarina_Iqbal_Resume.pdf">⬇️ Resume (PDF)</a>
         <a href="/classic">📄 2D classic view</a>
@@ -247,6 +225,9 @@ export class HUD {
         store.set('activeOverlay', 'library');
         eventBus.emit('overlay:open', 'library');
         menu.classList.remove('open');
+      } else if (act === 'a11y') {
+        menu.classList.remove('open');
+        accessibility.open(document.querySelector<HTMLElement>('.hud-burger') ?? undefined);
       } else if (act === 'face') {
         eventBus.emit('camera:face');
         menu.classList.remove('open');
@@ -301,22 +282,6 @@ export class HUD {
 
   private initEvents(): void {
     eventBus.on('room:entered', (roomId: RoomId) => this.updateRoomBadge(roomId));
-
-    eventBus.on('interaction:available', (data: { id: string; label: string; keyHint: string; position: THREE.Vector3 }) => {
-      this.promptTarget3D = data.position;
-      this.promptId = data.id;
-      this.promptBubble.innerHTML = `<span class="prompt-key">${data.keyHint}</span> <span>${data.label}</span>`;
-      this.promptBubble.style.display = 'flex';
-      audioManager.playPop();
-    });
-
-    eventBus.on('zuzu:bubble', (on: boolean) => (this.zuzuTalking = on));
-
-    eventBus.on('interaction:clear', () => {
-      this.promptTarget3D = null;
-      this.promptId = '';
-      this.promptBubble.style.display = 'none';
-    });
   }
 
   private initJoystickTouch(): void {
@@ -385,26 +350,7 @@ export class HUD {
     window.addEventListener('touchcancel', onTouchEnd, { passive: false });
   }
 
-  update(camera: THREE.Camera): void {
-    if (this.promptTarget3D) {
-      const hide = this.promptId === 'companion' && this.zuzuTalking;
-      this.promptBubble.style.display = hide ? 'none' : 'flex';
-      if (hide) return;
-      const pos = this.promptTarget3D.clone();
-      pos.y += 0.8; // Float slightly above interactable anchor
-      pos.project(camera);
-
-      // Check if behind camera
-      if (pos.z > 1.0) {
-        this.promptBubble.style.display = 'none';
-        return;
-      }
-
-      const screenX = ((pos.x + 1) * window.innerWidth) / 2;
-      const screenY = ((-pos.y + 1) * window.innerHeight) / 2;
-
-      this.promptBubble.style.left = `${screenX}px`;
-      this.promptBubble.style.top = `${screenY}px`;
-    }
+  update(_camera: THREE.Camera): void {
+    // Nothing per-frame any more: interaction prompts were replaced by clicking/tapping objects
   }
 }

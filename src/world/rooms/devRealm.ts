@@ -394,7 +394,6 @@ export class DevRealmRoom {
     interactionSystem.register({
       id: 'mailbox',
       label: 'Write a Letter (Contact) 📬',
-      keyHint: 'E',
       radius: 2.0,
       position: new THREE.Vector3(2.5, 0.8, 1.9),
       onInteract: () => {
@@ -406,7 +405,6 @@ export class DevRealmRoom {
     interactionSystem.register({
       id: 'play_fetch',
       label: 'Play fetch with Zuzu 🎾',
-      keyHint: 'E',
       radius: 1.6,
       position: new THREE.Vector3(-2.1, 0.6, -0.1),
       onInteract: () => this.startGame()
@@ -418,7 +416,6 @@ export class DevRealmRoom {
     interactionSystem.register({
       id: 'wardrobe_return',
       label: 'Return to Bedroom 🚪',
-      keyHint: 'E',
       radius: 2.0,
       position: new THREE.Vector3(0, 1.0, 2.8),
       onInteract: () => {

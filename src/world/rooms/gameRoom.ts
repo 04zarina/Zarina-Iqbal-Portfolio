@@ -190,7 +190,6 @@ export class GameRoom {
       interactionSystem.register({
         id: `mini_${project.id}`,
         label: `Play ${project.title} 🪙`,
-        keyHint: 'E',
         radius: 1.25,
         position: new THREE.Vector3(x, 0.9, z).addScaledVector(front, 0.6),
         onInteract: () => this.openProject(project.id)
@@ -424,7 +423,6 @@ export class GameRoom {
       interactionSystem.register({
         id: `cabinet_${index + 1}`,
         label: `Play ${project.title} 🪙`,
-        keyHint: 'E',
         radius: 1.8,
         position: new THREE.Vector3(posX, 1.3, posZ + 0.9),
         focusPose: {
@@ -452,7 +450,6 @@ export class GameRoom {
     interactionSystem.register({
       id: 'DOOR_bedroom',
       label: 'Back to Bedroom 🚪',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(5.3, 0.5, 0),
       onInteract: () => eventBus.emit('room:switch', 'bedroom')

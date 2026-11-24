@@ -63,9 +63,48 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hud-container .hud-top-left,
 .hud-container .hud-top-right,
 .hud-container .joystick-zone,
-.hud-container .action-btn-zone,
 .hud-container button { pointer-events: auto; }
 .hud-container .hud-top-left,
 .hud-container .hud-top-right { pointer-events: none; }
 .hud-container .hud-top-left > *,
 .hud-container .hud-top-right > * { pointer-events: auto; }
+
+/* ---- Accessibility options (see src/ui/accessibility.ts) ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+#canvas-container canvas:focus-visible { outline: 3px solid var(--cocoa); outline-offset: -3px; }
+html.a11y-reduce-motion *, html.a11y-reduce-motion *::before, html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html.a11y-large-text { font-size: 125%; }
+html.a11y-large-text .toast, html.a11y-large-text .hud-menu, html.a11y-large-text .modal-card { font-size: 1.1rem; }
+html.a11y-contrast canvas { filter: contrast(1.12) saturate(1.05); }
+html.a11y-contrast .toast, html.a11y-contrast .hud-menu, html.a11y-contrast .a11y-panel, html.a11y-contrast .modal-card,
+html.a11y-contrast .click-tooltip { background: #fff !important; color: #000 !important; border: 3px solid #000 !important; }
+html.a11y-contrast button, html.a11y-contrast a { text-decoration-thickness: 2px; }
+html.a11y-contrast button:focus-visible, html.a11y-contrast a:focus-visible { outline: 4px solid #000; box-shadow: 0 0 0 7px #fff; }
+
+.a11y-panel {
+  position: fixed; z-index: 400; top: 70px; right: 16px; width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto;
+  background: var(--cream); color: var(--ink); border: 3px solid var(--cocoa); border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow-sticker);
+  font-family: var(--font-body, inherit); pointer-events: auto;
+}
+.a11y-panel[hidden] { display: none; }
+.a11y-head { display: flex; align-items: center; justify-content: space-between; }
+.a11y-panel h2 { font-size: 1.15rem; margin: 0; }
+.a11y-panel h3 { font-size: 1rem; margin: 14px 0 4px; }
+.a11y-hint { font-size: .85rem; margin: 0 0 8px; opacity: .85; }
+.a11y-options { border: 0; padding: 0; margin: 10px 0 0; }
+.a11y-options legend { font-weight: 700; padding: 0; margin-bottom: 4px; }
+.a11y-options label { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.a11y-options input { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.a11y-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.a11y-panel .a11y-list button, .a11y-panel .a11y-close {
+  width: 100%; text-align: left; min-height: 44px; padding: 8px 12px; border: 2px solid var(--cocoa); border-radius: 12px;
+  background: #fff; color: #2b1d1a; font: inherit; font-weight: 600; text-shadow: none; cursor: pointer;
+}
+.a11y-panel .a11y-close { width: 44px; flex: none; text-align: center; padding: 0; }
+.a11y-panel .a11y-list button:hover { background: var(--butter); }
+@media (max-width: 700px) { .a11y-panel { top: 64px; right: 8px; left: 8px; width: auto; } }

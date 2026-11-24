@@ -15,6 +15,7 @@ import { store } from './core/store';
 
 // UI Overlays
 import { HUD } from './ui/hud';
+import { accessibility } from './ui/accessibility';
 import { LoadingScreen } from './ui/loading';
 import { ProjectCardOverlay } from './ui/projectCard';
 import { ChatPanel } from './ui/chat';
@@ -81,8 +82,8 @@ async function bootstrap() {
       store.set('isWakingUp', false);
       store.set('isSleeping', false);
       toastManager.show(matchMedia('(pointer: coarse)').matches
-        ? "It's still night 🌙 Walk to the desk lamp and tap USE to switch it on. Use the stick to walk, drag to look around."
-        : "It's still night 🌙 Walk to the desk lamp and press E to switch it on. WASD or click the floor to walk, drag to look around.");
+        ? "It's still night 🌙 Tap the desk lamp to switch it on. Tap the floor or use the stick to walk, drag to look around."
+        : "It's still night 🌙 Click the desk lamp to switch it on. WASD or click the floor to walk, drag to look around.");
     };
 
     followCamera.setCinematic({ position: new THREE.Vector3(-1.0, 1.9, 1.4), lookAt: new THREE.Vector3(-2.9, 0.7, -1.9) });
@@ -128,6 +129,7 @@ async function bootstrap() {
 
   // 9. UI Systems
   const hud = new HUD();
+  accessibility.init();
   const projectOverlay = new ProjectCardOverlay();
   const chatPanel = new ChatPanel();
   const contactOverlay = new ContactFormOverlay();

@@ -496,7 +496,6 @@ export class StudyRoom {
     interactionSystem.register({
       id: 'study_chair',
       label: 'Sit down & Study 📖',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(0, 0.5, 0.95),
       focusPose: {
@@ -517,7 +516,6 @@ export class StudyRoom {
     interactionSystem.register({
       id: 'corkboard',
       label: 'Inspect Career & Education 📌',
-      keyHint: 'E',
       radius: 2.2,
       position: new THREE.Vector3(0, 1.2, 1.8),
       focusPose: {
@@ -535,7 +533,6 @@ export class StudyRoom {
     interactionSystem.register({
       id: 'resume',
       label: 'Read & Download Resume 📄',
-      keyHint: 'E',
       radius: 1.6,
       priority: 0.45,
       position: new THREE.Vector3(0.75, 0.9, 1.15),
@@ -546,7 +543,6 @@ export class StudyRoom {
     interactionSystem.register({
       id: 'project_board',
       label: 'Browse my other projects 🗂️',
-      keyHint: 'E',
       radius: 2.0,
       priority: 0.3,
       position: new THREE.Vector3(-4.0, 0.5, BOARD_Z),
@@ -560,7 +556,6 @@ export class StudyRoom {
     interactionSystem.register({
       id: 'DOOR_bedroom',
       label: 'Back to Bedroom 🚪',
-      keyHint: 'E',
       radius: 1.8,
       position: new THREE.Vector3(0, 0.5, -3.3),
       onInteract: () => eventBus.emit('room:switch', 'bedroom')
